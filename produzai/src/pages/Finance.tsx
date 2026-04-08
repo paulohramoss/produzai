@@ -55,17 +55,17 @@ export default function Finance() {
   function fmt(v: unknown) { return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="page-title">Financeiro</h1>
           <p className="text-sm text-gray-500 mt-1">Controle total do seu dinheiro</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowAdd(true)}><Plus size={16} /> Novo Lançamento</button>
+        <button className="btn-primary self-start md:self-auto" onClick={() => setShowAdd(true)}><Plus size={16} /> Novo Lançamento</button>
       </div>
 
       {/* Top stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Entradas', value: fmt(income), icon: <TrendingUp size={16} />, color: 'text-emerald-400' },
           { label: 'Saídas', value: fmt(expense), icon: <TrendingDown size={16} />, color: 'text-red-400' },
@@ -86,7 +86,7 @@ export default function Finance() {
       </div>
 
       {/* Charts + cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Pie */}
         <div className="card p-5">
           <p className="font-semibold text-white mb-4">Gastos por Categoria</p>
@@ -144,7 +144,7 @@ export default function Finance() {
       {/* Cards */}
       <div>
         <p className="font-semibold text-white mb-3">Cartões</p>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {cards.map(c => (
             <div key={c.name} className={`rounded-2xl p-5 bg-gradient-to-br ${c.color} relative overflow-hidden`}>
               <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 -translate-y-8 translate-x-8" />
@@ -190,7 +190,7 @@ export default function Finance() {
       {/* Add modal */}
       {showAdd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowAdd(false)}>
-          <div className="card-raised p-6 w-96 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="card-raised p-6 w-full max-w-sm mx-4 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <p className="font-bold text-white">Novo Lançamento</p>
               <button onClick={() => setShowAdd(false)} className="text-gray-500 hover:text-white"><X size={18} /></button>

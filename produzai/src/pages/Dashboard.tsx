@@ -32,9 +32,9 @@ export default function Dashboard() {
   const top5 = ranking.slice(0, 5)
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-gray-500 text-sm">{getGreeting()},</p>
           <h1 className="text-3xl font-bold text-white">{profile.name.split(' ')[0]}! 👋</h1>
@@ -42,7 +42,7 @@ export default function Dashboard() {
             {today.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="card px-4 py-3 flex items-center gap-3">
             <Flame size={18} className="text-orange-400" />
             <div>
@@ -68,7 +68,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Saldo Atual" value={`R$ ${balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} sub="Entradas − saídas do mês" icon={<Wallet size={16} />} trend="up" trendValue="12%" color="text-emerald-400" />
         <StatCard label="Hábitos Hoje" value={`${todayHabits}/${habits.length}`} sub={`${habitRate}% de conclusão`} icon={<CheckCircle2 size={16} />} trend={habitRate >= 70 ? 'up' : 'down'} trendValue={`${habitRate}%`} />
         <StatCard label="Nível" value={`${profile.level}`} sub={`${(xpPct * 100).toFixed(0)}% para o próximo`} icon={<Zap size={16} />} color="text-brand-400" />
@@ -76,9 +76,9 @@ export default function Dashboard() {
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Progress chart */}
-        <div className="card p-5 col-span-2">
+        <div className="card p-5 col-span-1 md:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="font-semibold text-white">Consistência do Mês</p>
@@ -138,7 +138,7 @@ export default function Dashboard() {
       </div>
 
       {/* Bottom row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Hábitos de hoje */}
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">

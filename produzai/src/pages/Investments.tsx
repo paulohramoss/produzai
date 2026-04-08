@@ -29,17 +29,17 @@ export default function Investments() {
   function fmt(v: unknown) { return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="page-title">Investimentos</h1>
           <p className="text-sm text-gray-500 mt-1">Construa patrimônio com consistência</p>
         </div>
-        <button className="btn-primary"><Plus size={16} /> Novo Ativo</button>
+        <button className="btn-primary self-start md:self-auto"><Plus size={16} /> Novo Ativo</button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Total Investido', value: fmt(totalInvested), color: 'text-white' },
           { label: 'Valor Atual', value: fmt(totalCurrent), color: 'text-white' },
@@ -55,7 +55,7 @@ export default function Investments() {
       </div>
 
       {/* Main content */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Pie + legend */}
         <div className="card p-5">
           <p className="font-semibold text-white mb-4">Distribuição</p>
@@ -87,7 +87,7 @@ export default function Investments() {
         </div>
 
         {/* Projection */}
-        <div className="col-span-2 card p-5">
+        <div className="col-span-1 md:col-span-2 card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="font-semibold text-white">Projeção 12 meses</p>
@@ -130,11 +130,11 @@ export default function Investments() {
                     {CAT_LABELS[inv.category]}
                   </span>
                 </div>
-                <div className="text-right">
+                <div className="text-right hidden sm:block">
                   <p className="text-sm text-gray-400">Investido</p>
                   <p className="text-sm text-white font-medium">{fmt(inv.invested)}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right hidden sm:block">
                   <p className="text-sm text-gray-400">Atual</p>
                   <p className="text-sm text-white font-medium">{fmt(inv.current)}</p>
                 </div>

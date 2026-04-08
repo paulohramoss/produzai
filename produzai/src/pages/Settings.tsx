@@ -23,25 +23,25 @@ export default function Settings() {
   const [section, setSection] = useState('profile')
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6">
       <div>
         <h1 className="page-title">Configurações</h1>
         <p className="text-sm text-gray-500 mt-1">Personalize sua experiência no ProduzAI</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Sidebar */}
-        <div className="card p-3 h-fit">
+        <div className="card p-3 h-fit md:block flex flex-row flex-wrap gap-1">
           {SECTIONS.map(s => (
             <button key={s.id} onClick={() => setSection(s.id)}
-              className={`nav-item w-full ${section === s.id ? 'active' : ''}`}>
+              className={`nav-item ${section === s.id ? 'active' : ''}`}>
               {s.icon} {s.label}
             </button>
           ))}
         </div>
 
         {/* Content */}
-        <div className="col-span-3 space-y-4">
+        <div className="col-span-1 md:col-span-3 space-y-4">
           {section === 'profile' && (
             <>
               <div className="card p-5">
@@ -53,7 +53,7 @@ export default function Settings() {
                     <p className="text-xs text-gray-500 mt-1">JPG, PNG — máx 2MB</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
                     { label: 'Nome completo', placeholder: 'Lucas Mendes' },
                     { label: 'E-mail', placeholder: 'lucas@email.com' },

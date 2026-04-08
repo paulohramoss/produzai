@@ -36,13 +36,13 @@ export default function Goals() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="page-title">Sonhos & Metas</h1>
           <p className="text-sm text-gray-500 mt-1">Transforme desejos em planos concretos</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowAdd(true)}><Plus size={16} /> Nova Meta</button>
+        <button className="btn-primary self-start md:self-auto" onClick={() => setShowAdd(true)}><Plus size={16} /> Nova Meta</button>
       </div>
 
       {/* Overview */}
@@ -61,7 +61,7 @@ export default function Goals() {
       </div>
 
       {/* Goals grid */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {goals.map((g, idx) => {
           const pct = Math.round((g.currentAmount / g.targetAmount) * 100)
           const dl = daysLeft(g.deadline)
@@ -133,7 +133,7 @@ export default function Goals() {
       {/* Add modal */}
       {showAdd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowAdd(false)}>
-          <div className="card-raised p-6 w-[420px] space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="card-raised p-6 w-full max-w-[420px] mx-4 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <p className="font-bold text-white">Nova Meta</p>
               <button onClick={() => setShowAdd(false)} className="text-gray-500 hover:text-white"><X size={18} /></button>

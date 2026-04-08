@@ -83,7 +83,7 @@ export default function Chat() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-8 py-5 border-b border-surface-border flex items-center gap-4">
+      <div className="px-4 md:px-8 py-4 md:py-5 border-b border-surface-border flex items-center gap-4">
         <div className="w-10 h-10 rounded-xl bg-brand-600/20 border border-brand-600/30 flex items-center justify-center">
           <Sparkles size={18} className="text-brand-400" />
         </div>
@@ -97,7 +97,7 @@ export default function Chat() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6 space-y-4">
         {messages.map(m => <MessageBubble key={m.id} msg={m} />)}
         {isTyping && (
           <div className="flex gap-3">
@@ -115,7 +115,7 @@ export default function Chat() {
       </div>
 
       {/* Quick actions */}
-      <div className="px-8 py-2 flex gap-2 overflow-x-auto">
+      <div className="px-4 md:px-8 py-2 flex gap-2 overflow-x-auto">
         {quickActions.map(q => (
           <button key={q} onClick={() => sendMessage(q)}
             className="whitespace-nowrap text-xs px-3 py-1.5 rounded-full border border-surface-border text-gray-400 hover:border-brand-600 hover:text-brand-400 transition-all">
@@ -125,7 +125,7 @@ export default function Chat() {
       </div>
 
       {/* Input */}
-      <div className="px-8 py-5 border-t border-surface-border">
+      <div className="px-4 md:px-8 py-4 md:py-5 border-t border-surface-border">
         <div className="flex items-center gap-3 bg-surface-raised border border-surface-border rounded-2xl px-4 py-3">
           <button className="text-gray-500 hover:text-gray-300 transition-colors"><Paperclip size={18} /></button>
           <input

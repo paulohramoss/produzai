@@ -38,18 +38,18 @@ export default function Calendar() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="page-title">Agenda</h1>
           <p className="text-sm text-gray-500 mt-1">Calendário conectado às suas metas</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowAdd(true)}><Plus size={16} /> Novo Evento</button>
+        <button className="btn-primary self-start md:self-auto" onClick={() => setShowAdd(true)}><Plus size={16} /> Novo Evento</button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Calendar */}
-        <div className="col-span-2 card p-5">
+        <div className="col-span-1 md:col-span-2 card p-5">
           {/* Month nav */}
           <div className="flex items-center justify-between mb-5">
             <h2 className="font-bold text-white text-lg">{MONTHS[month]} {year}</h2>
@@ -145,7 +145,7 @@ export default function Calendar() {
 
       {showAdd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowAdd(false)}>
-          <div className="card-raised p-6 w-96 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="card-raised p-6 w-full max-w-sm mx-4 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <p className="font-bold text-white">Novo Evento</p>
               <button onClick={() => setShowAdd(false)} className="text-gray-500 hover:text-white"><X size={18} /></button>

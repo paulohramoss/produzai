@@ -55,17 +55,17 @@ export default function Reports() {
   ]
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="page-title">Relatórios</h1>
           <p className="text-sm text-gray-500 mt-1">Sua evolução em números</p>
         </div>
-        <button className="btn-ghost"><RefreshCw size={16} /> Atualizar</button>
+        <button className="btn-ghost self-start md:self-auto"><RefreshCw size={16} /> Atualizar</button>
       </div>
 
       {/* Top stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {topStats.map(s => (
           <div key={s.label} className="card p-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-surface-raised flex items-center justify-center flex-shrink-0">{s.icon}</div>
@@ -78,7 +78,7 @@ export default function Reports() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-surface-card p-1 rounded-xl w-fit">
+      <div className="flex gap-2 bg-surface-card p-1 rounded-xl overflow-x-auto">
         {TABS.map(t => (
           <button key={t} onClick={() => setActiveTab(t)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === t ? 'bg-brand-600 text-white' : 'text-gray-500 hover:text-white'}`}>
@@ -89,7 +89,7 @@ export default function Reports() {
 
       {/* Tab content */}
       {activeTab === 'XP' && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="card p-5">
             <p className="font-semibold text-white mb-4">XP por Mês</p>
             <ResponsiveContainer width="100%" height={220}>
@@ -122,7 +122,7 @@ export default function Reports() {
       )}
 
       {activeTab === 'Hábitos' && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="card p-5">
             <p className="font-semibold text-white mb-4">Taxa Mensal de Hábitos</p>
             <ResponsiveContainer width="100%" height={220}>
@@ -155,7 +155,7 @@ export default function Reports() {
       )}
 
       {activeTab === 'Financeiro' && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="card p-5">
             <p className="font-semibold text-white mb-4">Entradas vs Saídas (6 meses)</p>
             <ResponsiveContainer width="100%" height={220}>
@@ -188,7 +188,7 @@ export default function Reports() {
       )}
 
       {activeTab === 'Investimentos' && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="card p-5">
             <p className="font-semibold text-white mb-4">Distribuição da Carteira</p>
             <ResponsiveContainer width="100%" height={200}>
