@@ -1,7 +1,5 @@
-import Layout from './components/layout/Layout'
+import { RisePlan } from './rise/RisePlan'
 
-function App() {
-  return <Layout />
+export default function App() {
+  return <RisePlan />
 }
-
-export default App
