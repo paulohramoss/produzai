@@ -1,10 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { C, NAV_GROUPS, type Page } from "./data";
 import { Dot } from "./primitives";
-import { Dashboard } from "./pages/Dashboard";
-import { Treino } from "./pages/Treino";
-import { Dieta } from "./pages/Dieta";
-import { Integracoes } from "./pages/Integracoes";
+import { Dashboard }    from "./pages/Dashboard";
+import { Treino }       from "./pages/Treino";
+import { Dieta }        from "./pages/Dieta";
+import { Integracoes }  from "./pages/Integracoes";
+import { Hoje }         from "./pages/Hoje";
+import { Agenda }       from "./pages/Agenda";
+import { Projetos }     from "./pages/Projetos";
+import { Mental }       from "./pages/Mental";
+import { Biblioteca }   from "./pages/Biblioteca";
+import { Coach }        from "./pages/Coach";
+import { StravaPage }   from "./pages/StravaPage";
+import { WebDietPage }  from "./pages/WebDietPage";
+import {
+  bootstrapTokensFromEnv,
+  exchangeCode,
+  hasValidTokens,
+} from "../services/strava";
+import { useStravaStore } from "../store/useStravaStore";
 
 // ProduzAI pages
 // import { useAppStore } from '../store/useAppStore'
@@ -18,10 +32,9 @@ import { Integracoes } from "./pages/Integracoes";
 // import Settings from '../pages/Settings'
 
 const RISE_IMPLEMENTED: Page[] = [
-  "dashboard",
-  "treino",
-  "dieta",
-  "integracoes",
+  "dashboard", "hoje", "treino", "dieta", "agenda",
+  "projetos", "mental", "biblioteca",
+  "integracoes", "strava", "webdiet", "coach",
 ];
 
 // const PRODUZAI_MAP: Partial<Record<Page, React.ReactNode>> = {
@@ -36,24 +49,63 @@ const RISE_IMPLEMENTED: Page[] = [
 // }
 
 export function RisePlan() {
-  const [connected, setConnected] = useState<string[]>([]);
+  const [connected, setConnected] = useState<string[]>(() => {
+    bootstrapTokensFromEnv()
+    const initial: string[] = []
+    if (hasValidTokens()) initial.push("strava")
+    try {
+      const raw = localStorage.getItem("webdiet_data")
+      if (raw && JSON.parse(raw)?.state?.data) initial.push("webdiet")
+    } catch {
+      // ignore
+    }
+    return initial
+  });
   const [page, setPage] = useState<Page>("dashboard");
+  const [oauthLoading, setOauthLoading] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const scope = params.get("scope");
+    return !!(code && scope?.includes("activity:read_all"));
+  });
+  const stravaLoad = useStravaStore(s => s.load);
 
-  // const storeSetPage = useAppStore(s => s.setPage)
-  // const storePage = useAppStore(s => s.currentPage)
+  useEffect(() => {
+    // Handle OAuth redirect back from Strava
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const scope = params.get("scope");
+    const error = params.get("error");
 
-  // Sync store → Rise Plan (when ProduzAI pages navigate internally)
-  // useEffect(() => {
-  //   if (PRODUZAI_PAGES.includes(storePage as Page) && storePage !== page) {
-  //     setPage(storePage as Page)
-  //   }
-  // }, [storePage])
+    if (error) {
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
+    }
+
+    if (code && scope?.includes("activity:read_all")) {
+      exchangeCode(code)
+        .then(() => {
+          setConnected(prev => [...new Set([...prev, "strava"])]);
+          window.history.replaceState({}, "", window.location.pathname);
+          setOauthLoading(false);
+        })
+        .catch(err => {
+          console.error("Strava OAuth failed:", err);
+          setOauthLoading(false);
+          window.history.replaceState({}, "", window.location.pathname);
+        });
+    }
+  }, []);
+
+  // Load real Strava data whenever Strava becomes connected
+  useEffect(() => {
+    if (connected.includes("strava")) {
+      stravaLoad();
+    }
+  }, [connected, stravaLoad]);
 
   const navigate = (id: Page) => {
     setPage(id);
-    // if (PRODUZAI_PAGES.includes(id)) {
-    //   storeSetPage(id as Parameters<typeof storeSetPage>[0])
-    // }
   };
 
   const handleConnect = (svc: string) => {
@@ -212,30 +264,35 @@ export function RisePlan() {
         </div>
       </div>
 
+      {/* OAuth loading overlay */}
+      {oauthLoading && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 400, gap: 16 }}>
+          <div style={{ fontSize: 48 }}>🏃</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>Conectando ao Strava...</div>
+          <div style={{ fontSize: 13, color: C.muted }}>Trocando tokens e sincronizando dados</div>
+        </div>
+      )}
+
       {/* Main content */}
       <div style={{ flex: 1, overflowY: "auto", padding: 28 }}>
-        {page === "dashboard" && (
-          <Dashboard connected={connected} setPage={navigate} />
-        )}
-        {page === "treino" && (
-          <Treino connected={connected} setPage={navigate} />
-        )}
-        {page === "dieta" && <Dieta connected={connected} setPage={navigate} />}
-        {page === "integracoes" && (
-          <Integracoes connected={connected} onConnect={handleConnect} />
-        )}
+        {page === "dashboard"  && <Dashboard   connected={connected} setPage={navigate} />}
+        {page === "hoje"       && <Hoje        connected={connected} setPage={navigate} />}
+        {page === "treino"     && <Treino      connected={connected} setPage={navigate} />}
+        {page === "dieta"      && <Dieta       connected={connected} setPage={navigate} />}
+        {page === "agenda"     && <Agenda      connected={connected} setPage={navigate} />}
+        {page === "projetos"   && <Projetos    connected={connected} setPage={navigate} />}
+        {page === "mental"     && <Mental      connected={connected} setPage={navigate} />}
+        {page === "biblioteca" && <Biblioteca  connected={connected} setPage={navigate} />}
+        {page === "coach"      && <Coach       connected={connected} setPage={navigate} />}
+        {page === "integracoes"&& <Integracoes connected={connected} onConnect={handleConnect} />}
+        {page === "strava"     && <StravaPage  connected={connected} setPage={navigate} />}
+        {page === "webdiet"    && <WebDietPage connected={connected} setPage={navigate} />}
 
         {!RISE_IMPLEMENTED.includes(page) && (
-          <div
-            style={{ textAlign: "center", padding: "60px 0", color: C.muted }}
-          >
+          <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🚧</div>
-            <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>
-              Tela em construção
-            </div>
-            <div style={{ fontSize: 13 }}>
-              Esta seção será implementada em breve.
-            </div>
+            <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Tela em construção</div>
+            <div style={{ fontSize: 13 }}>Esta seção será implementada em breve.</div>
           </div>
         )}
       </div>
