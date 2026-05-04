@@ -5,11 +5,11 @@ function sanitizeEnv(value: unknown): string {
   return String(value || '').trim().replace(/^['"]|['"]$/g, '')
 }
 
-function getClientId(): string {
+function getClientId(): string | null {
   const clientId = sanitizeEnv(import.meta.env.VITE_STRAVA_CLIENT_ID as string | undefined)
-  if (!clientId) throw new Error('VITE_STRAVA_CLIENT_ID não configurado.')
+  if (!clientId) return null
   if (!/^\d+$/.test(clientId)) {
-    throw new Error('VITE_STRAVA_CLIENT_ID inválido. Use apenas números (sem aspas/espaços).')
+    return null
   }
   return clientId
 }
@@ -92,6 +92,7 @@ export function bootstrapTokensFromEnv(): void {
 
 export function getAuthUrl(): string {
   const clientId = getClientId()
+  if (!clientId) return ''
   const redirectUri =
     (import.meta.env.VITE_STRAVA_REDIRECT_URI as string | undefined) ||
     window.location.origin
@@ -147,6 +148,9 @@ async function callTokenEndpoint(
     client_secret: sanitizeEnv(secret),
     grant_type: 'code' in params ? 'authorization_code' : 'refresh_token',
     ...params,
+  }
+  if (!body.client_id) {
+    throw new Error('VITE_STRAVA_CLIENT_ID não configurado. Defina o client id do app Strava no .env.')
   }
 
   const res = await fetch('https://www.strava.com/oauth/token', {

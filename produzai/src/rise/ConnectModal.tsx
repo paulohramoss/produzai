@@ -47,6 +47,15 @@ export function ConnectModal({ service, onClose, onConnect }: Props) {
     setStep(2)
   }
 
+  const startStravaAuth = () => {
+    const authUrl = getAuthUrl()
+    if (!authUrl) {
+      alert('Integração Strava indisponível: configure VITE_STRAVA_CLIENT_ID no ambiente do app.')
+      return
+    }
+    window.location.href = authUrl
+  }
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 24 }}>
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: 36, maxWidth: 420, width: "100%", position: "relative" }}>
@@ -96,7 +105,7 @@ export function ConnectModal({ service, onClose, onConnect }: Props) {
             )}
 
             <button
-              onClick={() => isStrava ? (window.location.href = getAuthUrl()) : setStep(1)}
+              onClick={() => isStrava ? startStravaAuth() : setStep(1)}
               style={{ width: "100%", background: color, border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 800, color: "#fff", cursor: "pointer" }}>
               {isStrava ? "Autorizar com Strava →" : "Configurar Manualmente →"}
             </button>
