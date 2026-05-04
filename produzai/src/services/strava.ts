@@ -1,6 +1,19 @@
 const BASE_URL = 'https://www.strava.com/api/v3'
 const STORAGE_KEY = 'strava_tokens'
 
+function sanitizeEnv(value: unknown): string {
+  return String(value || '').trim().replace(/^['"]|['"]$/g, '')
+}
+
+function getClientId(): string {
+  const clientId = sanitizeEnv(import.meta.env.VITE_STRAVA_CLIENT_ID as string | undefined)
+  if (!clientId) throw new Error('VITE_STRAVA_CLIENT_ID não configurado.')
+  if (!/^\d+$/.test(clientId)) {
+    throw new Error('VITE_STRAVA_CLIENT_ID inválido. Use apenas números (sem aspas/espaços).')
+  }
+  return clientId
+}
+
 export interface StravaTokens {
   access_token: string
   refresh_token: string
@@ -78,7 +91,7 @@ export function bootstrapTokensFromEnv(): void {
 // ─── OAuth ───────────────────────────────────────────────────────────────────
 
 export function getAuthUrl(): string {
-  const clientId = import.meta.env.VITE_STRAVA_CLIENT_ID as string
+  const clientId = getClientId()
   const redirectUri =
     (import.meta.env.VITE_STRAVA_REDIRECT_URI as string | undefined) ||
     window.location.origin
@@ -130,16 +143,18 @@ async function callTokenEndpoint(
   }
 
   const body = {
-    client_id: import.meta.env.VITE_STRAVA_CLIENT_ID as string,
-    client_secret: secret,
+    client_id: getClientId(),
+    client_secret: sanitizeEnv(secret),
     grant_type: 'code' in params ? 'authorization_code' : 'refresh_token',
     ...params,
   }
 
   const res = await fetch('https://www.strava.com/oauth/token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(
+      Object.entries(body).map(([k, v]) => [k, String(v)]),
+    ).toString(),
   })
 
   if (!res.ok) {
