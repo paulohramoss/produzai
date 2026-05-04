@@ -46,8 +46,8 @@ export default async function handler(req, res) {
   try {
     const response = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(Object.entries(body).map(([k, v]) => [k, String(v)])).toString(),
     })
     const data = await response.json().catch(() => ({}))
     return res.status(response.status).json(data)
