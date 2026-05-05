@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { C } from './data'
-import { getAuthUrl } from '../services/strava'
+import { getConnectUrl } from '../services/strava'
 import { useWebDietStore, type WebDietGoals } from '../store/useWebDietStore'
 
 interface Props {
@@ -34,8 +34,8 @@ export function ConnectModal({ service, onClose, onConnect }: Props) {
 
   const stravaPerms = [
     "Atividades (corrida, ciclismo, natação)",
-    "Frequência cardíaca e zonas",
-    "Elevação, rotas e distância",
+    "Distância, tempo, ritmo e elevação",
+    "Frequência cardíaca quando disponível",
     "Recordes pessoais e volume",
   ]
 
@@ -48,12 +48,7 @@ export function ConnectModal({ service, onClose, onConnect }: Props) {
   }
 
   const startStravaAuth = () => {
-    const authUrl = getAuthUrl()
-    if (!authUrl) {
-      alert('Integração Strava indisponível: configure VITE_STRAVA_CLIENT_ID no ambiente do app.')
-      return
-    }
-    window.location.href = authUrl
+    window.location.assign(getConnectUrl())
   }
 
   return (
