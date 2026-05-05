@@ -1,24 +1,15 @@
-const BASE_URL = 'https://www.strava.com/api/v3'
-const STORAGE_KEY = 'strava_tokens'
+const API_BASE = '/api/strava'
 
-function sanitizeEnv(value: unknown): string {
-  return String(value || '').trim().replace(/^['"]|['"]$/g, '')
-}
-
-function getClientId(): string | null {
-  const clientId = sanitizeEnv(import.meta.env.VITE_STRAVA_CLIENT_ID as string | undefined)
-  if (!clientId) return null
-  if (!/^\d+$/.test(clientId)) {
-    return null
+export interface StravaStatus {
+  connected: boolean
+  athlete?: {
+    id?: number
+    name?: string
+    profile?: string
   }
-  return clientId
-}
-
-export interface StravaTokens {
-  access_token: string
-  refresh_token: string
-  expires_at: number // Unix timestamp in seconds
-  athlete_id?: number
+  scope?: string
+  expires_at?: number
+  expires_in?: number
 }
 
 export interface StravaData {
@@ -45,181 +36,87 @@ export interface StravaData {
   zones: Array<{ z: string; pct: number; c: string }>
 }
 
-// ─── Token management ────────────────────────────────────────────────────────
+interface ApiErrorBody {
+  error?: string
+  detail?: string
+  data?: { message?: string }
+}
 
-export function getTokens(): StravaTokens | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
+function getApiErrorMessage(status: number, body: ApiErrorBody | null): string {
+  if (status === 401) return 'Strava não conectado. Autorize sua conta novamente.'
+  if (status === 403) return 'O Strava não concedeu permissão para ler suas atividades.'
+  if (status === 404) {
+    return 'API local do Strava indisponível. Em desenvolvimento, execute com Vercel dev ou teste no deploy.'
   }
+  return body?.error || body?.data?.message || `Erro na API do Strava: ${status}`
 }
 
-export function setTokens(t: StravaTokens): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(t))
-}
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
+    ...init,
+    headers: {
+      ...(init?.headers || {}),
+    },
+  })
+  const body = await response.json().catch(() => null) as ApiErrorBody | T | null
 
-export function clearTokens(): void {
-  localStorage.removeItem(STORAGE_KEY)
-}
-
-export function hasValidTokens(): boolean {
-  return !!getTokens()?.access_token
-}
-
-function isExpired(): boolean {
-  const t = getTokens()
-  if (!t) return true
-  return Date.now() / 1000 >= t.expires_at - 300 // 5-min buffer
-}
-
-// Seeds tokens from VITE_ env vars on first boot (idempotent)
-export function bootstrapTokensFromEnv(): void {
-  if (hasValidTokens()) return
-  const access = import.meta.env.VITE_STRAVA_ACCESS_TOKEN as string | undefined
-  const refresh = import.meta.env.VITE_STRAVA_REFRESH_TOKEN as string | undefined
-  if (access && refresh) {
-    setTokens({
-      access_token: access,
-      refresh_token: refresh,
-      expires_at: Math.floor(Date.now() / 1000) + 3600, // optimistic: 1h
-    })
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(response.status, body as ApiErrorBody | null))
   }
+
+  if (body === null) {
+    throw new Error(getApiErrorMessage(404, null))
+  }
+
+  return body as T
 }
 
-// ─── OAuth ───────────────────────────────────────────────────────────────────
+export function getConnectUrl(): string {
+  return `${API_BASE}/connect`
+}
 
-export function getAuthUrl(): string {
-  const clientId = getClientId()
-  if (!clientId) return ''
-  const redirectUri =
-    (import.meta.env.VITE_STRAVA_REDIRECT_URI as string | undefined) ||
-    window.location.origin
-  return (
-    `https://www.strava.com/oauth/authorize` +
-    `?client_id=${clientId}` +
-    `&response_type=code` +
-    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&approval_prompt=auto` +
-    `&scope=activity:read_all,read`
+export async function getStravaStatus(): Promise<StravaStatus> {
+  return apiFetch<StravaStatus>('/status')
+}
+
+export async function disconnectStrava(): Promise<void> {
+  await apiFetch<{ ok: boolean }>('/disconnect', { method: 'POST' })
+}
+
+export function getStravaRedirectStatus(): string | null {
+  const params = new URLSearchParams(window.location.search)
+  const status = params.get('strava')
+  if (!status) return null
+
+  params.delete('strava')
+  const nextSearch = params.toString()
+  window.history.replaceState(
+    {},
+    '',
+    `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`,
   )
+  return status
 }
 
-// ─── Shared token endpoint caller ────────────────────────────────────────────
-// Tries the Vercel serverless proxy first (production + `vercel dev`).
-// If it returns 404 (plain `npm run dev`), falls back to calling Strava
-// directly using VITE_STRAVA_CLIENT_SECRET from the local .env — acceptable
-// for personal dev use since .env is gitignored.
-
-interface TokenResponse {
-  access_token: string
-  refresh_token: string
-  expires_at: number
-  athlete?: { id: number }
-  message?: string
+export function getStravaRedirectMessage(status: string | null): string | null {
+  switch (status) {
+    case 'connected':
+      return 'Strava conectado com sucesso.'
+    case 'denied':
+      return 'Conexão cancelada no Strava.'
+    case 'missing_scope':
+      return 'Autorize a permissão de atividades para o dashboard conseguir sincronizar.'
+    case 'invalid_state':
+      return 'Não foi possível validar a sessão OAuth. Tente conectar novamente.'
+    case 'error':
+      return 'Não foi possível concluir a conexão com o Strava. Tente novamente.'
+    default:
+      return null
+  }
 }
 
-async function callTokenEndpoint(
-  params: { code: string } | { refresh_token: string },
-): Promise<TokenResponse> {
-  // 1. Try serverless proxy
-  const proxyRes = await fetch('/api/strava/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  }).catch(() => null)
-
-  if (proxyRes && proxyRes.status !== 404) {
-    if (!proxyRes.ok) throw new Error(`Token endpoint error: ${proxyRes.status}`)
-    return proxyRes.json() as Promise<TokenResponse>
-  }
-
-  // 2. Dev fallback: call Strava directly (needs VITE_STRAVA_CLIENT_SECRET in .env)
-  const secret = import.meta.env.VITE_STRAVA_CLIENT_SECRET as string | undefined
-  if (!secret) {
-    throw new Error(
-      'Em dev sem vercel dev: adicione VITE_STRAVA_CLIENT_SECRET ao .env ou execute `vercel dev`.',
-    )
-  }
-
-  const body = {
-    client_id: getClientId(),
-    client_secret: sanitizeEnv(secret),
-    grant_type: 'code' in params ? 'authorization_code' : 'refresh_token',
-    ...params,
-  }
-  if (!body.client_id) {
-    throw new Error('VITE_STRAVA_CLIENT_ID não configurado. Defina o client id do app Strava no .env.')
-  }
-
-  const res = await fetch('https://www.strava.com/oauth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(
-      Object.entries(body).map(([k, v]) => [k, String(v)]),
-    ).toString(),
-  })
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { message?: string }
-    throw new Error(err.message ?? `Strava token error: ${res.status}`)
-  }
-  return res.json() as Promise<TokenResponse>
-}
-
-export async function exchangeCode(code: string): Promise<StravaTokens> {
-  const data = await callTokenEndpoint({ code })
-  if (!data.access_token) throw new Error(data.message || 'No access token returned')
-  const tokens: StravaTokens = {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    expires_at: data.expires_at,
-    athlete_id: data.athlete?.id,
-  }
-  setTokens(tokens)
-  return tokens
-}
-
-// ─── Internal HTTP ───────────────────────────────────────────────────────────
-
-async function refreshTokens(): Promise<string> {
-  const current = getTokens()
-  if (!current?.refresh_token) throw new Error('No refresh token stored')
-  const data = await callTokenEndpoint({ refresh_token: current.refresh_token })
-  setTokens({
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    expires_at: data.expires_at,
-    athlete_id: current.athlete_id,
-  })
-  return data.access_token
-}
-
-async function getAccessToken(): Promise<string> {
-  if (isExpired()) return refreshTokens()
-  return getTokens()!.access_token
-}
-
-async function apiFetch<T>(path: string): Promise<T> {
-  const token = await getAccessToken()
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (res.status === 401) {
-    // Force-refresh and retry once
-    const newToken = await refreshTokens()
-    const retry = await fetch(`${BASE_URL}${path}`, {
-      headers: { Authorization: `Bearer ${newToken}` },
-    })
-    if (!retry.ok) throw new Error(`Strava API error: ${retry.status}`)
-    return retry.json() as Promise<T>
-  }
-  if (!res.ok) throw new Error(`Strava API error: ${res.status}`)
-  return res.json() as Promise<T>
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// Helpers
 
 function formatPace(secsPerKm: number): string {
   const m = Math.floor(secsPerKm / 60)
@@ -237,8 +134,8 @@ function formatDuration(seconds: number): string {
 
 function weekStart(): Date {
   const d = new Date()
-  const day = d.getDay() || 7 // Sun→7
-  d.setDate(d.getDate() - day + 1) // Mon
+  const day = d.getDay() || 7
+  d.setDate(d.getDate() - day + 1)
   d.setHours(0, 0, 0, 0)
   return d
 }
@@ -273,10 +170,10 @@ const isRun = (a: RawActivity) => a.type === 'Run' || a.sport_type === 'Run'
 const isRide = (a: RawActivity) =>
   a.type === 'Ride' || a.sport_type === 'Ride' || a.sport_type === 'VirtualRide'
 
-// ─── Main data fetch ─────────────────────────────────────────────────────────
+// Main data fetch
 
 export async function fetchStravaData(): Promise<StravaData> {
-  const raw = await apiFetch<RawActivity[]>('/athlete/activities?per_page=50')
+  const raw = await apiFetch<RawActivity[]>('/activities?per_page=50')
 
   const ws = weekStart()
   const ms = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
@@ -293,9 +190,8 @@ export async function fetchStravaData(): Promise<StravaData> {
   const weekElev = weekActs.reduce((s, a) => s + a.total_elevation_gain, 0)
   const monthKm = monthActs.filter(isRun).reduce((s, a) => s + a.distance / 1000, 0)
 
-  // Best 5k / 10k estimated from avg pace × target distance
-  let best5k = Infinity,
-    best10k = Infinity
+  let best5k = Infinity
+  let best10k = Infinity
   raw.filter(isRun).forEach(a => {
     if (!a.distance || !a.moving_time) return
     const sPerKm = a.moving_time / (a.distance / 1000)
@@ -303,7 +199,6 @@ export async function fetchStravaData(): Promise<StravaData> {
     if (a.distance >= 9900) best10k = Math.min(best10k, sPerKm * 10)
   })
 
-  // Recent activities (last 3)
   const activities = raw.slice(0, 3).map(a => {
     const sPerKm = a.distance > 0 ? a.moving_time / (a.distance / 1000) : 0
     const type = isRun(a) ? 'Corrida' : isRide(a) ? 'Ciclismo' : 'Atividade'
@@ -320,10 +215,9 @@ export async function fetchStravaData(): Promise<StravaData> {
     }
   })
 
-  // HR zone distribution (approximate from avg HR of recent activities)
   const zoneLabels = ['Z1 Fácil', 'Z2 Base', 'Z3 Tempo', 'Z4 Limiar', 'Z5 VO2max']
   const zoneColors = ['#60A5FA', '#22C55E', '#F97316', '#F97316', '#EF4444']
-  const zoneThresholds = [60, 70, 80, 90, 101] // % of assumed max HR 185
+  const zoneThresholds = [60, 70, 80, 90, 101]
   const maxHR = 185
   const hrActs = raw.slice(0, 15).filter(a => (a.average_heartrate || 0) > 0)
   const counts = [0, 0, 0, 0, 0]
@@ -335,17 +229,19 @@ export async function fetchStravaData(): Promise<StravaData> {
       if (idx >= 0) counts[idx]++
     })
     const total = counts.reduce((a, b) => a + b, 0)
-    counts.forEach((c, i) => {
-      counts[i] = total > 0 ? Math.round((c / total) * 100) : 0
+    counts.forEach((count, i) => {
+      counts[i] = total > 0 ? Math.round((count / total) * 100) : 0
     })
   } else {
     const defaults = [18, 35, 28, 14, 5]
-    defaults.forEach((v, i) => (counts[i] = v))
+    defaults.forEach((value, i) => {
+      counts[i] = value
+    })
   }
 
   const zones = zoneLabels.map((z, i) => ({ z, pct: counts[i], c: zoneColors[i] }))
-
   const now = new Date()
+
   return {
     lastSync: `${now.toLocaleDateString('pt-BR', { weekday: 'short' })} ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
     weekKm: Math.round(weekKm * 10) / 10,

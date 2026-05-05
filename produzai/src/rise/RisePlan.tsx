@@ -14,9 +14,9 @@ import { Coach }        from "./pages/Coach";
 import { StravaPage }   from "./pages/StravaPage";
 import { WebDietPage }  from "./pages/WebDietPage";
 import {
-  bootstrapTokensFromEnv,
-  exchangeCode,
-  hasValidTokens,
+  getStravaRedirectMessage,
+  getStravaRedirectStatus,
+  getStravaStatus,
 } from "../services/strava";
 import { useStravaStore } from "../store/useStravaStore";
 
@@ -50,10 +50,9 @@ const RISE_IMPLEMENTED: Page[] = [
 
 export function RisePlan() {
   const [connected, setConnected] = useState<string[]>(() => {
-    bootstrapTokensFromEnv()
     const initial: string[] = []
-    if (hasValidTokens()) initial.push("strava")
     try {
+      localStorage.removeItem("strava_tokens")
       const raw = localStorage.getItem("webdiet_data")
       if (raw && JSON.parse(raw)?.state?.data) initial.push("webdiet")
     } catch {
@@ -62,40 +61,41 @@ export function RisePlan() {
     return initial
   });
   const [page, setPage] = useState<Page>("dashboard");
-  const [oauthLoading, setOauthLoading] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const scope = params.get("scope");
-    return !!(code && scope?.includes("activity:read_all"));
-  });
+  const [stravaRedirectStatus] = useState(() => new URLSearchParams(window.location.search).get("strava"));
+  const [oauthLoading, setOauthLoading] = useState(() => Boolean(stravaRedirectStatus));
+  const [oauthMessage, setOauthMessage] = useState<string | null>(() => getStravaRedirectMessage(stravaRedirectStatus));
   const stravaLoad = useStravaStore(s => s.load);
+  const stravaClear = useStravaStore(s => s.clear);
 
   useEffect(() => {
-    // Handle OAuth redirect back from Strava
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const scope = params.get("scope");
-    const error = params.get("error");
+    let active = true
+    const redirectStatus = stravaRedirectStatus
+    if (redirectStatus) getStravaRedirectStatus()
 
-    if (error) {
-      window.history.replaceState({}, "", window.location.pathname);
-      return;
-    }
-
-    if (code && scope?.includes("activity:read_all")) {
-      exchangeCode(code)
-        .then(() => {
-          setConnected(prev => [...new Set([...prev, "strava"])]);
-          window.history.replaceState({}, "", window.location.pathname);
-          setOauthLoading(false);
+    getStravaStatus()
+      .then(status => {
+        if (!active) return
+        setConnected(prev => {
+          const withoutStrava = prev.filter(item => item !== "strava")
+          return status.connected ? [...new Set([...withoutStrava, "strava"])] : withoutStrava
         })
-        .catch(err => {
-          console.error("Strava OAuth failed:", err);
-          setOauthLoading(false);
-          window.history.replaceState({}, "", window.location.pathname);
-        });
+        if (!status.connected) stravaClear()
+      })
+      .catch(err => {
+        if (!active) return
+        console.warn("Strava status failed:", err)
+        if (redirectStatus) {
+          setOauthMessage(err instanceof Error ? err.message : String(err))
+        }
+      })
+      .finally(() => {
+        if (active) setOauthLoading(false)
+      })
+
+    return () => {
+      active = false
     }
-  }, []);
+  }, [stravaClear, stravaRedirectStatus]);
 
   // Load real Strava data whenever Strava becomes connected
   useEffect(() => {
@@ -111,6 +111,12 @@ export function RisePlan() {
   const handleConnect = (svc: string) => {
     setConnected((prev) => [...new Set([...prev, svc])]);
     navigate("dashboard");
+  };
+
+  const handleDisconnect = (svc: string) => {
+    setConnected(prev => prev.filter(item => item !== svc));
+    if (svc === "strava") stravaClear();
+    navigate("integracoes");
   };
 
   const allNav = NAV_GROUPS.map((g) => ({
@@ -268,13 +274,19 @@ export function RisePlan() {
       {oauthLoading && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 400, gap: 16 }}>
           <div style={{ fontSize: 48 }}>🏃</div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Conectando ao Strava...</div>
-          <div style={{ fontSize: 13, color: C.muted }}>Trocando tokens e sincronizando dados</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>Verificando conexão Strava...</div>
+          <div style={{ fontSize: 13, color: C.muted }}>Sincronizando autorização com segurança</div>
         </div>
       )}
 
       {/* Main content */}
       <div style={{ flex: 1, overflowY: "auto", padding: 28 }}>
+        {oauthMessage && (
+          <div style={{ background: oauthMessage.includes("sucesso") ? `${C.green}14` : `${C.orange}14`, border: `1px solid ${oauthMessage.includes("sucesso") ? C.green : C.orange}44`, borderRadius: 12, padding: "12px 14px", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <span style={{ fontSize: 13, color: oauthMessage.includes("sucesso") ? C.green : C.orange, fontWeight: 700 }}>{oauthMessage}</span>
+            <button onClick={() => setOauthMessage(null)} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+          </div>
+        )}
         {page === "dashboard"  && <Dashboard   connected={connected} setPage={navigate} />}
         {page === "hoje"       && <Hoje        connected={connected} setPage={navigate} />}
         {page === "treino"     && <Treino      connected={connected} setPage={navigate} />}
@@ -285,7 +297,7 @@ export function RisePlan() {
         {page === "biblioteca" && <Biblioteca  connected={connected} setPage={navigate} />}
         {page === "coach"      && <Coach       connected={connected} setPage={navigate} />}
         {page === "integracoes"&& <Integracoes connected={connected} onConnect={handleConnect} />}
-        {page === "strava"     && <StravaPage  connected={connected} setPage={navigate} />}
+        {page === "strava"     && <StravaPage  connected={connected} setPage={navigate} onDisconnect={handleDisconnect} />}
         {page === "webdiet"    && <WebDietPage connected={connected} setPage={navigate} />}
 
         {!RISE_IMPLEMENTED.includes(page) && (

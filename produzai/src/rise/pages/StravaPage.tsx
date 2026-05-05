@@ -1,17 +1,37 @@
+import { useState } from 'react'
 import { C, type Page } from '../data'
 import { Card, Tag, Bar, Dot } from '../primitives'
 import { useStravaStore } from '../../store/useStravaStore'
-import { clearTokens } from '../../services/strava'
+import { disconnectStrava } from '../../services/strava'
 
-interface Props { connected: string[]; setPage: (p: Page) => void }
+interface Props {
+  connected: string[]
+  setPage: (p: Page) => void
+  onDisconnect?: (service: string) => void
+}
 
 const TYPE_COLOR: Record<string, string> = { Corrida: '#FC4C02', Ciclismo: '#F97316', Atividade: '#60A5FA' }
 
-export function StravaPage({ connected, setPage }: Props) {
+export function StravaPage({ connected, setPage, onDisconnect }: Props) {
   const strava  = useStravaStore(s => s.data)
   const loading = useStravaStore(s => s.loading)
+  const error   = useStravaStore(s => s.error)
   const reload  = useStravaStore(s => s.load)
+  const [disconnecting, setDisconnecting] = useState(false)
   const stravaOn = connected.includes('strava')
+
+  const handleDisconnect = async () => {
+    setDisconnecting(true)
+    try {
+      await disconnectStrava()
+    } catch (err) {
+      console.warn('Strava disconnect failed:', err)
+    } finally {
+      setDisconnecting(false)
+      onDisconnect?.('strava')
+      setPage('integracoes')
+    }
+  }
 
   if (!stravaOn) {
     return (
@@ -152,15 +172,16 @@ export function StravaPage({ connected, setPage }: Props) {
           {/* Disconnect */}
           <div style={{ textAlign: 'center', marginTop: 8 }}>
             <button
-              onClick={() => { clearTokens(); setPage('integracoes') }}
-              style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 16px', fontSize: 12, color: C.muted, cursor: 'pointer' }}>
-              Desconectar Strava
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+              style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 16px', fontSize: 12, color: C.muted, cursor: disconnecting ? 'default' : 'pointer' }}>
+              {disconnecting ? 'Desconectando...' : 'Desconectar Strava'}
             </button>
           </div>
         </>
       ) : (
         <Card style={{ textAlign: 'center', padding: '40px', color: C.muted }}>
-          Erro ao carregar dados.{' '}
+          {error || 'Erro ao carregar dados.'}{' '}
           <span onClick={reload} style={{ color: C.orange, cursor: 'pointer' }}>Tentar novamente</span>
         </Card>
       )}
