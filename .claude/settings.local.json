@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:www.trilha-ia.com)"
+      "WebFetch(domain:www.trilha-ia.com)",
+      "mcp__Vercel__list_teams",
+      "mcp__Vercel__list_projects",
+      "mcp__Vercel__list_deployments",
+      "mcp__Vercel__get_project",
+      "mcp__Vercel__get_deployment_build_logs"
     ]
   }
 }
