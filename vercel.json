@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd produzai && npm install && npm run build",
+  "outputDirectory": "produzai/dist",
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
