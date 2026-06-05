@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { C, type Page } from '../data'
 import { Card, Tag, Bar } from '../primitives'
 
-interface Props { connected: string[]; setPage: (p: Page) => void }
+interface Props { setPage: (p: Page) => void }
 
 interface Project {
   id: string
@@ -40,7 +40,7 @@ const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
   padding: '8px 10px', color: C.text, fontSize: 13, outline: 'none', width: '100%', ...extra,
 })
 
-export function Projetos({ connected: _c, setPage: _s }: Props) {
+export function Projetos({ setPage: _s }: Props) {
   const [projects, setProjects] = useState<Project[]>(load)
   const [modal, setModal]       = useState(false)
   const [form, setForm]         = useState<Omit<Project, 'id'>>({ ...EMPTY })

@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { C, type Page } from '../data'
-import { Card, Tag, Bar, Dot } from '../primitives'
-import { useStravaStore } from '../../store/useStravaStore'
+import { Card, Tag, Bar } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
 
 interface Props {
-  connected: string[]
   setPage: (page: Page) => void
 }
 
@@ -23,13 +21,13 @@ const DEFAULT_NAMES: Record<string, string> = {
 
 function typeColor(type: string): string {
   switch (type) {
-    case 'Corrida':  return C.strava
+    case 'Corrida':   return C.running
     case 'Caminhada': return C.green
-    case 'Academia': return C.purple
-    case 'Ciclismo': return C.orange
-    case 'Natação':  return C.blue
-    case 'Futebol':  return C.green
-    default:         return C.muted2
+    case 'Academia':  return C.purple
+    case 'Ciclismo':  return C.orange
+    case 'Natação':   return C.blue
+    case 'Futebol':   return C.green
+    default:          return C.muted2
   }
 }
 
@@ -81,23 +79,7 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 6,
 }
 
-type DisplayActivity = {
-  id: string
-  source: 'strava' | 'manual'
-  type: string
-  name: string
-  date: string
-  dist: number
-  pace: string
-  time: string
-  cal: number
-  hr: number
-}
-
-export function Treino({ connected, setPage }: Props) {
-  const stravaOn = connected.includes('strava')
-  const strava = useStravaStore(s => s.data)
-  const stravaLoading = useStravaStore(s => s.loading)
+export function Treino({ setPage: _setPage }: Props) {
   const { workouts, add, remove } = useWorkoutStore()
 
   const [showModal, setShowModal] = useState(false)
@@ -111,9 +93,6 @@ export function Treino({ connected, setPage }: Props) {
     hr: '',
   })
 
-  const monthPct = strava ? Math.round((strava.monthKm / strava.monthGoal) * 100) : 0
-
-  // Weekly manual stats
   const weekStart = (() => {
     const d = new Date()
     const day = d.getDay() || 7
@@ -122,19 +101,20 @@ export function Treino({ connected, setPage }: Props) {
     return d
   })()
 
-  const weekManual = workouts.filter(w => {
+  const weekWorkouts = workouts.filter(w => {
     const [y, m, d] = w.rawDate.split('-').map(Number)
     return new Date(y, m - 1, d) >= weekStart
   })
-  const manualWeekKm    = Math.round(weekManual.reduce((s, w) => s + w.dist, 0) * 10) / 10
-  const manualWeekCal   = weekManual.reduce((s, w) => s + w.cal, 0)
-  const manualWeekCount = weekManual.length
+  const weekKm    = Math.round(weekWorkouts.reduce((s, w) => s + w.dist, 0) * 10) / 10
+  const weekCal   = weekWorkouts.reduce((s, w) => s + w.cal, 0)
+  const weekCount = weekWorkouts.length
 
-  // Merged activity list (manual first, then strava)
-  const allActivities: DisplayActivity[] = [
-    ...workouts.map(w => ({ ...w, source: 'manual' as const })),
-    ...(strava?.activities || []).map((a, i) => ({ ...a, id: `s${i}`, source: 'strava' as const })),
-  ].slice(0, 6)
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  const monthWorkouts = workouts.filter(w => {
+    const [y, m, d] = w.rawDate.split('-').map(Number)
+    return new Date(y, m - 1, d) >= monthStart
+  })
+  const monthKm = Math.round(monthWorkouts.reduce((s, w) => s + w.dist, 0) * 10) / 10
 
   function openModal() {
     setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', cal: '', hr: '' })
@@ -168,46 +148,40 @@ export function Treino({ connected, setPage }: Props) {
           <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>🏋 Treino</div>
           <div style={{ fontSize: 13, color: C.muted }}>Performance física — força + cardio</div>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={openModal}
-            style={{ background: C.purple, border: 'none', borderRadius: 8, padding: '8px 16px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-          >
-            + Registrar treino
-          </button>
-          {stravaOn
-            ? <Tag label="🔴 Strava conectado" color={C.strava} />
-            : <button onClick={() => setPage('integracoes')} style={{ background: C.strava, border: 'none', borderRadius: 8, padding: '8px 16px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Conectar Strava</button>
-          }
-        </div>
+        <button
+          onClick={openModal}
+          style={{ background: C.purple, border: 'none', borderRadius: 8, padding: '8px 16px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+        >
+          + Registrar treino
+        </button>
       </div>
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         {[
           {
+            l: 'Treinos semana',
+            v: weekCount > 0 ? String(weekCount) : '—',
+            sub: weekCount > 0 ? 'esta semana' : 'Sem atividades',
+            c: C.purple,
+          },
+          {
             l: 'Km semana',
-            v: stravaLoading ? '...' : stravaOn && strava ? `${strava.weekKm}km` : manualWeekKm > 0 ? `${manualWeekKm}km` : '—',
-            sub: stravaOn && strava ? `${strava.weekRuns} atividades` : manualWeekCount > 0 ? `${manualWeekCount} registros` : 'Sem atividades',
-            c: C.strava,
+            v: weekKm > 0 ? `${weekKm}km` : '—',
+            sub: weekKm > 0 ? 'distância total' : '—',
+            c: C.running,
           },
           {
             l: 'Kcal semana',
-            v: stravaLoading ? '...' : stravaOn && strava ? strava.weekCal : manualWeekCal > 0 ? manualWeekCal : '—',
-            sub: stravaOn ? 'via Strava' : manualWeekCal > 0 ? 'registros manuais' : '—',
+            v: weekCal > 0 ? String(weekCal) : '—',
+            sub: weekCal > 0 ? 'queimadas' : '—',
             c: C.red,
           },
           {
-            l: 'Elevação',
-            v: stravaLoading ? '...' : stravaOn && strava ? `${strava.weekElev}m` : '—',
-            sub: stravaOn ? 'ganho semanal' : '—',
+            l: 'Km no mês',
+            v: monthKm > 0 ? `${monthKm}km` : '—',
+            sub: monthKm > 0 ? 'distância mensal' : '—',
             c: C.orange,
-          },
-          {
-            l: 'PR 10km',
-            v: stravaLoading ? '...' : stravaOn && strava ? strava.pr10k : '—',
-            sub: stravaOn ? 'recorde pessoal' : '—',
-            c: C.blue,
           },
         ].map((k, i) => (
           <Card key={i}>
@@ -223,16 +197,11 @@ export function Treino({ connected, setPage }: Props) {
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Atividades recentes</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {stravaOn && <Tag label="Strava" color={C.strava} />}
-              {workouts.length > 0 && <Tag label="Manual" color={C.purple} />}
-            </div>
+            {workouts.length > 0 && <Tag label="Manual" color={C.purple} />}
           </div>
 
-          {stravaLoading ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: C.muted, fontSize: 13 }}>Carregando atividades...</div>
-          ) : allActivities.length > 0 ? (
-            allActivities.map((a, i) => (
+          {workouts.length > 0 ? (
+            workouts.slice(0, 6).map((a, i) => (
               <div key={i} style={{ padding: 14, background: C.card2, borderRadius: 12, marginBottom: 8, borderLeft: `3px solid ${typeColor(a.type)}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -241,13 +210,11 @@ export function Treino({ connected, setPage }: Props) {
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                     <Tag label={a.type} color={typeColor(a.type)} />
-                    {a.source === 'manual' && (
-                      <button
-                        onClick={() => remove(a.id)}
-                        title="Remover"
-                        style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
-                      >×</button>
-                    )}
+                    <button
+                      onClick={() => remove(a.id)}
+                      title="Remover"
+                      style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
+                    >×</button>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -268,9 +235,9 @@ export function Treino({ connected, setPage }: Props) {
             ))
           ) : (
             <div style={{ textAlign: 'center', padding: '32px 0', color: C.muted }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🏃</div>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🏋</div>
               <div style={{ fontWeight: 600, marginBottom: 6 }}>Nenhuma atividade registrada</div>
-              <div style={{ fontSize: 13 }}>Conecte o Strava ou registre seu treino manualmente</div>
+              <div style={{ fontSize: 13 }}>Registre seus treinos manualmente</div>
               <button
                 onClick={openModal}
                 style={{ marginTop: 16, background: C.purple, border: 'none', borderRadius: 8, padding: '8px 20px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
@@ -282,46 +249,14 @@ export function Treino({ connected, setPage }: Props) {
         </Card>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {stravaOn && strava && (
-            <Card>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>Volume mensal</div>
-              <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                <div style={{ fontSize: 34, fontWeight: 900, color: C.strava }}>{strava.monthKm}<span style={{ fontSize: 16, color: C.muted }}> km</span></div>
-                <div style={{ fontSize: 12, color: C.muted }}>meta: {strava.monthGoal}km</div>
-              </div>
-              <Bar pct={monthPct} color={C.strava} h={8} />
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 6, textAlign: 'right' }}>{monthPct}% da meta</div>
-            </Card>
-          )}
-          {stravaOn && strava && (
-            <Card>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>Zonas de FC</div>
-              {strava.zones.map((z, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
-                  <span style={{ width: 60, fontSize: 11, color: C.muted2 }}>{z.z}</span>
-                  <Bar pct={z.pct} color={z.c} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: z.c, width: 28, textAlign: 'right' }}>{z.pct}%</span>
-                </div>
-              ))}
-            </Card>
-          )}
-          {stravaOn && strava && (
-            <div style={{ background: `${C.strava}11`, border: `1px solid ${C.strava}33`, borderRadius: 12, padding: '12px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <Dot color={C.green} /><span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Sincronização ativa</span>
-              </div>
-              <div style={{ fontSize: 12, color: C.muted }}>Última sync: {strava.lastSync}</div>
-              <div style={{ fontSize: 12, color: C.muted }}>Próxima: ao finalizar atividade</div>
-            </div>
-          )}
-          {!stravaOn && workouts.length > 0 && (
+          {weekCount > 0 && (
             <Card>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Resumo semanal</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
-                  { l: 'Atividades', v: String(manualWeekCount), c: C.text },
-                  { l: 'Distância',  v: `${manualWeekKm} km`,   c: C.strava },
-                  { l: 'Calorias',   v: `${manualWeekCal} kcal`, c: C.red },
+                  { l: 'Atividades', v: String(weekCount),      c: C.text },
+                  { l: 'Distância',  v: `${weekKm} km`,         c: C.running },
+                  { l: 'Calorias',   v: `${weekCal} kcal`,      c: C.red },
                 ].map((r, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 13, color: C.muted }}>{r.l}</span>
@@ -329,6 +264,17 @@ export function Treino({ connected, setPage }: Props) {
                   </div>
                 ))}
               </div>
+            </Card>
+          )}
+
+          {monthKm > 0 && (
+            <Card>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Volume mensal</div>
+              <div style={{ textAlign: 'center', marginBottom: 10 }}>
+                <div style={{ fontSize: 34, fontWeight: 900, color: C.running }}>{monthKm}<span style={{ fontSize: 16, color: C.muted }}> km</span></div>
+              </div>
+              <Bar pct={Math.min(Math.round(monthKm / 120 * 100), 100)} color={C.running} h={8} />
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 6, textAlign: 'right' }}>meta: 120km</div>
             </Card>
           )}
         </div>

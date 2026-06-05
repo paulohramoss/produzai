@@ -1,139 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { C, NAV_GROUPS, type Page } from "./data";
-import { Dot } from "./primitives";
 import { Dashboard }    from "./pages/Dashboard";
 import { Treino }       from "./pages/Treino";
 import { Dieta }        from "./pages/Dieta";
-import { Integracoes }  from "./pages/Integracoes";
 import { Hoje }         from "./pages/Hoje";
 import { Agenda }       from "./pages/Agenda";
 import { Projetos }     from "./pages/Projetos";
 import { Mental }       from "./pages/Mental";
 import { Biblioteca }   from "./pages/Biblioteca";
 import { Coach }        from "./pages/Coach";
-import { StravaPage }   from "./pages/StravaPage";
-import { WebDietPage }  from "./pages/WebDietPage";
-import {
-  getStravaRedirectMessage,
-  getStravaRedirectStatus,
-  getStravaStatus,
-} from "../services/strava";
-import { useStravaStore } from "../store/useStravaStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { userStorage } from "../lib/userStorage";
-
-// ProduzAI pages
-// import { useAppStore } from '../store/useAppStore'
-// import Chat from '../pages/Chat'
-// import Habits from '../pages/Habits'
-// import Finance from '../pages/Finance'
-// import Calendar from '../pages/Calendar'
-// import Investments from '../pages/Investments'
-// import Goals from '../pages/Goals'
-// import Reports from '../pages/Reports'
-// import Settings from '../pages/Settings'
 
 const RISE_IMPLEMENTED: Page[] = [
   "dashboard", "hoje", "treino", "dieta", "agenda",
-  "projetos", "mental", "biblioteca",
-  "integracoes", "strava", "webdiet", "coach",
+  "projetos", "mental", "biblioteca", "coach",
 ];
-
-// const PRODUZAI_MAP: Partial<Record<Page, React.ReactNode>> = {
-// chat: <Chat />,
-//habits: <Habits />,
-//finance: <Finance />,
-//calendar: <Calendar />,
-//investments: <Investments />,
-//goals: <Goals />,
-//reports: <Reports />,
-//settings: <Settings />,
-// }
 
 export function RisePlan() {
   const { user, logout } = useAuthStore()
-
-  const [connected, setConnected] = useState<string[]>(() => {
-    const initial: string[] = []
-    try {
-      localStorage.removeItem("strava_tokens")
-      // Read from user-scoped storage (UID already set before RisePlan mounts)
-      const raw = userStorage.getItem("webdiet_data")
-      if (raw && JSON.parse(raw)?.state?.data) initial.push("webdiet")
-    } catch {
-      // ignore
-    }
-    return initial
-  });
   const [page, setPage] = useState<Page>("dashboard");
-  const [stravaRedirectStatus] = useState(() => new URLSearchParams(window.location.search).get("strava"));
-  const [oauthLoading, setOauthLoading] = useState(() => Boolean(stravaRedirectStatus));
-  const [oauthMessage, setOauthMessage] = useState<string | null>(() => getStravaRedirectMessage(stravaRedirectStatus));
-  const stravaLoad = useStravaStore(s => s.load);
-  const stravaClear = useStravaStore(s => s.clear);
 
-  useEffect(() => {
-    let active = true
-    const redirectStatus = stravaRedirectStatus
-    if (redirectStatus) getStravaRedirectStatus()
-
-    getStravaStatus()
-      .then(status => {
-        if (!active) return
-        setConnected(prev => {
-          const withoutStrava = prev.filter(item => item !== "strava")
-          return status.connected ? [...new Set([...withoutStrava, "strava"])] : withoutStrava
-        })
-        if (!status.connected) stravaClear()
-      })
-      .catch(err => {
-        if (!active) return
-        console.warn("Strava status failed:", err)
-        if (redirectStatus) {
-          setOauthMessage(err instanceof Error ? err.message : String(err))
-        }
-      })
-      .finally(() => {
-        if (active) setOauthLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [stravaClear, stravaRedirectStatus]);
-
-  // Load real Strava data whenever Strava becomes connected
-  useEffect(() => {
-    if (connected.includes("strava")) {
-      stravaLoad();
-    }
-  }, [connected, stravaLoad]);
-
-  const navigate = (id: Page) => {
-    setPage(id);
-  };
-
-  const handleConnect = (svc: string) => {
-    setConnected((prev) => [...new Set([...prev, svc])]);
-    navigate("dashboard");
-  };
-
-  const handleDisconnect = (svc: string) => {
-    setConnected(prev => prev.filter(item => item !== svc));
-    if (svc === "strava") stravaClear();
-    navigate("integracoes");
-  };
-
-  const allNav = NAV_GROUPS.map((g) => ({
-    ...g,
-    items: g.items.filter(
-      (item) =>
-        (item.id !== "strava" && item.id !== "webdiet") ||
-        connected.includes(item.id),
-    ),
-  }));
-
-  // const isProduzaiPage = PRODUZAI_PAGES.includes(page)
+  const navigate = (id: Page) => setPage(id);
 
   return (
     <div
@@ -187,7 +74,7 @@ export function RisePlan() {
         </div>
 
         <nav style={{ flex: 1 }}>
-          {allNav.map((g, gi) => (
+          {NAV_GROUPS.map((g, gi) => (
             <div key={gi} style={{ marginBottom: 6 }}>
               <div
                 style={{
@@ -229,9 +116,6 @@ export function RisePlan() {
                   >
                     {item.label}
                   </span>
-                  {item.badge && connected.includes(item.id) && (
-                    <Dot color={C.green} />
-                  )}
                 </div>
               ))}
             </div>
@@ -272,73 +156,19 @@ export function RisePlan() {
             Sair da conta
           </button>
         </div>
-
-        {/* Integration counter */}
-        <div
-          style={{ padding: "14px 18px", borderTop: `1px solid ${C.border}` }}
-        >
-          <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>
-            Integrações ativas
-          </div>
-          <div
-            style={{
-              fontSize: 16,
-              fontWeight: 800,
-              color: connected.length > 0 ? C.green : C.muted,
-            }}
-          >
-            {connected.length}/4
-          </div>
-          <div
-            style={{
-              marginTop: 6,
-              height: 3,
-              background: C.border,
-              borderRadius: 4,
-            }}
-          >
-            <div
-              style={{
-                width: `${(connected.length / 4) * 100}%`,
-                height: 3,
-                background: C.green,
-                borderRadius: 4,
-                transition: "width .4s",
-              }}
-            />
-          </div>
-        </div>
       </div>
-
-      {/* OAuth loading overlay */}
-      {oauthLoading && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 400, gap: 16 }}>
-          <div style={{ fontSize: 48 }}>🏃</div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Verificando conexão Strava...</div>
-          <div style={{ fontSize: 13, color: C.muted }}>Sincronizando autorização com segurança</div>
-        </div>
-      )}
 
       {/* Main content */}
       <div style={{ flex: 1, overflowY: "auto", padding: 28 }}>
-        {oauthMessage && (
-          <div style={{ background: oauthMessage.includes("sucesso") ? `${C.green}14` : `${C.orange}14`, border: `1px solid ${oauthMessage.includes("sucesso") ? C.green : C.orange}44`, borderRadius: 12, padding: "12px 14px", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <span style={{ fontSize: 13, color: oauthMessage.includes("sucesso") ? C.green : C.orange, fontWeight: 700 }}>{oauthMessage}</span>
-            <button onClick={() => setOauthMessage(null)} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
-          </div>
-        )}
-        {page === "dashboard"  && <Dashboard   connected={connected} setPage={navigate} />}
-        {page === "hoje"       && <Hoje        connected={connected} setPage={navigate} />}
-        {page === "treino"     && <Treino      connected={connected} setPage={navigate} />}
-        {page === "dieta"      && <Dieta       connected={connected} setPage={navigate} />}
-        {page === "agenda"     && <Agenda      connected={connected} setPage={navigate} />}
-        {page === "projetos"   && <Projetos    connected={connected} setPage={navigate} />}
-        {page === "mental"     && <Mental      connected={connected} setPage={navigate} />}
-        {page === "biblioteca" && <Biblioteca  connected={connected} setPage={navigate} />}
-        {page === "coach"      && <Coach       connected={connected} setPage={navigate} />}
-        {page === "integracoes"&& <Integracoes connected={connected} onConnect={handleConnect} />}
-        {page === "strava"     && <StravaPage  connected={connected} setPage={navigate} onDisconnect={handleDisconnect} />}
-        {page === "webdiet"    && <WebDietPage connected={connected} setPage={navigate} />}
+        {page === "dashboard"  && <Dashboard   setPage={navigate} />}
+        {page === "hoje"       && <Hoje        setPage={navigate} />}
+        {page === "treino"     && <Treino      setPage={navigate} />}
+        {page === "dieta"      && <Dieta       setPage={navigate} />}
+        {page === "agenda"     && <Agenda      setPage={navigate} />}
+        {page === "projetos"   && <Projetos    setPage={navigate} />}
+        {page === "mental"     && <Mental      setPage={navigate} />}
+        {page === "biblioteca" && <Biblioteca  setPage={navigate} />}
+        {page === "coach"      && <Coach       setPage={navigate} />}
 
         {!RISE_IMPLEMENTED.includes(page) && (
           <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>

@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import { C, type Page } from '../data'
-import { Card, Tag, Bar } from '../primitives'
-import { useStravaStore } from '../../store/useStravaStore'
+import { Card, Bar } from '../primitives'
 import { useWebDietStore } from '../../store/useWebDietStore'
 
-interface Props { connected: string[]; setPage: (p: Page) => void }
+interface Props { setPage: (p: Page) => void }
 interface Habit { id: string; icon: string; label: string; done: boolean }
 interface FocusItem { id: string; text: string; done: boolean }
 
@@ -27,9 +26,8 @@ function loadLS<T>(key: string, fallback: T): T {
   try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback } catch { return fallback }
 }
 
-export function Hoje({ connected, setPage }: Props) {
+export function Hoje({ setPage }: Props) {
   const todayKey = new Date().toISOString().slice(0, 10)
-  const strava   = useStravaStore(s => s.data)
   const wd       = useWebDietStore(s => s.data)
 
   const [habits, setHabits] = useState<Habit[]>(() =>
@@ -52,9 +50,6 @@ export function Hoje({ connected, setPage }: Props) {
   const doneHabits  = habits.filter(h => h.done).length
   const totalFocus  = focus.filter(f => f.text).length
   const doneFocus   = focus.filter(f => f.done && f.text).length
-  const stravaOn    = connected.includes('strava')
-  const wdOn        = connected.includes('webdiet')
-  const lastAct     = strava?.activities[0]
   const meals       = [...(wd?.meals ?? [])].sort((a, b) => a.time.localeCompare(b.time))
   const doneMeals   = meals.filter(m => m.done)
   const calEaten    = doneMeals.reduce((s, m) => s + m.cal, 0)
@@ -78,14 +73,9 @@ export function Hoje({ connected, setPage }: Props) {
           <div style={{ background: C.card2, borderRadius: 8, padding: '5px 11px', fontSize: 12 }}>
             ✅ {doneHabits}/{habits.length} hábitos
           </div>
-          {wdOn && wd && (
+          {wd && (
             <div style={{ background: C.card2, borderRadius: 8, padding: '5px 11px', fontSize: 12 }}>
               🥗 {calEaten}/{wd.goals.cal} kcal
-            </div>
-          )}
-          {stravaOn && strava && (
-            <div style={{ background: C.card2, borderRadius: 8, padding: '5px 11px', fontSize: 12 }}>
-              🏃 {strava.weekKm} km semana
             </div>
           )}
           {score > 0 && (
@@ -151,40 +141,30 @@ export function Hoje({ connected, setPage }: Props) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Treino hoje */}
-          <Card style={{ borderTop: `2px solid ${stravaOn ? C.strava : C.border}` }}>
+          <Card onClick={() => setPage('treino')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>🏃 Treino</div>
-              {stravaOn ? <Tag label="Strava" color={C.strava} /> : <span onClick={() => setPage('integracoes')} style={{ fontSize: 11, color: C.orange, cursor: 'pointer' }}>+ Conectar</span>}
+              <div style={{ fontWeight: 700, fontSize: 15 }}>🏋 Treino</div>
+              <span onClick={e => { e.stopPropagation(); setPage('treino') }} style={{ fontSize: 11, color: C.orange, cursor: 'pointer' }}>+ Registrar</span>
             </div>
-            {stravaOn && lastAct ? (
-              <div style={{ padding: '12px', background: C.card2, borderRadius: 10, borderLeft: `3px solid ${C.strava}` }}>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>{lastAct.date}</div>
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{lastAct.name}</div>
-                <div style={{ display: 'flex', gap: 14 }}>
-                  <div><div style={{ fontSize: 15, fontWeight: 800, color: C.strava }}>{lastAct.dist}km</div><div style={{ fontSize: 10, color: C.muted }}>dist</div></div>
-                  <div><div style={{ fontSize: 15, fontWeight: 800 }}>{lastAct.pace}</div><div style={{ fontSize: 10, color: C.muted }}>pace</div></div>
-                  <div><div style={{ fontSize: 15, fontWeight: 800, color: C.red }}>{lastAct.cal}</div><div style={{ fontSize: 10, color: C.muted }}>kcal</div></div>
-                  {lastAct.hr > 0 && <div><div style={{ fontSize: 15, fontWeight: 800, color: C.pink }}>{lastAct.hr}</div><div style={{ fontSize: 10, color: C.muted }}>bpm</div></div>}
-                </div>
-              </div>
-            ) : (
-              <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '16px 0' }}>
-                {stravaOn ? 'Nenhuma atividade recente' : 'Conecte o Strava para ver seus treinos'}
-              </div>
-            )}
+            <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '16px 0' }}>
+              Clique para registrar seu treino de hoje
+            </div>
           </Card>
 
           {/* Refeições */}
-          <Card style={{ borderTop: `2px solid ${wdOn ? C.webdiet : C.border}` }}>
+          <Card>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>🥗 Refeições</div>
-              {wdOn ? <span style={{ fontSize: 12, color: C.muted }}>{doneMeals.length}/{meals.length} feitas</span> : <span onClick={() => setPage('integracoes')} style={{ fontSize: 11, color: C.orange, cursor: 'pointer' }}>+ Configurar</span>}
+              {wd
+                ? <span style={{ fontSize: 12, color: C.muted }}>{doneMeals.length}/{meals.length} feitas</span>
+                : <span onClick={() => setPage('dieta')} style={{ fontSize: 11, color: C.orange, cursor: 'pointer' }}>+ Configurar</span>
+              }
             </div>
-            {wdOn && wd ? (
+            {wd ? (
               meals.length > 0 ? (
                 <>
                   <div style={{ marginBottom: 10 }}>
-                    <Bar pct={wd.goals.cal > 0 ? Math.min(Math.round(calEaten / wd.goals.cal * 100), 100) : 0} color={C.webdiet} h={4} />
+                    <Bar pct={wd.goals.cal > 0 ? Math.min(Math.round(calEaten / wd.goals.cal * 100), 100) : 0} color={C.green} h={4} />
                     <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{calEaten} / {wd.goals.cal} kcal</div>
                   </div>
                   {meals.slice(0, 5).map(m => (
@@ -195,12 +175,12 @@ export function Hoje({ connected, setPage }: Props) {
                     </div>
                   ))}
                   <div style={{ marginTop: 8, textAlign: 'right' }}>
-                    <span onClick={() => setPage('dieta')} style={{ fontSize: 11, color: C.webdiet, cursor: 'pointer' }}>Ver dieta completa →</span>
+                    <span onClick={() => setPage('dieta')} style={{ fontSize: 11, color: C.green, cursor: 'pointer' }}>Ver dieta completa →</span>
                   </div>
                 </>
               ) : (
                 <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '12px 0' }}>
-                  <span onClick={() => setPage('dieta')} style={{ color: C.webdiet, cursor: 'pointer' }}>Adicionar refeições →</span>
+                  <span onClick={() => setPage('dieta')} style={{ color: C.green, cursor: 'pointer' }}>Adicionar refeições →</span>
                 </div>
               )
             ) : (

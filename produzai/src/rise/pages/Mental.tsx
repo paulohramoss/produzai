@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { C, type Page } from '../data'
 import { Card } from '../primitives'
 
-interface Props { connected: string[]; setPage: (p: Page) => void }
+interface Props { setPage: (p: Page) => void }
 
 interface DayEntry {
   mood: number       // 1-5
@@ -41,7 +41,7 @@ const inp: React.CSSProperties = {
   padding: '9px 10px', color: C.text, fontSize: 13, outline: 'none', width: '100%',
 }
 
-export function Mental({ connected: _c, setPage: _s }: Props) {
+export function Mental({ setPage: _s }: Props) {
   const todayKey = today()
   const [entry, setEntry] = useState<DayEntry>(() => loadEntry(todayKey))
   const history = loadHistory()

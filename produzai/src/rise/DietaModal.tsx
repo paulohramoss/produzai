@@ -100,7 +100,7 @@ export function DietaModal({ onClose }: Props) {
             </div>
             <button
               onClick={saveGoals}
-              style={{ background: goalsSaved ? C.green : C.webdiet, border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer', transition: 'background .2s' }}
+              style={{ background: goalsSaved ? C.green : C.green, border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer', transition: 'background .2s' }}
             >
               {goalsSaved ? '✓ Metas salvas!' : 'Salvar metas'}
             </button>
@@ -119,7 +119,7 @@ export function DietaModal({ onClose }: Props) {
             )}
 
             {[...data.meals].sort((a, b) => a.time.localeCompare(b.time)).map(m => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: C.card2, borderRadius: 10, marginBottom: 6, borderLeft: `3px solid ${m.done ? C.webdiet : C.border}` }}>
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: C.card2, borderRadius: 10, marginBottom: 6, borderLeft: `3px solid ${m.done ? C.green : C.border}` }}>
                 <span style={{ fontSize: 11, color: C.muted, minWidth: 38, flexShrink: 0 }}>{m.time}</span>
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{m.name}</span>
                 <span style={{ fontSize: 11, color: C.orange, flexShrink: 0 }}>{m.cal}kcal</span>
@@ -139,13 +139,13 @@ export function DietaModal({ onClose }: Props) {
           {!adding ? (
             <button
               onClick={() => setAdding(true)}
-              style={{ width: '100%', background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 10, padding: '11px', fontSize: 13, fontWeight: 700, color: C.webdiet, cursor: 'pointer' }}
+              style={{ width: '100%', background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 10, padding: '11px', fontSize: 13, fontWeight: 700, color: C.green, cursor: 'pointer' }}
             >
               + Adicionar refeição
             </button>
           ) : (
             <div style={{ background: C.card2, borderRadius: 12, padding: 16, border: `1px solid ${C.border2}` }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.webdiet, marginBottom: 12 }}>Nova refeição</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.green, marginBottom: 12 }}>Nova refeição</div>
               <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 10, marginBottom: 10 }}>
                 <div>
                   <label style={labelStyle}>Hora</label>
@@ -189,7 +189,7 @@ export function DietaModal({ onClose }: Props) {
                 <button
                   onClick={submitMeal}
                   disabled={!form.name.trim() || !form.cal}
-                  style={{ flex: 1, background: form.name.trim() && form.cal ? C.webdiet : C.card, border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, color: form.name.trim() && form.cal ? '#fff' : C.muted, cursor: form.name.trim() && form.cal ? 'pointer' : 'default' }}
+                  style={{ flex: 1, background: form.name.trim() && form.cal ? C.green : C.card, border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, color: form.name.trim() && form.cal ? '#fff' : C.muted, cursor: form.name.trim() && form.cal ? 'pointer' : 'default' }}
                 >
                   Adicionar
                 </button>
@@ -208,7 +208,7 @@ export function DietaModal({ onClose }: Props) {
         <div style={{ padding: '14px 24px', borderTop: `1px solid ${C.border}`, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={onClose}
-            style={{ background: C.webdiet, border: 'none', borderRadius: 10, padding: '11px 24px', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer' }}
+            style={{ background: C.green, border: 'none', borderRadius: 10, padding: '11px 24px', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer' }}
           >
             Concluir
           </button>

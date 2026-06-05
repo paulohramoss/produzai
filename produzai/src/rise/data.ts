@@ -5,13 +5,12 @@ export const C = {
   orange: "#F97316", od: "rgba(249,115,22,.11)",
   green: "#22C55E", blue: "#60A5FA", purple: "#A78BFA", pink: "#F472B6",
   red: "#EF4444",
-  strava: "#FC4C02", webdiet: "#00A651",
+  running: "#FC4C02",
 }
 
 export type Page =
   | "dashboard" | "hoje" | "treino" | "dieta" | "agenda"
-  | "projetos" | "mental" | "biblioteca"
-  | "integracoes" | "strava" | "webdiet" | "coach"
+  | "projetos" | "mental" | "biblioteca" | "coach"
   // ProduzAI pages
   // | "chat" | "habits" | "finance" | "calendar" | "investments" | "goals" | "reports" | "settings"
 
@@ -58,11 +57,6 @@ export const NAV_GROUPS: NavGroup[] = [
     { id: "projetos", icon: "🎯", label: "Projetos" },
     { id: "mental", icon: "🧠", label: "Mental" },
     { id: "biblioteca", icon: "📚", label: "Biblioteca" },
-  ]},
-  { label: "DADOS EXTERNOS", items: [
-    { id: "integracoes", icon: "🔗", label: "Integrações" },
-    { id: "strava", icon: "🏃", label: "Strava", color: C.strava, badge: true },
-    { id: "webdiet", icon: "🥗", label: "WebDiet", color: C.webdiet, badge: true },
   ]},
   { label: "SUPORTE", items: [
     { id: "coach", icon: "🤖", label: "Coach IA" },

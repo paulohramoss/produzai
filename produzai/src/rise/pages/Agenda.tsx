@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { C, type Page } from '../data'
-import { Card, Tag } from '../primitives'
-import { useStravaStore } from '../../store/useStravaStore'
+import { Card } from '../primitives'
 import { useWebDietStore } from '../../store/useWebDietStore'
+import { useWorkoutStore } from '../../store/useWorkoutStore'
 
-interface Props { connected: string[]; setPage: (p: Page) => void }
+interface Props { setPage: (p: Page) => void }
 
 const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
-const ACTIVITY_COLORS: Record<string, string> = { Corrida: '#FC4C02', Ciclismo: '#F97316', Atividade: '#60A5FA' }
 
 function getWeekDates() {
   const today = new Date()
@@ -19,45 +18,40 @@ function getWeekDates() {
   })
 }
 
-function activityDayIndex(dateStr: string): number {
-  if (dateStr.startsWith('Hoje'))  return new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
-  if (dateStr.startsWith('Ontem')) { const d = new Date(); d.setDate(d.getDate()-1); return d.getDay() === 0 ? 6 : d.getDay() - 1 }
-  const map: Record<string, number> = { 'Seg': 0, 'Ter': 1, 'Qua': 2, 'Qui': 3, 'Sex': 4, 'Sáb': 5, 'Dom': 6 }
-  for (const [k, v] of Object.entries(map)) { if (dateStr.startsWith(k)) return v }
-  return -1
-}
-
-export function Agenda({ connected, setPage }: Props) {
-  const strava  = useStravaStore(s => s.data)
-  const wd      = useWebDietStore(s => s.data)
+export function Agenda({ setPage }: Props) {
+  const wd       = useWebDietStore(s => s.data)
+  const workouts = useWorkoutStore(s => s.workouts)
   const weekDates = getWeekDates()
   const todayIdx  = (new Date().getDay() || 7) - 1
-  const stravaOn  = connected.includes('strava')
-  const wdOn      = connected.includes('webdiet')
-
-  // Map strava activities to day index
-  type ActivityList = NonNullable<typeof strava>['activities']
-  const actsByDay: Record<number, ActivityList> = {}
-  strava?.activities.forEach(a => {
-    const idx = activityDayIndex(a.date)
-    if (idx >= 0) { if (!actsByDay[idx]) actsByDay[idx] = []; actsByDay[idx].push(a) }
-  })
+  const [selectedDay, setSelectedDay] = useState(todayIdx)
 
   const meals = [...(wd?.meals ?? [])].sort((a, b) => a.time.localeCompare(b.time))
-  const [selectedDay, setSelectedDay] = useState(todayIdx)
+
+  // Map manual workouts to day index within this week
+  const weekStart = weekDates[0]
+  const workoutsByDay: Record<number, typeof workouts> = {}
+  workouts.forEach(w => {
+    const [y, m, d] = w.rawDate.split('-').map(Number)
+    const date = new Date(y, m - 1, d)
+    const diff = Math.round((date.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24))
+    if (diff >= 0 && diff < 7) {
+      if (!workoutsByDay[diff]) workoutsByDay[diff] = []
+      workoutsByDay[diff].push(w)
+    }
+  })
 
   return (
     <div>
       <div style={{ marginBottom: 22 }}>
         <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>📅 Agenda</div>
-        <div style={{ fontSize: 13, color: C.muted }}>Semana atual — treinos, refeições e eventos</div>
+        <div style={{ fontSize: 13, color: C.muted }}>Semana atual — treinos e refeições</div>
       </div>
 
       {/* Week strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6, marginBottom: 20 }}>
         {DAYS.map((day, i) => {
-          const d     = weekDates[i]
-          const acts  = actsByDay[i] ?? []
+          const d       = weekDates[i]
+          const acts    = workoutsByDay[i] ?? []
           const isToday = i === todayIdx
           const isSel   = i === selectedDay
           return (
@@ -68,13 +62,12 @@ export function Agenda({ connected, setPage }: Props) {
             >
               <div style={{ fontSize: 10, color: isSel ? '#000' : C.muted, fontWeight: 700, marginBottom: 4 }}>{day}</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: isSel ? '#000' : isToday ? C.orange : C.text }}>{d.getDate()}</div>
-              {/* Activity dots */}
               <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginTop: 6 }}>
-                {acts.slice(0, 3).map((a, j) => (
-                  <div key={j} style={{ width: 5, height: 5, borderRadius: '50%', background: ACTIVITY_COLORS[a.type] ?? C.blue }} />
+                {acts.slice(0, 3).map((_, j) => (
+                  <div key={j} style={{ width: 5, height: 5, borderRadius: '50%', background: C.purple }} />
                 ))}
-                {wdOn && meals.length > 0 && (
-                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.webdiet }} />
+                {wd && meals.length > 0 && (
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.green }} />
                 )}
               </div>
             </div>
@@ -88,31 +81,24 @@ export function Agenda({ connected, setPage }: Props) {
         {/* Activities */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>🏃 Atividades — {DAYS[selectedDay]}</div>
-            {stravaOn && <Tag label="Strava" color={C.strava} />}
+            <div style={{ fontWeight: 700, fontSize: 15 }}>🏋 Treinos — {DAYS[selectedDay]}</div>
+            <span onClick={() => setPage('treino')} style={{ fontSize: 11, color: C.orange, cursor: 'pointer' }}>+ Registrar</span>
           </div>
-          {stravaOn ? (
-            (actsByDay[selectedDay] ?? []).length > 0 ? (
-              (actsByDay[selectedDay] ?? []).map((a, i) => (
-                <div key={i} style={{ padding: '12px', background: C.card2, borderRadius: 10, marginBottom: 8, borderLeft: `3px solid ${ACTIVITY_COLORS[a.type] ?? C.blue}` }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{a.name}</div>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <div style={{ textAlign: 'center' }}><div style={{ fontSize: 14, fontWeight: 800, color: C.strava }}>{a.dist}km</div><div style={{ fontSize: 9, color: C.muted }}>dist</div></div>
-                    <div style={{ textAlign: 'center' }}><div style={{ fontSize: 14, fontWeight: 800 }}>{a.pace}</div><div style={{ fontSize: 9, color: C.muted }}>pace</div></div>
-                    <div style={{ textAlign: 'center' }}><div style={{ fontSize: 14, fontWeight: 800, color: C.red }}>{a.cal}</div><div style={{ fontSize: 9, color: C.muted }}>kcal</div></div>
-                    {a.hr > 0 && <div style={{ textAlign: 'center' }}><div style={{ fontSize: 14, fontWeight: 800, color: C.pink }}>{a.hr}</div><div style={{ fontSize: 9, color: C.muted }}>bpm</div></div>}
-                  </div>
+          {(workoutsByDay[selectedDay] ?? []).length > 0 ? (
+            (workoutsByDay[selectedDay] ?? []).map((w, i) => (
+              <div key={i} style={{ padding: '12px', background: C.card2, borderRadius: 10, marginBottom: 8, borderLeft: `3px solid ${C.purple}` }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{w.name}</div>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  {w.dist > 0 && <div style={{ textAlign: 'center' }}><div style={{ fontSize: 14, fontWeight: 800, color: C.running }}>{w.dist}km</div><div style={{ fontSize: 9, color: C.muted }}>dist</div></div>}
+                  <div style={{ textAlign: 'center' }}><div style={{ fontSize: 14, fontWeight: 800 }}>{w.time}</div><div style={{ fontSize: 9, color: C.muted }}>tempo</div></div>
+                  {w.cal > 0 && <div style={{ textAlign: 'center' }}><div style={{ fontSize: 14, fontWeight: 800, color: C.red }}>{w.cal}</div><div style={{ fontSize: 9, color: C.muted }}>kcal</div></div>}
                 </div>
-              ))
-            ) : (
-              <div style={{ fontSize: 13, color: C.muted, padding: '20px 0', textAlign: 'center' }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>🏃</div>
-                Nenhuma atividade registrada
               </div>
-            )
+            ))
           ) : (
-            <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
-              <span onClick={() => setPage('integracoes')} style={{ color: C.orange, cursor: 'pointer' }}>Conectar Strava →</span>
+            <div style={{ fontSize: 13, color: C.muted, padding: '20px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>🏋</div>
+              Nenhum treino registrado
             </div>
           )}
         </Card>
@@ -121,9 +107,8 @@ export function Agenda({ connected, setPage }: Props) {
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>🥗 Plano alimentar — {DAYS[selectedDay]}</div>
-            {wdOn && <Tag label="Manual" color={C.webdiet} />}
           </div>
-          {wdOn && meals.length > 0 ? (
+          {wd && meals.length > 0 ? (
             meals.map(m => (
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ width: 36, fontSize: 10, color: C.muted, flexShrink: 0 }}>{m.time}</div>
@@ -138,33 +123,14 @@ export function Agenda({ connected, setPage }: Props) {
             ))
           ) : (
             <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
-              {wdOn
-                ? <span onClick={() => setPage('dieta')} style={{ color: C.webdiet, cursor: 'pointer' }}>Adicionar refeições →</span>
-                : <span onClick={() => setPage('integracoes')} style={{ color: C.orange, cursor: 'pointer' }}>Configurar dieta →</span>}
+              {wd
+                ? <span onClick={() => setPage('dieta')} style={{ color: C.green, cursor: 'pointer' }}>Adicionar refeições →</span>
+                : <span onClick={() => setPage('dieta')} style={{ color: C.orange, cursor: 'pointer' }}>Configurar dieta →</span>
+              }
             </div>
           )}
         </Card>
       </div>
-
-      {/* Week summary */}
-      {(stravaOn && strava) && (
-        <Card style={{ marginTop: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>📊 Resumo da semana</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-            {[
-              { l: 'Km rodados',   v: `${strava.weekKm}km`,   c: C.strava },
-              { l: 'Atividades',   v: strava.weekRuns,        c: C.blue },
-              { l: 'Kcal queimadas', v: strava.weekCal,       c: C.red },
-              { l: 'Elevação',     v: `${strava.weekElev}m`,  c: C.orange },
-            ].map((k, i) => (
-              <div key={i} style={{ textAlign: 'center', padding: '10px', background: C.card2, borderRadius: 10 }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: k.c }}>{k.v}</div>
-                <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{k.l}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   )
 }

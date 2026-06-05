@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { C, type Page } from '../data'
 import { Card, Tag, Bar } from '../primitives'
 
-interface Props { connected: string[]; setPage: (p: Page) => void }
+interface Props { setPage: (p: Page) => void }
 
 type Status = 'lendo' | 'quero' | 'pausado' | 'concluido'
 
@@ -38,7 +38,7 @@ const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
   padding: '8px 10px', color: C.text, fontSize: 13, outline: 'none', width: '100%', ...extra,
 })
 
-export function Biblioteca({ connected: _c, setPage: _s }: Props) {
+export function Biblioteca({ setPage: _s }: Props) {
   const [books, setBooks] = useState<Book[]>(load)
   const [modal, setModal] = useState(false)
   const [form, setForm]   = useState<Omit<Book, 'id'>>({ ...EMPTY })

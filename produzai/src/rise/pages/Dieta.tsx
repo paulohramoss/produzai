@@ -1,22 +1,16 @@
 import { useState } from 'react'
 import { C, type Page } from '../data'
 import { Card, Tag, Bar, Dot } from '../primitives'
-import { useStravaStore } from '../../store/useStravaStore'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { DietaModal } from '../DietaModal'
 
 interface Props {
-  connected: string[]
   setPage: (page: Page) => void
 }
 
-export function Dieta({ connected, setPage }: Props) {
+export function Dieta({ setPage: _setPage }: Props) {
   const [editOpen, setEditOpen] = useState(false)
 
-  const webdietOn = connected.includes("webdiet")
-  const stravaOn = connected.includes("strava")
-
-  const strava = useStravaStore(s => s.data)
   const wd = useWebDietStore(s => s.data)
   const toggleMeal = useWebDietStore(s => s.toggleMeal)
 
@@ -28,10 +22,6 @@ export function Dieta({ connected, setPage }: Props) {
     fat:  doneMeals.reduce((s, m) => s + m.fat,  0),
   }
   const goals = wd?.goals ?? { cal: 0, prot: 0, carb: 0, fat: 0 }
-
-  const calBurned = stravaOn && strava ? Math.round(strava.weekCal / 7) : null
-  const calBalance = webdietOn && wd && calBurned !== null ? cur.cal - calBurned : null
-
   const sortedMeals = [...(wd?.meals ?? [])].sort((a, b) => a.time.localeCompare(b.time))
 
   return (
@@ -45,30 +35,24 @@ export function Dieta({ connected, setPage }: Props) {
             <div style={{ fontSize: 13, color: C.muted }}>Plano alimentar personalizado</div>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            {webdietOn && wd && (
+            {wd ? (
+              <>
+                <button
+                  onClick={() => setEditOpen(true)}
+                  style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: "8px 14px", color: C.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  ✏️ Editar plano
+                </button>
+                <Tag label="Plano ativo" color={C.green} />
+              </>
+            ) : (
               <button
                 onClick={() => setEditOpen(true)}
-                style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: "8px 14px", color: C.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                ✏️ Editar plano
+                style={{ background: C.green, border: "none", borderRadius: 8, padding: "8px 16px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                + Configurar dieta
               </button>
             )}
-            {webdietOn
-              ? <Tag label="Manual · Dados locais" color={C.webdiet} />
-              : <button onClick={() => setPage("integracoes")} style={{ background: C.webdiet, border: "none", borderRadius: 8, padding: "8px 16px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Configurar dieta</button>}
           </div>
         </div>
-
-        {/* Caloric balance bar (when both Strava + WebDiet active) */}
-        {webdietOn && wd && stravaOn && calBalance !== null && calBurned !== null && (
-          <div style={{ background: calBalance < 0 ? `${C.green}11` : `${C.orange}11`, border: `1px solid ${calBalance < 0 ? C.green : C.orange}33`, borderRadius: 12, padding: "14px 20px", marginBottom: 20, display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 800, color: C.webdiet }}>{cur.cal} kcal</div><div style={{ fontSize: 11, color: C.muted }}>consumidas</div></div>
-            <div style={{ fontSize: 20, color: C.muted }}>−</div>
-            <div style={{ textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 800, color: C.strava }}>{calBurned} kcal</div><div style={{ fontSize: 11, color: C.muted }}>queimadas (Strava)</div></div>
-            <div style={{ fontSize: 20, color: C.muted }}>=</div>
-            <div style={{ textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 800, color: calBalance < 0 ? C.green : C.orange }}>{calBalance > 0 ? "+" : ""}{calBalance} kcal</div><div style={{ fontSize: 11, color: C.muted }}>balanço</div></div>
-            <div style={{ marginLeft: "auto", fontSize: 12, color: calBalance < 0 ? C.green : C.orange, fontWeight: 600 }}>{calBalance < 0 ? "✓ Déficit calórico" : "▲ Superávit"}</div>
-          </div>
-        )}
 
         {/* Macros KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
@@ -78,22 +62,19 @@ export function Dieta({ connected, setPage }: Props) {
             { l: "Carboidrato", cur: cur.carb, goal: goals.carb, unit: "g",    c: C.green },
             { l: "Gordura",     cur: cur.fat,  goal: goals.fat,  unit: "g",    c: C.purple },
           ].map((m, i) => (
-            <Card key={i} style={{ opacity: webdietOn ? 1 : .5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: .8 }}>{m.l}</div>
-                {webdietOn && <Tag label="Manual" color={C.webdiet} small />}
-              </div>
+            <Card key={i} style={{ opacity: wd ? 1 : .5 }}>
+              <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: .8 }}>{m.l}</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 4, margin: "8px 0 6px" }}>
-                <span style={{ fontSize: 22, fontWeight: 800, color: webdietOn ? m.c : C.muted }}>
-                  {webdietOn ? m.cur : "—"}
+                <span style={{ fontSize: 22, fontWeight: 800, color: wd ? m.c : C.muted }}>
+                  {wd ? m.cur : "—"}
                 </span>
-                {webdietOn && m.goal > 0 && (
+                {wd && m.goal > 0 && (
                   <span style={{ fontSize: 12, color: C.muted }}>/ {m.goal} {m.unit}</span>
                 )}
               </div>
-              <Bar pct={webdietOn && m.goal > 0 ? Math.min(Math.round(m.cur / m.goal * 100), 100) : 0} color={m.c} />
+              <Bar pct={wd && m.goal > 0 ? Math.min(Math.round(m.cur / m.goal * 100), 100) : 0} color={m.c} />
               <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>
-                {webdietOn && m.goal > 0 ? `${Math.round(m.cur / m.goal * 100)}% da meta` : "Configure a dieta"}
+                {wd && m.goal > 0 ? `${Math.round(m.cur / m.goal * 100)}% da meta` : "Configure a dieta"}
               </div>
             </Card>
           ))}
@@ -104,20 +85,20 @@ export function Dieta({ connected, setPage }: Props) {
           <Card>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>Plano alimentar do dia</div>
-              {webdietOn && wd && (
+              {wd && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span style={{ fontSize: 12, color: C.muted }}>{doneMeals.length}/{wd.meals.length} feitas</span>
-                  <Tag label="Manual" color={C.webdiet} />
+                  <Tag label="Manual" color={C.green} />
                 </div>
               )}
             </div>
 
-            {webdietOn && wd ? (
+            {wd ? (
               sortedMeals.length > 0 ? sortedMeals.map(m => (
                 <div
                   key={m.id}
                   onClick={() => toggleMeal(m.id)}
-                  style={{ padding: "14px", background: C.card2, borderRadius: 12, marginBottom: 8, borderLeft: `3px solid ${m.done ? C.webdiet : C.border}`, opacity: m.done ? .7 : 1, cursor: "pointer", transition: "opacity .15s, border-color .15s" }}
+                  style={{ padding: "14px", background: C.card2, borderRadius: 12, marginBottom: 8, borderLeft: `3px solid ${m.done ? C.green : C.border}`, opacity: m.done ? .7 : 1, cursor: "pointer", transition: "opacity .15s, border-color .15s" }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -147,7 +128,7 @@ export function Dieta({ connected, setPage }: Props) {
                   <div style={{ fontSize: 13 }}>Clique em "Editar plano" para adicionar suas refeições</div>
                   <button
                     onClick={() => setEditOpen(true)}
-                    style={{ marginTop: 12, background: C.webdiet, border: "none", borderRadius: 8, padding: "9px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    style={{ marginTop: 12, background: C.green, border: "none", borderRadius: 8, padding: "9px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                     Adicionar refeições
                   </button>
                 </div>
@@ -158,8 +139,8 @@ export function Dieta({ connected, setPage }: Props) {
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>Nenhum plano configurado</div>
                 <div style={{ fontSize: 13 }}>Configure sua dieta para acompanhar as refeições e macros</div>
                 <button
-                  onClick={() => setPage("integracoes")}
-                  style={{ marginTop: 14, background: C.webdiet, border: "none", borderRadius: 8, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  onClick={() => setEditOpen(true)}
+                  style={{ marginTop: 14, background: C.green, border: "none", borderRadius: 8, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                   Configurar Dieta
                 </button>
               </div>
@@ -168,7 +149,7 @@ export function Dieta({ connected, setPage }: Props) {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Hydration (static for now) */}
-            <Card style={{ opacity: webdietOn ? 1 : .5 }}>
+            <Card style={{ opacity: wd ? 1 : .5 }}>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Hidratação</div>
               <div style={{ textAlign: "center", margin: "8px 0" }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color: C.blue }}>2,4L</div>
@@ -178,8 +159,8 @@ export function Dieta({ connected, setPage }: Props) {
             </Card>
 
             {/* Status card */}
-            {webdietOn && wd && (
-              <Card style={{ background: `${C.webdiet}11`, border: `1px solid ${C.webdiet}33` }}>
+            {wd && (
+              <Card style={{ background: `${C.green}11`, border: `1px solid ${C.green}33` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <Dot color={C.green} />
                   <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Plano configurado</span>
@@ -195,7 +176,7 @@ export function Dieta({ connected, setPage }: Props) {
             )}
 
             {/* Progress summary */}
-            {webdietOn && wd && goals.cal > 0 && (
+            {wd && goals.cal > 0 && (
               <Card>
                 <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Progresso hoje</div>
                 {[
