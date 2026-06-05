@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { userStorage } from '../lib/userStorage'
 
 export interface WebDietGoals {
   cal: number
@@ -62,6 +63,10 @@ export const useWebDietStore = create<WebDietState>()(
         set(s => (s.data ? { data: { ...s.data, goals } } : s)),
       clear: () => set({ data: null }),
     }),
-    { name: 'webdiet_data' },
+    {
+      name: 'webdiet_data',
+      storage: createJSONStorage(() => userStorage),
+      skipHydration: true,
+    },
   ),
 )

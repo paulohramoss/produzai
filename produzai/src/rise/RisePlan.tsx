@@ -19,6 +19,8 @@ import {
   getStravaStatus,
 } from "../services/strava";
 import { useStravaStore } from "../store/useStravaStore";
+import { useAuthStore } from "../store/useAuthStore";
+import { userStorage } from "../lib/userStorage";
 
 // ProduzAI pages
 // import { useAppStore } from '../store/useAppStore'
@@ -49,11 +51,14 @@ const RISE_IMPLEMENTED: Page[] = [
 // }
 
 export function RisePlan() {
+  const { user, logout } = useAuthStore()
+
   const [connected, setConnected] = useState<string[]>(() => {
     const initial: string[] = []
     try {
       localStorage.removeItem("strava_tokens")
-      const raw = localStorage.getItem("webdiet_data")
+      // Read from user-scoped storage (UID already set before RisePlan mounts)
+      const raw = userStorage.getItem("webdiet_data")
       if (raw && JSON.parse(raw)?.state?.data) initial.push("webdiet")
     } catch {
       // ignore
@@ -232,6 +237,41 @@ export function RisePlan() {
             </div>
           ))}
         </nav>
+
+        {/* User info + logout */}
+        <div style={{ padding: "12px 18px", borderTop: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: "50%",
+              background: C.orange,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 13, fontWeight: 800, color: "#000", flexShrink: 0,
+            }}>
+              {(user?.displayName || user?.email || "U")[0].toUpperCase()}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {user?.displayName || "Usuário"}
+              </div>
+              <div style={{ fontSize: 10, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {user?.email}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={logout}
+            style={{
+              width: "100%", padding: "7px 10px", borderRadius: 8,
+              background: "transparent", border: `1px solid ${C.border2}`,
+              color: C.muted, fontSize: 11, cursor: "pointer", fontWeight: 600,
+              transition: "color 0.12s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = C.red)}
+            onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
+          >
+            Sair da conta
+          </button>
+        </div>
 
         {/* Integration counter */}
         <div
