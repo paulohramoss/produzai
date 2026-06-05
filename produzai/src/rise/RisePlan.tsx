@@ -46,31 +46,12 @@ export function RisePlan() {
           overflowY: "auto",
         }}
       >
-        <div style={{ padding: "0 18px 20px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: C.orange,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 15,
-                fontWeight: 800,
-                color: "#000",
-              }}
-            >
-              ⚡
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 12 }}>The Rise Plan</div>
-              <div style={{ fontSize: 10, color: C.muted }}>
-                Performance Total
-              </div>
-            </div>
-          </div>
+        <div style={{ padding: "0 10px 20px" }}>
+          <img
+            src="/rise-plan-logo.svg"
+            alt="The Rise Plan"
+            style={{ width: "100%", height: "auto", display: "block", borderRadius: 10 }}
+          />
         </div>
 
         <nav style={{ flex: 1 }}>

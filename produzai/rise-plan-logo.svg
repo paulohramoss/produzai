@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" width="480" height="120">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;800&amp;display=swap');
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="480" height="120" fill="#0C0C0C" rx="16"/>
+
+  <!-- Icon mark: circular badge -->
+  <circle cx="80" cy="60" r="46" fill="#1A1A1A" stroke="#2E2E2E" stroke-width="1.5"/>
+  <polygon points="88,18 62,60 80,60 72,102 100,56 82,56" fill="#F97316"/>
+  <polygon points="88,18 82,18 58,60 62,60" fill="#FBBF6A" opacity="0.5"/>
+
+  <!-- Brand name: THE RISE PLAN -->
+  <text
+    x="152" y="52"
+    font-family="'Space Grotesk', 'Inter', system-ui, sans-serif"
+    font-size="36"
+    font-weight="800"
+    fill="#F0F0F0"
+    letter-spacing="-0.5"
+  >THE RISE PLAN</text>
+
+  <text
+    x="154" y="82"
+    font-family="'Space Grotesk', 'Inter', system-ui, sans-serif"
+    font-size="14"
+    font-weight="700"
+    fill="#F97316"
+    letter-spacing="4"
+  >PERFORMANCE TOTAL</text>
+
+
+</svg>
