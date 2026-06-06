@@ -1,20 +1,21 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { C, type Page } from '../data'
 import { Card, Bar } from '../primitives'
 import { useWebDietStore } from '../../store/useWebDietStore'
+import { useAuthStore } from '../../store/useAuthStore'
+import { useHabitsStore } from '../../store/useHabitsStore'
+import { getDaily, saveDaily } from '../../lib/db'
+import { toast } from '../../lib/toast'
+import { LayoutContext } from '../LayoutContext'
+import { HabitosModal } from '../components/HabitosModal'
+import {
+  notificationsSupported, requestPermission, loadPrefs, savePrefs, applyPrefs,
+  type NotifPrefs,
+} from '../../lib/notifications'
 
 interface Props { setPage: (p: Page) => void }
 interface Habit { id: string; icon: string; label: string; done: boolean }
 interface FocusItem { id: string; text: string; done: boolean }
-
-const DEFAULT_HABITS: Habit[] = [
-  { id: 'agua',      icon: '💧', label: 'Água 3L',           done: false },
-  { id: 'treino',    icon: '🏋', label: 'Treino',             done: false },
-  { id: 'leitura',   icon: '📚', label: 'Leitura 30min',      done: false },
-  { id: 'meditacao', icon: '🧘', label: 'Meditação 10min',    done: false },
-  { id: 'sono',      icon: '😴', label: 'Dormir 22h30',       done: false },
-  { id: 'proteina',  icon: '🥩', label: 'Meta de proteína',   done: false },
-]
 
 const DEFAULT_FOCUS: FocusItem[] = [
   { id: '1', text: '', done: false },
@@ -22,50 +23,120 @@ const DEFAULT_FOCUS: FocusItem[] = [
   { id: '3', text: '', done: false },
 ]
 
-function loadLS<T>(key: string, fallback: T): T {
-  try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback } catch { return fallback }
-}
-
 export function Hoje({ setPage }: Props) {
-  const todayKey = new Date().toISOString().slice(0, 10)
-  const wd       = useWebDietStore(s => s.data)
+  const todayKey   = new Date().toISOString().slice(0, 10)
+  const wd         = useWebDietStore(s => s.data)
+  const user       = useAuthStore(s => s.user)
+  const habitDefs  = useHabitsStore(s => s.defs)
+  const { isMobile } = useContext(LayoutContext)
 
-  const [habits, setHabits] = useState<Habit[]>(() =>
-    loadLS(`habits_${todayKey}`, DEFAULT_HABITS.map(h => ({ ...h })))
-  )
-  const [focus, setFocus] = useState<FocusItem[]>(() =>
-    loadLS(`focus_${todayKey}`, DEFAULT_FOCUS.map(f => ({ ...f })))
-  )
+  const [habits,       setHabits]       = useState<Habit[]>([])
+  const [focus,        setFocus]        = useState<FocusItem[]>(DEFAULT_FOCUS.map(f => ({ ...f })))
+  const [loaded,       setLoaded]       = useState(false)
+  const [managingHabits, setManagingHabits] = useState(false)
+  const [notifPrefs,   setNotifPrefs]   = useState<NotifPrefs>(loadPrefs)
 
-  useEffect(() => { localStorage.setItem(`habits_${todayKey}`, JSON.stringify(habits)) }, [habits, todayKey])
-  useEffect(() => { localStorage.setItem(`focus_${todayKey}`, JSON.stringify(focus)) }, [focus, todayKey])
+  // Apply saved notification schedule on mount
+  useEffect(() => {
+    if (notifPrefs.enabled) applyPrefs(notifPrefs)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const toggleHabit = (id: string) =>
-    setHabits(p => p.map(h => h.id === id ? { ...h, done: !h.done } : h))
-  const toggleFocus = (id: string) =>
-    setFocus(p => p.map(f => f.id === id ? { ...f, done: !f.done } : f))
-  const updateFocus = (id: string, text: string) =>
-    setFocus(p => p.map(f => f.id === id ? { ...f, text } : f))
+  // Carrega do Firestore (ou localStorage como fallback)
+  useEffect(() => {
+    async function load() {
+      // Base state: habit defs + all done=false
+      const baseHabits = habitDefs.map(d => ({ ...d, done: false }))
 
-  const doneHabits  = habits.filter(h => h.done).length
-  const totalFocus  = focus.filter(f => f.text).length
-  const doneFocus   = focus.filter(f => f.done && f.text).length
-  const meals       = [...(wd?.meals ?? [])].sort((a, b) => a.time.localeCompare(b.time))
-  const doneMeals   = meals.filter(m => m.done)
-  const calEaten    = doneMeals.reduce((s, m) => s + m.cal, 0)
-  const score       = Math.round(
+      let savedHabits: Habit[] | null = null
+      let savedFocus:  FocusItem[] | null = null
+
+      if (user) {
+        const cloud = await getDaily(todayKey)
+        if (cloud?.habits) savedHabits = cloud.habits
+        if (cloud?.focus)  savedFocus  = cloud.focus
+      }
+
+      // Fallback para localStorage
+      if (!savedHabits) {
+        try {
+          const r = localStorage.getItem(`habits_${todayKey}`)
+          if (r) savedHabits = JSON.parse(r)
+        } catch { /* silent */ }
+      }
+      if (!savedFocus) {
+        try {
+          const f = localStorage.getItem(`focus_${todayKey}`)
+          if (f) savedFocus = JSON.parse(f)
+        } catch { /* silent */ }
+      }
+
+      // Merge: usa as defs atuais mas preserva o estado done
+      const doneMap: Record<string, boolean> = {}
+      ;(savedHabits ?? []).forEach(h => { doneMap[h.id] = h.done })
+      setHabits(baseHabits.map(h => ({ ...h, done: doneMap[h.id] ?? false })))
+      setFocus(savedFocus ?? DEFAULT_FOCUS.map(f => ({ ...f })))
+      setLoaded(true)
+    }
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, todayKey, habitDefs])
+
+  function persistDaily(h: Habit[], f: FocusItem[]) {
+    localStorage.setItem(`habits_${todayKey}`, JSON.stringify(h))
+    localStorage.setItem(`focus_${todayKey}`, JSON.stringify(f))
+    saveDaily(todayKey, { habits: h, focus: f })
+  }
+
+  const toggleHabit = (id: string) => {
+    const next = habits.map(h => h.id === id ? { ...h, done: !h.done } : h)
+    setHabits(next)
+    persistDaily(next, focus)
+    const h = next.find(x => x.id === id)
+    if (h?.done) toast.success(`${h.icon} ${h.label} concluído!`)
+  }
+
+  const toggleFocus = (id: string) => {
+    const next = focus.map(f => f.id === id ? { ...f, done: !f.done } : f)
+    setFocus(next)
+    persistDaily(habits, next)
+    const f = next.find(x => x.id === id)
+    if (f?.done && f.text) toast.success(`🎯 "${f.text}" concluído!`)
+  }
+
+  const updateFocus = (id: string, text: string) => {
+    const next = focus.map(f => f.id === id ? { ...f, text } : f)
+    setFocus(next)
+    persistDaily(habits, next)
+  }
+
+  const doneHabits = habits.filter(h => h.done).length
+  const totalFocus = focus.filter(f => f.text).length
+  const doneFocus  = focus.filter(f => f.done && f.text).length
+  const meals      = [...(wd?.meals ?? [])].sort((a, b) => a.time.localeCompare(b.time))
+  const doneMeals  = meals.filter(m => m.done)
+  const calEaten   = doneMeals.reduce((s, m) => s + m.cal, 0)
+  const score      = Math.round(
     (doneHabits / habits.length) * 60 +
     (totalFocus > 0 ? doneFocus / totalFocus : 0) * 40
   )
-  const today       = new Date()
-  const dateStr     = today.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+  const dateStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  if (!loaded) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: 14 }}>
+        Carregando...
+      </div>
+    )
+  }
 
   return (
     <div>
+    {managingHabits && <HabitosModal onClose={() => setManagingHabits(false)} />}
       {/* Header */}
       <div style={{ marginBottom: 22 }}>
         <div style={{ fontSize: 13, color: C.muted, textTransform: 'capitalize' }}>{dateStr}</div>
-        <div style={{ fontSize: 26, fontWeight: 800 }}>☀️ Hoje</div>
+        <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800 }}>☀️ Hoje</div>
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <div style={{ background: C.card2, borderRadius: 8, padding: '5px 11px', fontSize: 12 }}>
             🎯 {doneFocus}/{totalFocus || 3} foco
@@ -86,7 +157,7 @@ export function Hoje({ setPage }: Props) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
         {/* ── Left ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
@@ -116,9 +187,17 @@ export function Hoje({ setPage }: Props) {
           <Card>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>✅ Hábitos</div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: doneHabits === habits.length ? C.green : C.muted }}>
-                {doneHabits}/{habits.length}
-              </span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  onClick={() => setManagingHabits(true)}
+                  style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: 6, padding: '3px 8px', fontSize: 10, color: C.muted, cursor: 'pointer', fontWeight: 600 }}
+                >
+                  ⚙ Editar
+                </button>
+                <span style={{ fontSize: 13, fontWeight: 700, color: doneHabits === habits.length ? C.green : C.muted }}>
+                  {doneHabits}/{habits.length}
+                </span>
+              </div>
             </div>
             <Bar pct={Math.round(doneHabits / habits.length * 100)} color={C.green} h={4} />
             <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -201,6 +280,53 @@ export function Hoje({ setPage }: Props) {
               <div style={{ marginTop: 10 }}>
                 <Bar pct={score} color={C.orange} h={5} />
               </div>
+            </Card>
+          )}
+
+          {/* Notificações */}
+          {notificationsSupported() && (
+            <Card style={{ border: `1px solid ${notifPrefs.enabled ? C.blue + '44' : C.border}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: notifPrefs.enabled ? 12 : 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>🔔 Lembrete diário</div>
+                <button
+                  onClick={async () => {
+                    if (!notifPrefs.enabled) {
+                      const perm = await requestPermission()
+                      if (perm !== 'granted') { toast.error('Permissão de notificação negada'); return }
+                    }
+                    const next = { ...notifPrefs, enabled: !notifPrefs.enabled }
+                    setNotifPrefs(next)
+                    savePrefs(next)
+                    applyPrefs(next)
+                    toast.success(next.enabled ? '🔔 Lembrete ativado!' : '🔕 Lembrete desativado')
+                  }}
+                  style={{
+                    background: notifPrefs.enabled ? C.blue : C.card2,
+                    border: `1px solid ${notifPrefs.enabled ? C.blue : C.border2}`,
+                    borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700,
+                    color: notifPrefs.enabled ? '#fff' : C.muted, cursor: 'pointer',
+                  }}
+                >
+                  {notifPrefs.enabled ? 'Ativo' : 'Ativar'}
+                </button>
+              </div>
+              {notifPrefs.enabled && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Horário:</span>
+                  <input
+                    type="time"
+                    value={`${String(notifPrefs.hour).padStart(2, '0')}:${String(notifPrefs.minute).padStart(2, '0')}`}
+                    onChange={e => {
+                      const [h, m] = e.target.value.split(':').map(Number)
+                      const next = { ...notifPrefs, hour: h, minute: m }
+                      setNotifPrefs(next)
+                      savePrefs(next)
+                      applyPrefs(next)
+                    }}
+                    style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 6, padding: '5px 8px', color: C.text, fontSize: 13, outline: 'none', colorScheme: 'dark' }}
+                  />
+                </div>
+              )}
             </Card>
           )}
         </div>

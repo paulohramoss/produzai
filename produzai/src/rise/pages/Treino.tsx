@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import { C, type Page } from '../data'
 import { Card, Tag, Bar } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
+import { toast } from '../../lib/toast'
+import { LayoutContext } from '../LayoutContext'
+import { WORKOUT_TEMPLATES } from '../data/templates'
 
 interface Props {
   setPage: (page: Page) => void
@@ -81,8 +84,10 @@ const labelStyle: React.CSSProperties = {
 
 export function Treino({ setPage: _setPage }: Props) {
   const { workouts, add, remove } = useWorkoutStore()
+  const { isMobile } = useContext(LayoutContext)
 
   const [showModal, setShowModal] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
   const [form, setForm] = useState({
     type: 'Corrida',
     name: '',
@@ -118,16 +123,31 @@ export function Treino({ setPage: _setPage }: Props) {
 
   function openModal() {
     setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', cal: '', hr: '' })
+    setShowTemplates(false)
     setShowModal(true)
+  }
+
+  function applyTemplate(t: typeof WORKOUT_TEMPLATES[0]) {
+    setForm(f => ({
+      ...f,
+      type: t.type,
+      name: t.name,
+      durationMin: String(t.durationMin),
+      dist: t.dist > 0 ? String(t.dist) : '',
+      cal: t.cal > 0 ? String(t.cal) : '',
+    }))
+    setShowTemplates(false)
+    toast.info(`📋 Template "${t.name}" aplicado`)
   }
 
   function handleSubmit() {
     const durationMin = parseInt(form.durationMin)
     if (!durationMin || durationMin <= 0) return
     const distKm = parseFloat(form.dist) || 0
+    const name = form.name.trim() || DEFAULT_NAMES[form.type] || 'Atividade'
     add({
       type: form.type,
-      name: form.name.trim() || DEFAULT_NAMES[form.type] || 'Atividade',
+      name,
       rawDate: form.date,
       date: friendlyDate(form.date),
       dist: distKm,
@@ -138,6 +158,13 @@ export function Treino({ setPage: _setPage }: Props) {
       elev: 0,
     })
     setShowModal(false)
+    toast.success(`🏋 ${name} registrado com sucesso!`)
+  }
+
+  function handleRemove(id: string) {
+    const w = workouts.find(x => x.id === id)
+    remove(id)
+    if (w) toast.info(`🗑 "${w.name}" removido`)
   }
 
   return (
@@ -157,7 +184,7 @@ export function Treino({ setPage: _setPage }: Props) {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         {[
           {
             l: 'Treinos semana',
@@ -192,7 +219,7 @@ export function Treino({ setPage: _setPage }: Props) {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: 16 }}>
         {/* Activities */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -211,7 +238,7 @@ export function Treino({ setPage: _setPage }: Props) {
                   <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                     <Tag label={a.type} color={typeColor(a.type)} />
                     <button
-                      onClick={() => remove(a.id)}
+                      onClick={() => handleRemove(a.id)}
                       title="Remover"
                       style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
                     >×</button>
@@ -287,9 +314,36 @@ export function Treino({ setPage: _setPage }: Props) {
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 18, padding: 28, width: '100%', maxWidth: 480 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: 18, fontWeight: 800 }}>Registrar treino</div>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 24, lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Template picker */}
+            <div style={{ marginBottom: 16 }}>
+              <button
+                onClick={() => setShowTemplates(s => !s)}
+                style={{ background: showTemplates ? C.purple : C.card2, border: `1px solid ${showTemplates ? C.purple : C.border2}`, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, color: showTemplates ? '#fff' : C.muted, cursor: 'pointer', width: '100%', textAlign: 'left' }}
+              >
+                📋 {showTemplates ? 'Fechar templates' : 'Usar um template de treino'}
+              </button>
+              {showTemplates && (
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+                  {WORKOUT_TEMPLATES.map((t, i) => (
+                    <div
+                      key={i}
+                      onClick={() => applyTemplate(t)}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', background: C.card2, borderRadius: 9, cursor: 'pointer', border: `1px solid ${C.border}` }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{t.name}</div>
+                        <div style={{ fontSize: 10, color: C.muted }}>{t.label} · {t.durationMin}min{t.cal > 0 ? ` · ~${t.cal}kcal` : ''}</div>
+                      </div>
+                      <span style={{ fontSize: 11, color: C.purple, fontWeight: 700, flexShrink: 0 }}>{t.type}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Type selector */}

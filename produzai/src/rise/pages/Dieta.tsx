@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import { C, type Page } from '../data'
 import { Card, Tag, Bar, Dot } from '../primitives'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { DietaModal } from '../DietaModal'
+import { LayoutContext } from '../LayoutContext'
 
 interface Props {
   setPage: (page: Page) => void
@@ -10,6 +11,7 @@ interface Props {
 
 export function Dieta({ setPage: _setPage }: Props) {
   const [editOpen, setEditOpen] = useState(false)
+  const { isMobile } = useContext(LayoutContext)
 
   const wd = useWebDietStore(s => s.data)
   const toggleMeal = useWebDietStore(s => s.toggleMeal)
@@ -55,7 +57,7 @@ export function Dieta({ setPage: _setPage }: Props) {
         </div>
 
         {/* Macros KPIs */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
           {[
             { l: "Calorias",    cur: cur.cal,  goal: goals.cal,  unit: "kcal", c: C.orange },
             { l: "Proteína",    cur: cur.prot, goal: goals.prot, unit: "g",    c: C.blue },
@@ -80,7 +82,7 @@ export function Dieta({ setPage: _setPage }: Props) {
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1fr", gap: 16 }}>
           {/* Meal plan */}
           <Card>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>

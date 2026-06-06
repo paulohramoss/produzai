@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { userStorage } from '../lib/userStorage'
+import { saveWorkouts } from '../lib/db'
 
 export interface ManualWorkout {
   id: string
@@ -18,19 +19,26 @@ export interface ManualWorkout {
 
 interface WorkoutState {
   workouts: ManualWorkout[]
-  add: (w: Omit<ManualWorkout, 'id'>) => void
+  add:    (w: Omit<ManualWorkout, 'id'>) => void
   remove: (id: string) => void
+  setAll: (workouts: ManualWorkout[]) => void
 }
 
 export const useWorkoutStore = create<WorkoutState>()(
   persist(
-    set => ({
+    (set, get) => ({
       workouts: [],
-      add: w =>
-        set(s => ({
-          workouts: [{ ...w, id: Math.random().toString(36).slice(2) }, ...s.workouts],
-        })),
-      remove: id => set(s => ({ workouts: s.workouts.filter(w => w.id !== id) })),
+      add: w => {
+        const next = [{ ...w, id: Math.random().toString(36).slice(2) }, ...get().workouts]
+        set({ workouts: next })
+        saveWorkouts(next)
+      },
+      remove: id => {
+        const next = get().workouts.filter(w => w.id !== id)
+        set({ workouts: next })
+        saveWorkouts(next)
+      },
+      setAll: workouts => set({ workouts }),
     }),
     {
       name: 'manual_workouts',

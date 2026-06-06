@@ -1,18 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { C, type Page } from '../data'
 import { Card, Tag, Bar } from '../primitives'
+import { useAuthStore } from '../../store/useAuthStore'
+import { getProjects, saveProjects, type Project } from '../../lib/db'
+import { toast } from '../../lib/toast'
+import { LayoutContext } from '../LayoutContext'
 
 interface Props { setPage: (p: Page) => void }
-
-interface Project {
-  id: string
-  name: string
-  description: string
-  category: 'saude' | 'trabalho' | 'pessoal' | 'aprendizado'
-  progress: number
-  priority: 'alta' | 'media' | 'baixa'
-  dueDate: string
-}
 
 const CAT_COLOR: Record<string, string> = {
   saude: '#22C55E', trabalho: '#60A5FA', pessoal: '#F472B6', aprendizado: '#A78BFA',
@@ -28,11 +22,6 @@ const DEFAULTS: Project[] = [
   { id: '3', name: 'Lançar projeto pessoal', description: 'Construir e publicar um produto digital', category: 'trabalho', progress: 15, priority: 'alta', dueDate: '' },
 ]
 
-function load(): Project[] {
-  try { const r = localStorage.getItem('projects'); return r ? JSON.parse(r) : DEFAULTS } catch { return DEFAULTS }
-}
-function save(p: Project[]) { localStorage.setItem('projects', JSON.stringify(p)) }
-
 const EMPTY: Omit<Project, 'id'> = { name: '', description: '', category: 'pessoal', progress: 0, priority: 'media', dueDate: '' }
 
 const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
@@ -40,29 +29,67 @@ const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
   padding: '8px 10px', color: C.text, fontSize: 13, outline: 'none', width: '100%', ...extra,
 })
 
-export function Projetos({ setPage: _s }: Props) {
-  const [projects, setProjects] = useState<Project[]>(load)
-  const [modal, setModal]       = useState(false)
-  const [form, setForm]         = useState<Omit<Project, 'id'>>({ ...EMPTY })
-  const [filter, setFilter]     = useState<string>('todos')
+function loadLocal(): Project[] {
+  try { const r = localStorage.getItem('projects'); return r ? JSON.parse(r) : DEFAULTS } catch { return DEFAULTS }
+}
 
-  const upsert = (fn: (p: Project[]) => Project[]) => {
-    setProjects(prev => { const next = fn(prev); save(next); return next })
+export function Projetos({ setPage: _s }: Props) {
+  const user = useAuthStore(s => s.user)
+  const { isMobile } = useContext(LayoutContext)
+
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loaded,   setLoaded]   = useState(false)
+  const [modal,    setModal]    = useState(false)
+  const [form,     setForm]     = useState<Omit<Project, 'id'>>({ ...EMPTY })
+  const [filter,   setFilter]   = useState<string>('todos')
+
+  useEffect(() => {
+    async function load() {
+      if (user) {
+        const cloud = await getProjects()
+        if (cloud !== null) { setProjects(cloud); setLoaded(true); return }
+      }
+      const local = loadLocal()
+      setProjects(local)
+      setLoaded(true)
+    }
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  const persist = (next: Project[]) => {
+    localStorage.setItem('projects', JSON.stringify(next))
+    saveProjects(next)
+    setProjects(next)
   }
 
   const addProject = () => {
     if (!form.name.trim()) return
-    upsert(p => [...p, { ...form, id: Math.random().toString(36).slice(2) }])
+    const next = [...projects, { ...form, id: Math.random().toString(36).slice(2) }]
+    persist(next)
     setForm({ ...EMPTY })
     setModal(false)
+    toast.success(`🎯 Projeto "${form.name}" criado!`)
   }
 
-  const remove = (id: string) => upsert(p => p.filter(x => x.id !== id))
-  const setProgress = (id: string, v: number) =>
-    upsert(p => p.map(x => x.id === id ? { ...x, progress: v } : x))
+  const remove = (id: string) => {
+    const p = projects.find(x => x.id === id)
+    persist(projects.filter(x => x.id !== id))
+    if (p) toast.info(`🗑 Projeto "${p.name}" removido`)
+  }
+
+  const setProgress = (id: string, v: number) => {
+    const next = projects.map(x => x.id === id ? { ...x, progress: v } : x)
+    persist(next)
+    if (v === 100) toast.success('🏆 Projeto concluído!')
+  }
 
   const visible = filter === 'todos' ? projects : projects.filter(p => p.category === filter)
   const done    = projects.filter(p => p.progress >= 100).length
+
+  if (!loaded) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: 14 }}>Carregando...</div>
+  }
 
   return (
     <>
@@ -119,7 +146,7 @@ export function Projetos({ setPage: _s }: Props) {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>🎯 Projetos</div>
+            <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, marginBottom: 4 }}>🎯 Projetos</div>
             <div style={{ fontSize: 13, color: C.muted }}>{done}/{projects.length} concluídos</div>
           </div>
           <button onClick={() => setModal(true)} style={{ background: C.orange, border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer' }}>
@@ -144,7 +171,7 @@ export function Projetos({ setPage: _s }: Props) {
             <div style={{ fontSize: 13 }}>Clique em "+ Novo Projeto" para começar</div>
           </Card>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             {visible.map(p => (
               <Card key={p.id} style={{ borderTop: `2px solid ${CAT_COLOR[p.category]}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>

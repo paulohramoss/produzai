@@ -12,6 +12,18 @@
   #root { width: 100%; max-width: 100%; text-align: left; border: none; display: block; min-height: 100%; }
 }
 
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.toast-slide-in { animation: toast-slide-in 0.22s ease forwards; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fade-in 0.3s ease forwards; }
+
 @layer components {
   .card { @apply bg-surface-card rounded-2xl border border-surface-border; }
   .card-raised { @apply bg-surface-raised rounded-2xl border border-surface-border; }

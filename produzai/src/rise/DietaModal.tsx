@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { C } from './data'
 import { useWebDietStore, type WebDietGoals, type WebDietMeal } from '../store/useWebDietStore'
+import { toast } from '../lib/toast'
+import { DIET_TEMPLATES } from './data/templates'
 
 interface Props {
   onClose: () => void
@@ -38,11 +40,23 @@ export function DietaModal({ onClose }: Props) {
   const [goalsSaved, setGoalsSaved] = useState(false)
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState<Omit<WebDietMeal, 'id'>>({ ...EMPTY_MEAL })
+  const [showTemplates, setShowTemplates] = useState(false)
+
+  function applyDietTemplate(tpl: typeof DIET_TEMPLATES[0]) {
+    store.updateGoals(tpl.goals)
+    setGoals({ ...tpl.goals })
+    // Replace all meals with template meals
+    data.meals.forEach(m => store.removeMeal(m.id))
+    tpl.meals.forEach(m => store.addMeal({ ...m, done: false, items: [] }))
+    toast.success(`🥗 Template "${tpl.name}" aplicado!`)
+    setShowTemplates(false)
+  }
 
   const saveGoals = () => {
     store.updateGoals(goals)
     setGoalsSaved(true)
     setTimeout(() => setGoalsSaved(false), 1800)
+    toast.success('🥗 Metas nutricionais salvas!')
   }
 
   const submitMeal = () => {
@@ -53,6 +67,7 @@ export function DietaModal({ onClose }: Props) {
       .map(s => s.trim())
       .filter(Boolean)
     store.addMeal({ ...form, items, cal: +form.cal, prot: +form.prot, carb: +form.carb, fat: +form.fat })
+    toast.success(`✅ Refeição "${form.name}" adicionada!`)
     setForm({ ...EMPTY_MEAL })
     setAdding(false)
   }
@@ -75,6 +90,36 @@ export function DietaModal({ onClose }: Props) {
 
         {/* Scrollable body */}
         <div style={{ overflowY: 'auto', flex: 1, padding: '20px 24px' }}>
+
+          {/* Diet Templates */}
+          <div style={{ marginBottom: 20 }}>
+            <button
+              onClick={() => setShowTemplates(s => !s)}
+              style={{ width: '100%', background: showTemplates ? C.green : C.card2, border: `1px solid ${showTemplates ? C.green : C.border2}`, borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 700, color: showTemplates ? '#fff' : C.muted, cursor: 'pointer', textAlign: 'left' }}
+            >
+              📋 {showTemplates ? 'Fechar templates' : 'Usar um template de dieta'}
+            </button>
+            {showTemplates && (
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {DIET_TEMPLATES.map((tpl, i) => (
+                  <div
+                    key={i}
+                    onClick={() => applyDietTemplate(tpl)}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: C.card2, borderRadius: 10, cursor: 'pointer', border: `1px solid ${C.border}` }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{tpl.name}</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{tpl.goal}</div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.orange }}>{tpl.goals.cal} kcal</div>
+                      <div style={{ fontSize: 10, color: C.muted }}>{tpl.meals.length} refeições</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Goals */}
           <div style={{ marginBottom: 28 }}>

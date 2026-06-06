@@ -3,17 +3,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can only read/write their own document
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
-      // Subcollections under the user's document
-      match /{subcollection}/{docId} {
+      // data/* — documentos principais (workouts, diet, profile, projects, books)
+      match /data/{docName} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // daily/{date} — hábitos e foco diário
+      match /daily/{date} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // mental/{date} — entradas de bem-estar diário
+      match /mental/{date} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Deny everything else by default
+    // Leaderboard público (leitura para autenticados, escrita só para o próprio uid)
+    match /leaderboard/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Tudo mais negado
     match /{document=**} {
       allow read, write: if false;
     }
