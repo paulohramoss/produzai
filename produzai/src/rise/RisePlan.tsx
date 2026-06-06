@@ -10,6 +10,7 @@ import { Mental }       from "./pages/Mental";
 import { Biblioteca }   from "./pages/Biblioteca";
 import { Coach }        from "./pages/Coach";
 import { Galeria }      from "./pages/Galeria";
+import { Perfil }       from "./pages/Perfil";
 import { Onboarding }   from "./pages/Onboarding";
 import { Toaster }      from "./components/Toaster";
 import { useAuthStore } from "../store/useAuthStore";
@@ -17,13 +18,13 @@ import { LayoutContext } from "./LayoutContext";
 
 const RISE_IMPLEMENTED: Page[] = [
   "dashboard", "hoje", "treino", "dieta", "agenda",
-  "projetos", "mental", "biblioteca", "coach", "galeria",
+  "projetos", "mental", "biblioteca", "coach", "galeria", "perfil",
 ];
 
 const SIDEBAR_W = 210;
 
 export function RisePlan() {
-  const { user, logout, onboardingDone } = useAuthStore();
+  const { user, displayName, photoURL, logout, onboardingDone } = useAuthStore();
   const [page, setPage]       = useState<Page>("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
   const [windowW, setWindowW] = useState(window.innerWidth);
@@ -135,23 +136,30 @@ export function RisePlan() {
 
           {/* User + logout */}
           <div style={{ padding: "12px 18px", borderTop: `1px solid ${C.border}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <div
+              onClick={() => navigate("perfil")}
+              style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, cursor: "pointer", borderRadius: 8, padding: "4px 0" }}
+            >
               <div style={{
                 width: 32, height: 32, borderRadius: "50%",
-                background: C.orange,
+                background: C.orange, overflow: "hidden",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 13, fontWeight: 800, color: "#000", flexShrink: 0,
               }}>
-                {(user?.displayName || user?.email || "U")[0].toUpperCase()}
+                {photoURL
+                  ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : (displayName || user?.displayName || user?.email || "U")[0].toUpperCase()
+                }
               </div>
-              <div style={{ minWidth: 0 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {user?.displayName || "Usuário"}
+                  {displayName || user?.displayName || "Usuário"}
                 </div>
                 <div style={{ fontSize: 10, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {user?.email}
                 </div>
               </div>
+              <span style={{ fontSize: 10, color: C.muted }}>⚙</span>
             </div>
             <button
               onClick={logout}
@@ -194,14 +202,17 @@ export function RisePlan() {
                 ☰
               </button>
               <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ height: 28, borderRadius: 6 }} />
-              <div style={{ marginLeft: "auto" }}>
+              <div style={{ marginLeft: "auto" }} onClick={() => navigate("perfil")}>
                 <div style={{
                   width: 28, height: 28, borderRadius: "50%",
-                  background: C.orange,
+                  background: C.orange, overflow: "hidden",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, fontWeight: 800, color: "#000",
+                  fontSize: 12, fontWeight: 800, color: "#000", cursor: "pointer",
                 }}>
-                  {(user?.displayName || user?.email || "U")[0].toUpperCase()}
+                  {photoURL
+                    ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : (displayName || user?.displayName || user?.email || "U")[0].toUpperCase()
+                  }
                 </div>
               </div>
             </div>
@@ -217,6 +228,7 @@ export function RisePlan() {
           {page === "biblioteca" && <Biblioteca  setPage={navigate} />}
           {page === "coach"      && <Coach       setPage={navigate} />}
           {page === "galeria"    && <Galeria     setPage={navigate} />}
+          {page === "perfil"    && <Perfil      setPage={navigate} />}
 
           {!RISE_IMPLEMENTED.includes(page) && (
             <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>

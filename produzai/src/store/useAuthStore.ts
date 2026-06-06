@@ -5,6 +5,9 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   updateProfile,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   GoogleAuthProvider,
   signInWithPopup,
   type User,
@@ -18,6 +21,8 @@ import { useHabitsStore } from './useHabitsStore'
 
 interface AuthState {
   user:              User | null
+  displayName:       string | null
+  photoURL:          string | null
   loading:           boolean
   error:             string | null
   initialized:       boolean
@@ -28,6 +33,8 @@ interface AuthState {
   logout:            () => Promise<void>
   clearError:        () => void
   setOnboardingDone: (v: boolean) => void
+  updateProfileData: (patch: { displayName?: string; photoURL?: string }) => Promise<void>
+  changePassword:    (currentPass: string, newPass: string) => Promise<void>
   init:              () => () => void
 }
 
@@ -77,6 +84,8 @@ function firebaseErrorMsg(e: unknown): string {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user:           null,
+  displayName:    null,
+  photoURL:       null,
   loading:        false,
   error:          null,
   initialized:    false,
@@ -126,6 +135,24 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setOnboardingDone: (v) => set({ onboardingDone: v }),
 
+  updateProfileData: async (patch) => {
+    const u = auth.currentUser
+    if (!u) return
+    await updateProfile(u, patch)
+    set({
+      displayName: patch.displayName !== undefined ? patch.displayName : u.displayName,
+      photoURL:    patch.photoURL    !== undefined ? patch.photoURL    : u.photoURL,
+    })
+  },
+
+  changePassword: async (currentPass, newPass) => {
+    const u = auth.currentUser
+    if (!u || !u.email) throw new Error('Usuário sem e-mail.')
+    const credential = EmailAuthProvider.credential(u.email, currentPass)
+    await reauthenticateWithCredential(u, credential)
+    await updatePassword(u, newPass)
+  },
+
   init: () => {
     const unsub = onAuthStateChanged(auth, async user => {
       if (user) {
@@ -137,6 +164,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         ])
         set({
           user,
+          displayName: user.displayName,
+          photoURL:    user.photoURL,
           loading: false,
           initialized: true,
           onboardingDone: profile?.onboardingDone ?? false,

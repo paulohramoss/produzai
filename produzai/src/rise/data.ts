@@ -10,7 +10,7 @@ export const C = {
 
 export type Page =
   | "dashboard" | "hoje" | "treino" | "dieta" | "agenda"
-  | "projetos" | "mental" | "biblioteca" | "coach" | "galeria"
+  | "projetos" | "mental" | "biblioteca" | "coach" | "galeria" | "perfil"
   // ProduzAI pages
   // | "chat" | "habits" | "finance" | "calendar" | "investments" | "goals" | "reports" | "settings"
 
