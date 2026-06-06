@@ -5,6 +5,8 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
   type User,
 } from 'firebase/auth'
 import { auth } from '../lib/firebase'
@@ -15,17 +17,18 @@ import { useWebDietStore } from './useWebDietStore'
 import { useHabitsStore } from './useHabitsStore'
 
 interface AuthState {
-  user:           User | null
-  loading:        boolean
-  error:          string | null
-  initialized:    boolean
-  onboardingDone: boolean
-  login:          (email: string, password: string) => Promise<void>
-  register:       (name: string, email: string, password: string) => Promise<void>
-  logout:         () => Promise<void>
-  clearError:     () => void
+  user:              User | null
+  loading:           boolean
+  error:             string | null
+  initialized:       boolean
+  onboardingDone:    boolean
+  login:             (email: string, password: string) => Promise<void>
+  loginWithGoogle:   () => Promise<void>
+  register:          (name: string, email: string, password: string) => Promise<void>
+  logout:            () => Promise<void>
+  clearError:        () => void
   setOnboardingDone: (v: boolean) => void
-  init:           () => () => void
+  init:              () => () => void
 }
 
 async function loadFirestoreData() {
@@ -65,6 +68,9 @@ function firebaseErrorMsg(e: unknown): string {
     case 'auth/weak-password':        return 'Senha muito fraca. Use pelo menos 6 caracteres.'
     case 'auth/invalid-email':        return 'E-mail inválido.'
     case 'auth/too-many-requests':    return 'Muitas tentativas. Tente novamente mais tarde.'
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request': return ''
+    case 'auth/popup-blocked':        return 'Popup bloqueado pelo navegador. Permita popups para este site.'
     default:                          return 'Erro ao autenticar. Tente novamente.'
   }
 }
@@ -83,6 +89,18 @@ export const useAuthStore = create<AuthState>((set) => ({
       // onAuthStateChanged handles the rest
     } catch (e) {
       set({ error: firebaseErrorMsg(e), loading: false })
+    }
+  },
+
+  loginWithGoogle: async () => {
+    set({ loading: true, error: null })
+    try {
+      const provider = new GoogleAuthProvider()
+      await signInWithPopup(auth, provider)
+      // onAuthStateChanged handles the rest
+    } catch (e) {
+      const msg = firebaseErrorMsg(e)
+      set({ error: msg || null, loading: false })
     }
   },
 
