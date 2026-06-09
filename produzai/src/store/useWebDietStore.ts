@@ -26,20 +26,37 @@ export interface WebDietData {
   meals: WebDietMeal[]
 }
 
+export type ComplianceStatus = 'perfect' | 'good' | 'alcohol' | 'skipped'
+
+export interface DietCompliance {
+  date: string
+  status: ComplianceStatus
+  note: string
+}
+
 interface WebDietState {
   data: WebDietData | null
+  pdfBase64: string | null
+  pdfName: string | null
+  compliance: DietCompliance[]
   setup: (goals: WebDietGoals, meals?: WebDietMeal[]) => void
   toggleMeal: (id: string) => void
   addMeal: (meal: Omit<WebDietMeal, 'id'>) => void
   removeMeal: (id: string) => void
   updateGoals: (goals: WebDietGoals) => void
   clear: () => void
+  setPdf: (base64: string, name: string) => void
+  removePdf: () => void
+  logCompliance: (entry: DietCompliance) => void
 }
 
 export const useWebDietStore = create<WebDietState>()(
   persist(
     set => ({
       data: null,
+      pdfBase64: null,
+      pdfName: null,
+      compliance: [],
       setup: (goals, meals = []) => set({ data: { goals, meals } }),
       toggleMeal: id =>
         set(s =>
@@ -62,6 +79,15 @@ export const useWebDietStore = create<WebDietState>()(
       updateGoals: goals =>
         set(s => (s.data ? { data: { ...s.data, goals } } : s)),
       clear: () => set({ data: null }),
+      setPdf: (base64, name) => set({ pdfBase64: base64, pdfName: name }),
+      removePdf: () => set({ pdfBase64: null, pdfName: null }),
+      logCompliance: entry =>
+        set(s => ({
+          compliance: [
+            ...s.compliance.filter(c => c.date !== entry.date),
+            entry,
+          ],
+        })),
     }),
     {
       name: 'webdiet_data',
