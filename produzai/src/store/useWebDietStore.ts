@@ -45,6 +45,7 @@ interface WebDietState {
   addMeal: (meal: Omit<WebDietMeal, 'id'>) => void
   removeMeal: (id: string) => void
   updateGoals: (goals: WebDietGoals) => void
+  updateMeal: (id: string, data: Partial<Omit<WebDietMeal, 'id'>>) => void
   setData: (data: WebDietData | null) => void
   clear: () => void
   setPdf: (base64: string, name: string) => void
@@ -90,6 +91,14 @@ export const useWebDietStore = create<WebDietState>()(
         const s = get()
         if (!s.data) return
         const data = { ...s.data, meals: s.data.meals.filter(m => m.id !== id) }
+        set({ data })
+        sync(data)
+      },
+
+      updateMeal: (id, patch) => {
+        const s = get()
+        if (!s.data) return
+        const data = { ...s.data, meals: s.data.meals.map(m => m.id === id ? { ...m, ...patch } : m) }
         set({ data })
         sync(data)
       },

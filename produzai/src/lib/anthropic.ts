@@ -76,6 +76,48 @@ export async function streamCoach(
   }
 }
 
+export async function estimateMealMacros(items: string[]): Promise<{ cal: number; prot: number; carb: number; fat: number } | null> {
+  if (!API_KEY || API_KEY === 'sua-chave-aqui' || items.length === 0) return null
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 128,
+      messages: [{
+        role: 'user',
+        content: `Estime os macronutrientes TOTAIS desta refeição. Retorne APENAS JSON puro sem markdown:
+{"cal":number,"prot":number,"carb":number,"fat":number}
+
+Alimentos:
+${items.join('\n')}
+
+Arredonde para inteiros. Use estimativas realistas para porções brasileiras típicas.`,
+      }],
+    }),
+  })
+
+  if (!res.ok) return null
+
+  const body = await res.json() as { content: Array<{ type: string; text: string }> }
+  let text = (body.content.find(c => c.type === 'text')?.text ?? '').trim()
+  text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
+
+  try {
+    return JSON.parse(text) as { cal: number; prot: number; carb: number; fat: number }
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (match) try { return JSON.parse(match[0]) } catch { /* fall through */ }
+    return null
+  }
+}
+
 export async function parsePdfDiet(pdfBase64: string): Promise<WebDietData | null> {
   if (!API_KEY || API_KEY === 'sua-chave-aqui') return null
 
