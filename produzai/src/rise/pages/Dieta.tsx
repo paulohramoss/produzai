@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { useState, useRef, useEffect } from 'react'
-=======
-import { useState, useContext } from 'react'
->>>>>>> e189c45cca12979c14c0fe49c725a92330ce0de6
+import { useState, useRef, useEffect, useContext } from 'react'
 import { C, type Page } from '../data'
 import { Card, Tag, Bar, Dot } from '../primitives'
 import { useWebDietStore, type ComplianceStatus } from '../../store/useWebDietStore'
@@ -176,11 +172,7 @@ export function Dieta({ setPage: _setPage }: Props) {
           ))}
         </div>
 
-<<<<<<< HEAD
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginBottom: 16 }}>
-=======
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1fr", gap: 16 }}>
->>>>>>> e189c45cca12979c14c0fe49c725a92330ce0de6
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1fr", gap: 16, marginBottom: 16 }}>
           {/* Meal plan */}
           <Card>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
