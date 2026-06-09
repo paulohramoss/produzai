@@ -4,7 +4,7 @@ import { Card, Tag, Bar, Dot } from '../primitives'
 import { useWebDietStore, type ComplianceStatus } from '../../store/useWebDietStore'
 import { DietaModal } from '../DietaModal'
 import { LayoutContext } from '../LayoutContext'
-import { parsePdfDiet } from '../../lib/anthropic'
+import { parsePdfDiet, estimateMealMacros } from '../../lib/anthropic'
 
 interface Props {
   setPage: (page: Page) => void
@@ -40,7 +40,8 @@ export function Dieta({ setPage: _setPage }: Props) {
   const compliance  = useWebDietStore(s => s.compliance)
   const logCompliance = useWebDietStore(s => s.logCompliance)
 
-  const setup = useWebDietStore(s => s.setup)
+  const setup      = useWebDietStore(s => s.setup)
+  const updateMeal = useWebDietStore(s => s.updateMeal)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const today = getTodayStr()
@@ -51,6 +52,15 @@ export function Dieta({ setPage: _setPage }: Props) {
   const [pendingNote, setPendingNote]     = useState('')
   const [parsing, setParsing]             = useState(false)
   const [parseError, setParseError]       = useState<string | null>(null)
+  const [calcingId, setCalcingId]         = useState<string | null>(null)
+
+  async function handleCalcMacros(e: React.MouseEvent, mealId: string, items: string[]) {
+    e.stopPropagation()
+    setCalcingId(mealId)
+    const result = await estimateMealMacros(items)
+    setCalcingId(null)
+    if (result) updateMeal(mealId, result)
+  }
 
   async function handleImportPdf() {
     if (!pdfBase64) return
@@ -272,10 +282,18 @@ export function Dieta({ setPage: _setPage }: Props) {
                     </div>
                     <span style={{ fontSize: 13, fontWeight: 800, color: C.orange }}>{m.cal} kcal</span>
                   </div>
-                  <div style={{ display: "flex", gap: 12, marginBottom: m.items.length > 0 ? 8 : 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: m.items.length > 0 ? 8 : 0 }}>
                     <span style={{ fontSize: 11, color: C.blue }}>🥩 {m.prot}g</span>
                     <span style={{ fontSize: 11, color: C.green }}>🌾 {m.carb}g</span>
                     <span style={{ fontSize: 11, color: C.purple }}>🫒 {m.fat}g</span>
+                    {m.items.length > 0 && (
+                      <button
+                        onClick={e => handleCalcMacros(e, m.id, m.items)}
+                        disabled={calcingId === m.id}
+                        style={{ marginLeft: "auto", background: calcingId === m.id ? C.card : `${C.green}18`, border: `1px solid ${calcingId === m.id ? C.border : C.green + '44'}`, borderRadius: 6, padding: "2px 8px", color: calcingId === m.id ? C.muted : C.green, fontSize: 10, fontWeight: 600, cursor: calcingId === m.id ? "not-allowed" : "pointer", flexShrink: 0 }}>
+                        {calcingId === m.id ? '⏳' : '✨ Calcular'}
+                      </button>
+                    )}
                   </div>
                   {m.items.length > 0 && (
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
