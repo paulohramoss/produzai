@@ -195,6 +195,55 @@ export function Dieta({ setPage: _setPage }: Props) {
           ))}
         </div>
 
+        {/* PDF Attachment */}
+        {pdfSrc ? (
+          <Card style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, background: `${C.blue}18`, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>📄</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{pdfName}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>Plano alimentar em PDF</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <button
+                  onClick={handleImportPdf}
+                  disabled={parsing}
+                  style={{ background: parsing ? C.card2 : `${C.green}18`, border: `1px solid ${parsing ? C.border2 : C.green + '44'}`, borderRadius: 8, padding: "6px 14px", color: parsing ? C.muted : C.green, fontSize: 12, fontWeight: 600, cursor: parsing ? "not-allowed" : "pointer" }}>
+                  {parsing ? '⏳ Analisando...' : '✨ Importar refeições'}
+                </button>
+                <button
+                  onClick={() => { const a = document.createElement('a'); a.href = pdfSrc!; a.target = '_blank'; a.click() }}
+                  style={{ background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: 8, padding: "6px 14px", color: C.blue, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  Abrir PDF
+                </button>
+                <button
+                  onClick={removePdf}
+                  style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "6px 10px", color: C.muted, fontSize: 12, cursor: "pointer" }}>
+                  ✕
+                </button>
+              </div>
+            </div>
+            {parseError && (
+              <div style={{ marginTop: 8, fontSize: 11, color: C.red }}>{parseError}</div>
+            )}
+          </Card>
+        ) : (
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            style={{ display: "flex", alignItems: "center", gap: 12, border: `2px dashed ${C.border2}`, borderRadius: 12, padding: "14px 20px", cursor: "pointer", transition: "border-color .15s", marginBottom: 16 }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = C.blue)}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = C.border2)}
+          >
+            <span style={{ fontSize: 22 }}>📎</span>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 13, color: C.text }}>Anexar plano alimentar em PDF</div>
+              <div style={{ fontSize: 11, color: C.muted }}>Clique para selecionar o PDF do seu nutricionista · máx. 5MB</div>
+            </div>
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1fr", gap: 16, marginBottom: 16 }}>
           {/* Meal plan */}
           <Card>
@@ -377,65 +426,6 @@ export function Dieta({ setPage: _setPage }: Props) {
             )}
           </div>
         </div>
-
-        {/* PDF Attachment */}
-        {pdfSrc ? (
-          <Card style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 40, height: 40, background: `${C.blue}18`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>📄</div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{pdfName}</div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Plano alimentar em PDF</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => { const w = window.open(); if (w) { w.document.write(`<iframe src="${pdfSrc}" width="100%" height="100%" style="border:none;margin:0;padding:0"></iframe>`); w.document.close() } }}
-                  style={{ background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: 8, padding: "7px 14px", color: C.blue, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                  Abrir PDF
-                </button>
-                <button
-                  onClick={removePdf}
-                  style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "7px 12px", color: C.muted, fontSize: 12, cursor: "pointer" }}>
-                  ✕ Remover
-                </button>
-              </div>
-            </div>
-
-            {/* Import / re-import from PDF */}
-            <div style={{ marginTop: 14, padding: "12px 14px", background: `${C.green}0e`, borderRadius: 10, border: `1px solid ${C.green}30` }}>
-              <div style={{ fontSize: 12, color: C.green, fontWeight: 600, marginBottom: 4 }}>
-                ✨ Importar refeições automaticamente
-              </div>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>
-                {sortedMeals.length > 0
-                  ? 'O Claude vai reler o PDF e substituir as refeições atuais pelo plano detectado.'
-                  : 'O Claude vai ler o PDF e criar as refeições automaticamente para você marcar ao longo do dia.'}
-              </div>
-              <button
-                onClick={handleImportPdf}
-                disabled={parsing}
-                style={{ background: parsing ? C.card2 : C.green, border: "none", borderRadius: 7, padding: "7px 16px", color: parsing ? C.muted : "#fff", fontSize: 12, fontWeight: 700, cursor: parsing ? "not-allowed" : "pointer", transition: "background .15s" }}>
-                {parsing ? '⏳ Analisando PDF...' : '✨ Importar do PDF'}
-              </button>
-              {parseError && (
-                <div style={{ marginTop: 8, fontSize: 11, color: C.red }}>{parseError}</div>
-              )}
-            </div>
-          </Card>
-        ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            style={{ border: `2px dashed ${C.border2}`, borderRadius: 12, padding: "32px 20px", textAlign: "center", cursor: "pointer", transition: "border-color .15s", marginBottom: 16 }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = C.blue)}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = C.border2)}
-          >
-            <div style={{ fontSize: 36, marginBottom: 10 }}>📎</div>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: C.text }}>Anexar plano alimentar em PDF</div>
-            <div style={{ fontSize: 12, color: C.muted }}>Clique para selecionar o PDF do seu nutricionista · máx. 5MB</div>
-          </div>
-        )}
 
         {/* Compliance History */}
         {compliance.length > 0 && (

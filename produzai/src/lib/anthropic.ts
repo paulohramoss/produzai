@@ -89,7 +89,7 @@ export async function parsePdfDiet(pdfBase64: string): Promise<WebDietData | nul
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
+      max_tokens: 4096,
       messages: [
         {
           role: 'user',
@@ -100,15 +100,18 @@ export async function parsePdfDiet(pdfBase64: string): Promise<WebDietData | nul
             },
             {
               type: 'text',
-              text: `Analise este plano alimentar e extraia todas as refeições. Retorne APENAS JSON válido, sem markdown, sem texto extra, com este formato:
+              text: `Analise este plano alimentar. Retorne APENAS JSON puro, sem markdown, sem crases, sem texto antes ou depois.
 
-{"goals":{"cal":number,"prot":number,"carb":number,"fat":number},"meals":[{"time":"HH:MM","name":"string","cal":number,"prot":number,"carb":number,"fat":number,"items":["string"]}]}
+Formato exato:
+{"goals":{"cal":0,"prot":0,"carb":0,"fat":0},"meals":[{"time":"HH:MM","name":"string","cal":0,"prot":0,"carb":0,"fat":0,"items":["string"]}]}
 
 Regras:
-- Se um macro não estiver no PDF, use 0
-- Se o horário não estiver, estime: café manhã 07:00, lanche manhã 10:00, almoço 12:00, lanche tarde 15:30, jantar 19:00, ceia 21:00
-- items = lista de alimentos/ingredientes daquela refeição (pode ser array vazio)
-- goals = metas totais do plano; se não explícito, some os macros de todas as refeições`,
+- Se houver múltiplas opções para uma refeição (Opção 1, Opção 2...), inclua APENAS a Opção 1 de cada refeição
+- Se macro não estiver no PDF, use 0
+- Horários sem valor: café manhã 07:00, lanche manhã 10:00, almoço 12:00, lanche tarde 15:30, jantar 19:00, ceia 21:30
+- items = alimentos daquela refeição
+- goals = soma dos macros de todas as refeições se não estiver explícito
+- NÃO use markdown, NÃO use crases, comece a resposta direto com {`,
             },
           ],
         },
@@ -118,8 +121,11 @@ Regras:
 
   if (!res.ok) return null
 
-  const body = await res.json() as { content: Array<{ type: string; text: string }> }
-  const text = (body.content.find(c => c.type === 'text')?.text ?? '').trim()
+  const body = await res.json() as { content: Array<{ type: string; text: string }>; stop_reason?: string }
+  let text = (body.content.find(c => c.type === 'text')?.text ?? '').trim()
+
+  // strip markdown code fences if model ignores instructions
+  text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
 
   function hydrate(raw: WebDietData): WebDietData {
     return {
@@ -136,6 +142,7 @@ Regras:
   try {
     return hydrate(JSON.parse(text) as WebDietData)
   } catch {
+    // extract first complete JSON object
     const match = text.match(/\{[\s\S]*\}/)
     if (match) {
       try { return hydrate(JSON.parse(match[0]) as WebDietData) } catch { /* fall through */ }
