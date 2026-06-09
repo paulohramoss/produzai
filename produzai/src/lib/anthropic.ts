@@ -1,5 +1,5 @@
 import type { ManualWorkout } from '../store/useWorkoutStore'
-import type { WebDietData } from '../store/useWebDietStore'
+import type { WebDietData, WebDietMeal } from '../store/useWebDietStore'
 import type { HabitDef } from '../store/useHabitsStore'
 
 const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined
@@ -73,6 +73,74 @@ export async function streamCoach(
     onDone()
   } catch (e) {
     onError((e as Error).message ?? 'Erro desconhecido')
+  }
+}
+
+export async function parsePdfDiet(pdfBase64: string): Promise<WebDietData | null> {
+  if (!API_KEY || API_KEY === 'sua-chave-aqui') return null
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 },
+            },
+            {
+              type: 'text',
+              text: `Analise este plano alimentar e extraia todas as refeições. Retorne APENAS JSON válido, sem markdown, sem texto extra, com este formato:
+
+{"goals":{"cal":number,"prot":number,"carb":number,"fat":number},"meals":[{"time":"HH:MM","name":"string","cal":number,"prot":number,"carb":number,"fat":number,"items":["string"]}]}
+
+Regras:
+- Se um macro não estiver no PDF, use 0
+- Se o horário não estiver, estime: café manhã 07:00, lanche manhã 10:00, almoço 12:00, lanche tarde 15:30, jantar 19:00, ceia 21:00
+- items = lista de alimentos/ingredientes daquela refeição (pode ser array vazio)
+- goals = metas totais do plano; se não explícito, some os macros de todas as refeições`,
+            },
+          ],
+        },
+      ],
+    }),
+  })
+
+  if (!res.ok) return null
+
+  const body = await res.json() as { content: Array<{ type: string; text: string }> }
+  const text = (body.content.find(c => c.type === 'text')?.text ?? '').trim()
+
+  function hydrate(raw: WebDietData): WebDietData {
+    return {
+      ...raw,
+      meals: (raw.meals ?? []).map((m: WebDietMeal) => ({
+        ...m,
+        id: Math.random().toString(36).slice(2),
+        done: false,
+        items: m.items ?? [],
+      })),
+    }
+  }
+
+  try {
+    return hydrate(JSON.parse(text) as WebDietData)
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (match) {
+      try { return hydrate(JSON.parse(match[0]) as WebDietData) } catch { /* fall through */ }
+    }
+    return null
   }
 }
 

@@ -4,6 +4,7 @@ import { Card, Tag, Bar, Dot } from '../primitives'
 import { useWebDietStore, type ComplianceStatus } from '../../store/useWebDietStore'
 import { DietaModal } from '../DietaModal'
 import { LayoutContext } from '../LayoutContext'
+import { parsePdfDiet } from '../../lib/anthropic'
 
 interface Props {
   setPage: (page: Page) => void
@@ -39,6 +40,8 @@ export function Dieta({ setPage: _setPage }: Props) {
   const compliance  = useWebDietStore(s => s.compliance)
   const logCompliance = useWebDietStore(s => s.logCompliance)
 
+  const setup = useWebDietStore(s => s.setup)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const today = getTodayStr()
   const todayLog = compliance.find(c => c.date === today)
@@ -46,6 +49,26 @@ export function Dieta({ setPage: _setPage }: Props) {
   const [editing, setEditing]             = useState(false)
   const [pendingStatus, setPendingStatus] = useState<ComplianceStatus | null>(null)
   const [pendingNote, setPendingNote]     = useState('')
+  const [parsing, setParsing]             = useState(false)
+  const [parseError, setParseError]       = useState<string | null>(null)
+
+  async function handleImportPdf() {
+    if (!pdfBase64) return
+    setParsing(true)
+    setParseError(null)
+    try {
+      const result = await parsePdfDiet(pdfBase64)
+      if (result) {
+        setup(result.goals, result.meals)
+      } else {
+        setParseError('Não foi possível extrair as refeições. Tente adicionar manualmente.')
+      }
+    } catch {
+      setParseError('Erro ao processar o PDF.')
+    } finally {
+      setParsing(false)
+    }
+  }
 
   useEffect(() => {
     setEditing(false)
@@ -379,17 +402,27 @@ export function Dieta({ setPage: _setPage }: Props) {
                 </button>
               </div>
             </div>
-            {wd && sortedMeals.length === 0 && (
-              <div style={{ marginTop: 14, padding: "12px 14px", background: `${C.orange}12`, borderRadius: 10, border: `1px solid ${C.orange}30` }}>
-                <div style={{ fontSize: 12, color: C.orange, fontWeight: 600, marginBottom: 4 }}>📋 Configure as refeições do plano</div>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>Adicione as refeições do seu PDF para marcar cada uma como feita ao longo do dia.</div>
-                <button
-                  onClick={() => setEditOpen(true)}
-                  style={{ background: C.orange, border: "none", borderRadius: 7, padding: "7px 16px", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  Adicionar refeições
-                </button>
+
+            {/* Import / re-import from PDF */}
+            <div style={{ marginTop: 14, padding: "12px 14px", background: `${C.green}0e`, borderRadius: 10, border: `1px solid ${C.green}30` }}>
+              <div style={{ fontSize: 12, color: C.green, fontWeight: 600, marginBottom: 4 }}>
+                ✨ Importar refeições automaticamente
               </div>
-            )}
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>
+                {sortedMeals.length > 0
+                  ? 'O Claude vai reler o PDF e substituir as refeições atuais pelo plano detectado.'
+                  : 'O Claude vai ler o PDF e criar as refeições automaticamente para você marcar ao longo do dia.'}
+              </div>
+              <button
+                onClick={handleImportPdf}
+                disabled={parsing}
+                style={{ background: parsing ? C.card2 : C.green, border: "none", borderRadius: 7, padding: "7px 16px", color: parsing ? C.muted : "#fff", fontSize: 12, fontWeight: 700, cursor: parsing ? "not-allowed" : "pointer", transition: "background .15s" }}>
+                {parsing ? '⏳ Analisando PDF...' : '✨ Importar do PDF'}
+              </button>
+              {parseError && (
+                <div style={{ marginTop: 8, fontSize: 11, color: C.red }}>{parseError}</div>
+              )}
+            </div>
           </Card>
         ) : (
           <div
