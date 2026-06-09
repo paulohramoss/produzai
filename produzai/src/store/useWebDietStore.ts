@@ -37,7 +37,6 @@ export interface DietCompliance {
 
 interface WebDietState {
   data: WebDietData | null
-<<<<<<< HEAD
   pdfBase64: string | null
   pdfName: string | null
   compliance: DietCompliance[]
@@ -46,55 +45,24 @@ interface WebDietState {
   addMeal: (meal: Omit<WebDietMeal, 'id'>) => void
   removeMeal: (id: string) => void
   updateGoals: (goals: WebDietGoals) => void
+  setData: (data: WebDietData | null) => void
   clear: () => void
   setPdf: (base64: string, name: string) => void
   removePdf: () => void
   logCompliance: (entry: DietCompliance) => void
-=======
-  setup:       (goals: WebDietGoals, meals?: WebDietMeal[]) => void
-  toggleMeal:  (id: string) => void
-  addMeal:     (meal: Omit<WebDietMeal, 'id'>) => void
-  removeMeal:  (id: string) => void
-  updateGoals: (goals: WebDietGoals) => void
-  setData:     (data: WebDietData | null) => void
-  clear:       () => void
 }
 
 function sync(data: WebDietData | null) {
   if (data) saveDiet(data)
->>>>>>> e189c45cca12979c14c0fe49c725a92330ce0de6
 }
 
 export const useWebDietStore = create<WebDietState>()(
   persist(
     (set, get) => ({
       data: null,
-<<<<<<< HEAD
       pdfBase64: null,
       pdfName: null,
       compliance: [],
-      setup: (goals, meals = []) => set({ data: { goals, meals } }),
-      toggleMeal: id =>
-        set(s =>
-          s.data
-            ? { data: { ...s.data, meals: s.data.meals.map(m => m.id === id ? { ...m, done: !m.done } : m) } }
-            : s,
-        ),
-      addMeal: meal =>
-        set(s =>
-          s.data
-            ? { data: { ...s.data, meals: [...s.data.meals, { ...meal, id: Math.random().toString(36).slice(2) }] } }
-            : s,
-        ),
-      removeMeal: id =>
-        set(s =>
-          s.data
-            ? { data: { ...s.data, meals: s.data.meals.filter(m => m.id !== id) } }
-            : s,
-        ),
-      updateGoals: goals =>
-        set(s => (s.data ? { data: { ...s.data, goals } } : s)),
-=======
 
       setup: (goals, meals = []) => {
         const data = { goals, meals }
@@ -136,7 +104,6 @@ export const useWebDietStore = create<WebDietState>()(
 
       setData: data => set({ data }),
 
->>>>>>> e189c45cca12979c14c0fe49c725a92330ce0de6
       clear: () => set({ data: null }),
       setPdf: (base64, name) => set({ pdfBase64: base64, pdfName: name }),
       removePdf: () => set({ pdfBase64: null, pdfName: null }),
