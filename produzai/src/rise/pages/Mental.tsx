@@ -1,39 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { C, type Page } from '../data'
 import { Card } from '../primitives'
+import { useAuthStore } from '../../store/useAuthStore'
+import { getMental, saveMental, getMentalHistory, type MentalEntry } from '../../lib/db'
+import { toast } from '../../lib/toast'
+import { LayoutContext } from '../LayoutContext'
 
 interface Props { setPage: (p: Page) => void }
 
-interface DayEntry {
-  mood: number       // 1-5
-  energy: number     // 1-5
-  gratitude: [string, string, string]
-  note: string
-}
-
-const MOODS = ['😞', '😕', '😐', '🙂', '😄']
+const MOODS       = ['😞', '😕', '😐', '🙂', '😄']
 const MOOD_LABELS = ['Ruim', 'Regular', 'Ok', 'Bom', 'Ótimo']
 const MOOD_COLORS = [C.red, '#F97316', '#EAB308', C.green, '#22C55E']
 
-const today = () => new Date().toISOString().slice(0, 10)
+const todayKey = () => new Date().toISOString().slice(0, 10)
 
-function loadEntry(key: string): DayEntry {
+const EMPTY: MentalEntry = { mood: 0, energy: 0, gratitude: ['', '', ''], note: '' }
+
+function loadLocalEntry(key: string): MentalEntry {
   try {
     const r = localStorage.getItem(`mental_${key}`)
-    return r ? JSON.parse(r) : { mood: 0, energy: 0, gratitude: ['', '', ''], note: '' }
-  } catch { return { mood: 0, energy: 0, gratitude: ['', '', ''], note: '' } }
-}
-function saveEntry(key: string, e: DayEntry) { localStorage.setItem(`mental_${key}`, JSON.stringify(e)) }
-
-function loadHistory(): { date: string; mood: number }[] {
-  const result: { date: string; mood: number }[] = []
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
-    const entry = loadEntry(key)
-    result.push({ date: key, mood: entry.mood })
-  }
-  return result
+    return r ? JSON.parse(r) : { ...EMPTY }
+  } catch { return { ...EMPTY } }
 }
 
 const inp: React.CSSProperties = {
@@ -42,16 +29,64 @@ const inp: React.CSSProperties = {
 }
 
 export function Mental({ setPage: _s }: Props) {
-  const todayKey = today()
-  const [entry, setEntry] = useState<DayEntry>(() => loadEntry(todayKey))
-  const history = loadHistory()
+  const user = useAuthStore(s => s.user)
+  const { isMobile } = useContext(LayoutContext)
+  const today = todayKey()
 
-  const update = (patch: Partial<DayEntry>) => {
+  const [entry,   setEntry]   = useState<MentalEntry>({ ...EMPTY })
+  const [history, setHistory] = useState<{ date: string; mood: number }[]>([])
+  const [loaded,  setLoaded]  = useState(false)
+  const [savedNote, setSavedNote] = useState(false)
+
+  // Carrega entrada de hoje e histórico
+  useEffect(() => {
+    async function load() {
+      // Histórico: últimos 7 dias
+      const dates: string[] = []
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i)
+        dates.push(d.toISOString().slice(0, 10))
+      }
+
+      if (user) {
+        const [cloudEntry, cloudHistory] = await Promise.all([
+          getMental(today),
+          getMentalHistory(dates),
+        ])
+        setEntry(cloudEntry ?? loadLocalEntry(today))
+        setHistory(dates.map(d => ({ date: d, mood: cloudHistory[d]?.mood ?? 0 })))
+      } else {
+        setEntry(loadLocalEntry(today))
+        setHistory(dates.map(d => ({ date: d, mood: loadLocalEntry(d).mood })))
+      }
+      setLoaded(true)
+    }
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, today])
+
+  const persist = (next: MentalEntry) => {
+    localStorage.setItem(`mental_${today}`, JSON.stringify(next))
+    saveMental(today, next)
+  }
+
+  const update = (patch: Partial<MentalEntry>) => {
     setEntry(prev => {
       const next = { ...prev, ...patch }
-      saveEntry(todayKey, next)
+      persist(next)
       return next
     })
+  }
+
+  const setMood = (mood: number) => {
+    update({ mood })
+    setHistory(h => h.map((d, i) => i === 6 ? { ...d, mood } : d))
+    toast.success(`${MOODS[mood - 1]} Humor registrado: ${MOOD_LABELS[mood - 1]}`)
+  }
+
+  const setEnergy = (energy: number) => {
+    update({ energy })
+    toast.info(`⚡ Energia ${energy}/5 registrada`)
   }
 
   const setGratitude = (i: number, val: string) => {
@@ -60,20 +95,31 @@ export function Mental({ setPage: _s }: Props) {
     update({ gratitude: g })
   }
 
+  const saveNote = () => {
+    persist(entry)
+    setSavedNote(true)
+    setTimeout(() => setSavedNote(false), 2000)
+    toast.success('📝 Notas salvas!')
+  }
+
   const hasMood   = entry.mood > 0
   const hasEnergy = entry.energy > 0
   const weekAvg   = Math.round(history.filter(h => h.mood > 0).reduce((s, h) => s + h.mood, 0) / Math.max(history.filter(h => h.mood > 0).length, 1))
   const streak    = history.slice().reverse().findIndex(h => h.mood === 0)
   const streakDays = streak === -1 ? 7 : streak
 
+  if (!loaded) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: 14 }}>Carregando...</div>
+  }
+
   return (
     <div>
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>🧠 Mental</div>
+        <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, marginBottom: 4 }}>🧠 Mental</div>
         <div style={{ fontSize: 13, color: C.muted }}>Bem-estar, humor e reflexão diária</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
 
         {/* Left — check-in */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -85,7 +131,7 @@ export function Mental({ setPage: _s }: Props) {
               {MOODS.map((m, i) => (
                 <div
                   key={i}
-                  onClick={() => update({ mood: i + 1 })}
+                  onClick={() => setMood(i + 1)}
                   style={{ flex: 1, textAlign: 'center', padding: '10px 4px', borderRadius: 10, cursor: 'pointer', background: entry.mood === i + 1 ? MOOD_COLORS[i] + '33' : C.card2, border: `2px solid ${entry.mood === i + 1 ? MOOD_COLORS[i] : C.border}`, transition: 'all .12s' }}
                 >
                   <div style={{ fontSize: 22 }}>{m}</div>
@@ -107,7 +153,7 @@ export function Mental({ setPage: _s }: Props) {
               {[1, 2, 3, 4, 5].map(n => (
                 <div
                   key={n}
-                  onClick={() => update({ energy: n })}
+                  onClick={() => setEnergy(n)}
                   style={{ flex: 1, padding: '12px 4px', textAlign: 'center', borderRadius: 10, cursor: 'pointer', background: entry.energy >= n ? `${C.orange}33` : C.card2, border: `2px solid ${entry.energy >= n ? C.orange : C.border}`, fontSize: 13, fontWeight: 800, color: entry.energy >= n ? C.orange : C.muted, transition: 'all .12s' }}
                 >
                   {n}
@@ -131,6 +177,7 @@ export function Mental({ setPage: _s }: Props) {
                   type="text"
                   value={entry.gratitude[i]}
                   onChange={e => setGratitude(i, e.target.value)}
+                  onBlur={() => { if (entry.gratitude[i]) toast.success(`🙏 Gratidão ${i + 1} registrada`) }}
                   placeholder={['Algo que me deixou feliz...', 'Algo pelo que sou grato...', 'Uma conquista de hoje...'][i]}
                   style={{ ...inp, fontSize: 12 }}
                 />
@@ -152,8 +199,14 @@ export function Mental({ setPage: _s }: Props) {
               rows={7}
               style={{ ...inp, resize: 'none', lineHeight: 1.6 } as React.CSSProperties}
             />
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 6, textAlign: 'right' }}>
-              {entry.note.length} caracteres · salvo automaticamente
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+              <div style={{ fontSize: 11, color: C.muted }}>{entry.note.length} caracteres</div>
+              <button
+                onClick={saveNote}
+                style={{ background: savedNote ? C.green : C.card2, border: `1px solid ${savedNote ? C.green : C.border2}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, color: savedNote ? '#fff' : C.text, cursor: 'pointer', transition: 'all .2s' }}
+              >
+                {savedNote ? '✓ Salvo!' : 'Salvar notas'}
+              </button>
             </div>
           </Card>
 
@@ -189,7 +242,6 @@ export function Mental({ setPage: _s }: Props) {
             </div>
           </Card>
 
-          {/* Tips */}
           {hasMood && entry.mood <= 2 && (
             <Card style={{ background: `${C.blue}11`, border: `1px solid ${C.blue}33` }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: C.blue, marginBottom: 8 }}>💡 Dica para dias difíceis</div>

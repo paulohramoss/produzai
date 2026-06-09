@@ -1,21 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { C, type Page } from '../data'
 import { Card, Tag, Bar } from '../primitives'
+import { useAuthStore } from '../../store/useAuthStore'
+import { getBooks, saveBooks, type Book } from '../../lib/db'
+import { toast } from '../../lib/toast'
+import { LayoutContext } from '../LayoutContext'
 
 interface Props { setPage: (p: Page) => void }
 
 type Status = 'lendo' | 'quero' | 'pausado' | 'concluido'
-
-interface Book {
-  id: string
-  title: string
-  author: string
-  category: string
-  pages: number
-  pagesRead: number
-  status: Status
-  rating: number   // 0-5
-}
 
 const STATUS_LABEL: Record<Status, string> = { lendo: '📖 Lendo', quero: '🔖 Quero ler', pausado: '⏸ Pausado', concluido: '✅ Concluído' }
 const STATUS_COLOR: Record<Status, string> = { lendo: '#60A5FA', quero: '#A78BFA', pausado: '#F97316', concluido: '#22C55E' }
@@ -26,11 +19,6 @@ const DEFAULTS: Book[] = [
   { id: '3', title: 'Deep Work', author: 'Cal Newport', category: 'Produtividade', pages: 304, pagesRead: 0, status: 'quero', rating: 0 },
 ]
 
-function load(): Book[] {
-  try { const r = localStorage.getItem('books'); return r ? JSON.parse(r) : DEFAULTS } catch { return DEFAULTS }
-}
-function save(b: Book[]) { localStorage.setItem('books', JSON.stringify(b)) }
-
 const EMPTY: Omit<Book, 'id'> = { title: '', author: '', category: '', pages: 0, pagesRead: 0, status: 'quero', rating: 0 }
 
 const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
@@ -38,29 +26,81 @@ const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
   padding: '8px 10px', color: C.text, fontSize: 13, outline: 'none', width: '100%', ...extra,
 })
 
+function loadLocal(): Book[] {
+  try { const r = localStorage.getItem('books'); return r ? JSON.parse(r) : DEFAULTS } catch { return DEFAULTS }
+}
+
 export function Biblioteca({ setPage: _s }: Props) {
-  const [books, setBooks] = useState<Book[]>(load)
-  const [modal, setModal] = useState(false)
-  const [form, setForm]   = useState<Omit<Book, 'id'>>({ ...EMPTY })
+  const user = useAuthStore(s => s.user)
+  const { isMobile } = useContext(LayoutContext)
+
+  const [books,  setBooks]  = useState<Book[]>([])
+  const [loaded, setLoaded] = useState(false)
+  const [modal,  setModal]  = useState(false)
+  const [form,   setForm]   = useState<Omit<Book, 'id'>>({ ...EMPTY })
   const [filter, setFilter] = useState<Status | 'todos'>('todos')
 
-  const upsert = (fn: (b: Book[]) => Book[]) =>
-    setBooks(prev => { const next = fn(prev); save(next); return next })
+  useEffect(() => {
+    async function load() {
+      if (user) {
+        const cloud = await getBooks()
+        if (cloud !== null) { setBooks(cloud); setLoaded(true); return }
+      }
+      setBooks(loadLocal())
+      setLoaded(true)
+    }
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  const persist = (next: Book[]) => {
+    localStorage.setItem('books', JSON.stringify(next))
+    saveBooks(next)
+    setBooks(next)
+  }
 
   const add = () => {
     if (!form.title.trim()) return
-    upsert(b => [...b, { ...form, id: Math.random().toString(36).slice(2) }])
-    setForm({ ...EMPTY }); setModal(false)
+    const next = [...books, { ...form, id: Math.random().toString(36).slice(2) }]
+    persist(next)
+    setForm({ ...EMPTY })
+    setModal(false)
+    toast.success(`📚 "${form.title}" adicionado à biblioteca!`)
   }
-  const remove = (id: string) => upsert(b => b.filter(x => x.id !== id))
-  const updatePages = (id: string, v: number) =>
-    upsert(b => b.map(x => x.id === id ? { ...x, pagesRead: Math.min(v, x.pages), status: v >= x.pages && x.pages > 0 ? 'concluido' : x.status } : x))
-  const setRating = (id: string, r: number) =>
-    upsert(b => b.map(x => x.id === id ? { ...x, rating: r } : x))
 
-  const visible  = filter === 'todos' ? books : books.filter(b => b.status === filter)
-  const reading  = books.filter(b => b.status === 'lendo').length
-  const done     = books.filter(b => b.status === 'concluido').length
+  const remove = (id: string) => {
+    const b = books.find(x => x.id === id)
+    persist(books.filter(x => x.id !== id))
+    if (b) toast.info(`🗑 "${b.title}" removido`)
+  }
+
+  const updatePages = (id: string, v: number) => {
+    const next = books.map(x => {
+      if (x.id !== id) return x
+      const pagesRead = Math.min(v, x.pages)
+      const status = pagesRead >= x.pages && x.pages > 0 ? 'concluido' : x.status
+      if (status === 'concluido' && x.status !== 'concluido') {
+        toast.success(`🎉 "${x.title}" concluído! Ótima leitura!`)
+      }
+      return { ...x, pagesRead, status }
+    })
+    persist(next)
+  }
+
+  const setRating = (id: string, r: number) => {
+    const next = books.map(x => x.id === id ? { ...x, rating: r } : x)
+    persist(next)
+    const b = next.find(x => x.id === id)
+    if (b) toast.success(`⭐ ${r} estrelas para "${b.title}"`)
+  }
+
+  const visible = filter === 'todos' ? books : books.filter(b => b.status === filter)
+  const reading = books.filter(b => b.status === 'lendo').length
+  const done    = books.filter(b => b.status === 'concluido').length
+
+  if (!loaded) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: 14 }}>Carregando...</div>
+  }
 
   return (
     <>
@@ -100,7 +140,7 @@ export function Biblioteca({ setPage: _s }: Props) {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>📚 Biblioteca</div>
+            <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, marginBottom: 4 }}>📚 Biblioteca</div>
             <div style={{ fontSize: 13, color: C.muted }}>{reading} lendo · {done} concluídos · {books.length} total</div>
           </div>
           <button onClick={() => setModal(true)} style={{ background: C.purple, border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer' }}>
@@ -125,7 +165,7 @@ export function Biblioteca({ setPage: _s }: Props) {
             <div style={{ fontSize: 13 }}>Adicione livros para acompanhar sua leitura</div>
           </Card>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             {visible.map(b => {
               const pct = b.pages > 0 ? Math.round(b.pagesRead / b.pages * 100) : 0
               return (
