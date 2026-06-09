@@ -355,28 +355,41 @@ export function Dieta({ setPage: _setPage }: Props) {
           </div>
         </div>
 
-        {/* PDF Viewer */}
+        {/* PDF Attachment */}
         {pdfSrc ? (
           <Card style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 18 }}>📄</span>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>{pdfName}</span>
-                <Tag label="Plano PDF" color={C.blue} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 40, height: 40, background: `${C.blue}18`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>📄</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{pdfName}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Plano alimentar em PDF</div>
+                </div>
               </div>
-              <button
-                onClick={removePdf}
-                style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: 6, padding: "4px 10px", color: C.muted, fontSize: 12, cursor: "pointer" }}>
-                ✕ Remover
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => { const w = window.open(); if (w) { w.document.write(`<iframe src="${pdfSrc}" width="100%" height="100%" style="border:none;margin:0;padding:0"></iframe>`); w.document.close() } }}
+                  style={{ background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: 8, padding: "7px 14px", color: C.blue, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  Abrir PDF
+                </button>
+                <button
+                  onClick={removePdf}
+                  style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "7px 12px", color: C.muted, fontSize: 12, cursor: "pointer" }}>
+                  ✕ Remover
+                </button>
+              </div>
             </div>
-            <iframe
-              src={pdfSrc}
-              width="100%"
-              height="640"
-              style={{ border: "none", borderRadius: 8, background: C.card2 }}
-              title={pdfName ?? 'Plano alimentar'}
-            />
+            {wd && sortedMeals.length === 0 && (
+              <div style={{ marginTop: 14, padding: "12px 14px", background: `${C.orange}12`, borderRadius: 10, border: `1px solid ${C.orange}30` }}>
+                <div style={{ fontSize: 12, color: C.orange, fontWeight: 600, marginBottom: 4 }}>📋 Configure as refeições do plano</div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>Adicione as refeições do seu PDF para marcar cada uma como feita ao longo do dia.</div>
+                <button
+                  onClick={() => setEditOpen(true)}
+                  style={{ background: C.orange, border: "none", borderRadius: 7, padding: "7px 16px", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  Adicionar refeições
+                </button>
+              </div>
+            )}
           </Card>
         ) : (
           <div
