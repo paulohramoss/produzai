@@ -1,6 +1,7 @@
 import type { ManualWorkout } from '../store/useWorkoutStore'
 import type { WebDietData, WebDietMeal } from '../store/useWebDietStore'
 import type { HabitDef } from '../store/useHabitsStore'
+import { TRAINING_KNOWLEDGE } from '../rise/data/coachKnowledge'
 
 const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined
 
@@ -238,6 +239,8 @@ ${nutrition}
 ### Hábitos do usuário
 ${habitsSection}
 
+${TRAINING_KNOWLEDGE}
+
 ## Como se comportar
 - Responda SEMPRE em português brasileiro
 - Seja direto, motivador e específico — use os dados reais acima para personalizar
@@ -245,5 +248,6 @@ ${habitsSection}
 - Respostas objetivas: 2-4 parágrafos no máximo
 - Use marcadores (•) para listas, não use markdown pesado
 - Quando falar de números, use os dados reais do usuário
-- Se o usuário não tiver dados suficientes, incentive-o a registrar mais`
+- Se o usuário não tiver dados suficientes, incentive-o a registrar mais
+- Ao sugerir treinos, planos semanais ou progressões, baseie-se na metodologia da seção "Base de conhecimento de treinamento" acima, adaptando ao nível e objetivo do usuário`
 }

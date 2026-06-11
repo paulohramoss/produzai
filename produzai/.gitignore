@@ -25,3 +25,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Documentos de treino/dieta (material de referência, não versionar)
+Chapinha-Academia 1.pdf
+Chapinha-Academia 2.pdf
+Chapinha-acd superior 1.pdf
+Chapinha-Programa*.pdf
+Chapinha_Resist*.pdf
+PROGRAMA DE TREINAMENTO.png
+PROJETO 42KM - atletadeeliteacademy.pdf
