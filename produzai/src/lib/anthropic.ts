@@ -9,9 +9,33 @@ export function hasApiKey(): boolean {
   return !!API_KEY && API_KEY !== 'sua-chave-aqui'
 }
 
+export interface ChatAttachment {
+  name: string
+  mediaType: string
+  data: string // base64, no "data:" prefix
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+  attachment?: ChatAttachment
+}
+
+function toApiMessages(messages: ChatMessage[]) {
+  return messages.map(m => {
+    if (!m.attachment) return { role: m.role, content: m.content }
+    const isPdf = m.attachment.mediaType === 'application/pdf'
+    return {
+      role: m.role,
+      content: [
+        {
+          type: isPdf ? 'document' : 'image',
+          source: { type: 'base64', media_type: m.attachment.mediaType, data: m.attachment.data },
+        },
+        { type: 'text', text: m.content.trim() || 'Analise meu treino e me dê seu feedback.' },
+      ],
+    }
+  })
 }
 
 export async function streamCoach(
@@ -35,7 +59,7 @@ export async function streamCoach(
         max_tokens: 1024,
         stream: true,
         system: systemPrompt,
-        messages,
+        messages: toApiMessages(messages),
       }),
     })
 

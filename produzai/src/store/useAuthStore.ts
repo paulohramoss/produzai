@@ -18,6 +18,7 @@ import { setDbUid, getProfile, getWorkouts, getDiet } from '../lib/db'
 import { useWorkoutStore } from './useWorkoutStore'
 import { useWebDietStore } from './useWebDietStore'
 import { useHabitsStore } from './useHabitsStore'
+import { useCoachStore } from './useCoachStore'
 
 interface AuthState {
   user:              User | null
@@ -58,11 +59,15 @@ async function loadFirestoreData() {
 
   // Carrega definições de hábitos customizados
   await useHabitsStore.getState().loadFromCloud()
+
+  // Carrega histórico de conversas com o Coach IA (local, por usuário)
+  useCoachStore.persist.rehydrate()
 }
 
 function clearStores() {
   useWorkoutStore.setState({ workouts: [] })
   useWebDietStore.setState({ data: null })
+  useCoachStore.setState({ messages: [] })
 }
 
 function firebaseErrorMsg(e: unknown): string {

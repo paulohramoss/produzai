@@ -5,8 +5,9 @@ import { useWorkoutStore } from '../../store/useWorkoutStore'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
 import { useAuthStore } from '../../store/useAuthStore'
+import { useCoachStore } from '../../store/useCoachStore'
 import { exportAllCSV, exportWorkoutsCSV, exportDietCSV } from '../../lib/exportData'
-import { streamCoach, buildSystemPrompt, hasApiKey, type ChatMessage } from '../../lib/anthropic'
+import { streamCoach, buildSystemPrompt, hasApiKey, type ChatMessage, type ChatAttachment } from '../../lib/anthropic'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 
@@ -21,6 +22,9 @@ const SUGGESTIONS = [
   { icon: '📅', text: 'Me dê um plano para essa semana' },
 ]
 
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024 // 5MB
+const ACCEPTED_ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
 export function Coach({ setPage }: Props) {
   const { isMobile } = useContext(LayoutContext)
   const workouts  = useWorkoutStore(s => s.workouts)
@@ -28,13 +32,18 @@ export function Coach({ setPage }: Props) {
   const habitDefs = useHabitsStore(s => s.defs)
   const user      = useAuthStore(s => s.user)
 
+  const messages    = useCoachStore(s => s.messages)
+  const setMessages = useCoachStore(s => s.setMessages)
+  const clearCoach  = useCoachStore(s => s.clear)
+
   const [showExport, setShowExport] = useState(false)
-  const [messages, setMessages]     = useState<ChatMessage[]>([])
   const [input, setInput]           = useState('')
   const [streaming, setStreaming]   = useState(false)
   const [streamText, setStreamText] = useState('')
+  const [attachment, setAttachment] = useState<ChatAttachment | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const weekStart = (() => {
@@ -65,12 +74,13 @@ export function Coach({ setPage }: Props) {
   // ── Send ──────────────────────────────────────────────────────────────────
   async function send(text: string) {
     const trimmed = text.trim()
-    if (!trimmed || streaming) return
+    if ((!trimmed && !attachment) || streaming) return
 
-    const userMsg: ChatMessage = { role: 'user', content: trimmed }
+    const userMsg: ChatMessage = { role: 'user', content: trimmed, attachment: attachment ?? undefined }
     const next = [...messages, userMsg]
     setMessages(next)
     setInput('')
+    setAttachment(null)
     setStreaming(true)
     setStreamText('')
 
@@ -116,11 +126,39 @@ export function Coach({ setPage }: Props) {
     } catch { toast.error('Erro ao exportar dados') }
   }
 
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    if (!ACCEPTED_ATTACHMENT_TYPES.includes(file.type)) {
+      toast.error('Envie um PDF ou imagem (JPG, PNG, WEBP, GIF).')
+      return
+    }
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      toast.error('Arquivo muito grande. Máximo 5MB.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      setAttachment({ name: file.name, mediaType: file.type, data: result.split(',')[1] })
+    }
+    reader.readAsDataURL(file)
+  }
+
   const apiReady = hasApiKey()
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
+        style={{ display: 'none' }}
+        onChange={handleFileSelect}
+      />
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -191,7 +229,7 @@ export function Coach({ setPage }: Props) {
           </div>
           {messages.length > 0 && (
             <button
-              onClick={() => { setMessages([]); setStreamText('') }}
+              onClick={() => { clearCoach(); setStreamText('') }}
               style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: 6, padding: '4px 10px', fontSize: 11, color: C.muted, cursor: 'pointer' }}
             >
               Nova conversa
@@ -238,6 +276,11 @@ export function Coach({ setPage }: Props) {
                   </button>
                 ))}
               </div>
+              {apiReady && (
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 14, textAlign: 'center' }}>
+                  📎 Anexe um PDF ou foto do seu treino para receber uma análise do coach.
+                </div>
+              )}
             </div>
           )}
 
@@ -262,6 +305,22 @@ export function Coach({ setPage }: Props) {
                   whiteSpace: 'pre-wrap',
                 }}
               >
+                {msg.attachment && (
+                  <div style={{ marginBottom: msg.content ? 8 : 0 }}>
+                    {msg.attachment.mediaType.startsWith('image/') && msg.attachment.data ? (
+                      <img
+                        src={`data:${msg.attachment.mediaType};base64,${msg.attachment.data}`}
+                        alt={msg.attachment.name}
+                        style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 10, display: 'block' }}
+                      />
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,.15)', borderRadius: 8, padding: '6px 10px' }}>
+                        <span>📄</span>
+                        <span style={{ fontSize: 12 }}>{msg.attachment.name}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {msg.content}
               </div>
             </div>
@@ -286,56 +345,103 @@ export function Coach({ setPage }: Props) {
         </div>
 
         {/* Input area */}
-        <div style={{ padding: '12px 16px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKey}
-            disabled={!apiReady || streaming}
-            placeholder={apiReady ? 'Pergunte ao seu coach... (Enter para enviar)' : 'Configure a API key para ativar'}
-            rows={1}
-            style={{
-              flex: 1,
-              background: C.card2,
-              border: `1px solid ${C.border2}`,
-              borderRadius: 12,
-              padding: '10px 14px',
-              color: apiReady ? C.text : C.muted,
-              fontSize: 13,
-              outline: 'none',
-              resize: 'none',
-              fontFamily: 'inherit',
-              lineHeight: 1.5,
-              maxHeight: 100,
-              overflowY: 'auto',
-            }}
-            onInput={e => {
-              const el = e.currentTarget
-              el.style.height = 'auto'
-              el.style.height = Math.min(el.scrollHeight, 100) + 'px'
-            }}
-          />
-          <button
-            onClick={() => send(input)}
-            disabled={!apiReady || !input.trim() || streaming}
-            style={{
-              background: apiReady && input.trim() && !streaming ? C.orange : C.border2,
-              border: 'none',
-              borderRadius: 12,
-              width: 42,
-              height: 42,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: apiReady && input.trim() && !streaming ? 'pointer' : 'default',
-              flexShrink: 0,
-              fontSize: 18,
-              transition: 'background .15s',
-            }}
-          >
-            {streaming ? '⏳' : '↑'}
-          </button>
+        <div style={{ padding: '12px 16px', borderTop: `1px solid ${C.border}` }}>
+          {/* Attachment preview */}
+          {attachment && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: '6px 10px', marginBottom: 8 }}>
+              {attachment.mediaType.startsWith('image/') ? (
+                <img
+                  src={`data:${attachment.mediaType};base64,${attachment.data}`}
+                  alt={attachment.name}
+                  style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
+                />
+              ) : (
+                <span style={{ fontSize: 18 }}>📄</span>
+              )}
+              <span style={{ fontSize: 12, color: C.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {attachment.name}
+              </span>
+              <button
+                onClick={() => setAttachment(null)}
+                style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!apiReady || streaming}
+              title="Anexar PDF ou foto do treino"
+              style={{
+                background: attachment ? `${C.blue}22` : C.card2,
+                border: `1px solid ${attachment ? C.blue : C.border2}`,
+                borderRadius: 12,
+                width: 42,
+                height: 42,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: apiReady && !streaming ? 'pointer' : 'default',
+                opacity: apiReady && !streaming ? 1 : 0.4,
+                flexShrink: 0,
+                fontSize: 18,
+              }}
+            >
+              📎
+            </button>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKey}
+              disabled={!apiReady || streaming}
+              placeholder={apiReady ? (attachment ? 'Adicione uma mensagem (opcional)...' : 'Pergunte ao seu coach... (Enter para enviar)') : 'Configure a API key para ativar'}
+              rows={1}
+              style={{
+                flex: 1,
+                background: C.card2,
+                border: `1px solid ${C.border2}`,
+                borderRadius: 12,
+                padding: '10px 14px',
+                color: apiReady ? C.text : C.muted,
+                fontSize: 13,
+                outline: 'none',
+                resize: 'none',
+                fontFamily: 'inherit',
+                lineHeight: 1.5,
+                maxHeight: 100,
+                overflowY: 'auto',
+              }}
+              onInput={e => {
+                const el = e.currentTarget
+                el.style.height = 'auto'
+                el.style.height = Math.min(el.scrollHeight, 100) + 'px'
+              }}
+            />
+            <button
+              onClick={() => send(input)}
+              disabled={!apiReady || (!input.trim() && !attachment) || streaming}
+              style={{
+                background: apiReady && (input.trim() || attachment) && !streaming ? C.orange : C.border2,
+                border: 'none',
+                borderRadius: 12,
+                width: 42,
+                height: 42,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: apiReady && (input.trim() || attachment) && !streaming ? 'pointer' : 'default',
+                flexShrink: 0,
+                fontSize: 18,
+                transition: 'background .15s',
+              }}
+            >
+              {streaming ? '⏳' : '↑'}
+            </button>
+          </div>
         </div>
       </Card>
     </div>

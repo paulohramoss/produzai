@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Send, Paperclip, Mic, Zap, Sparkles } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import type { ChatMessage } from '../types'
@@ -65,7 +65,7 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  function sendMessage(text?: string) {
+  const handleSendMessage = useCallback((text?: string) => {
     const content = text || input.trim()
     if (!content) return
     setInput('')
@@ -78,7 +78,7 @@ export default function Chat() {
       setIsTyping(false)
       addMessage({ id: `b${Date.now()}`, role: 'assistant', content: getBotReply(content), timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) })
     }, 1200 + Math.random() * 600)
-  }
+  }, [input, addMessage])
 
   return (
     <div className="flex flex-col h-full">
@@ -117,7 +117,7 @@ export default function Chat() {
       {/* Quick actions */}
       <div className="px-4 md:px-8 py-2 flex gap-2 overflow-x-auto">
         {quickActions.map(q => (
-          <button key={q} onClick={() => sendMessage(q)}
+          <button key={q} onClick={() => handleSendMessage(q)}
             className="whitespace-nowrap text-xs px-3 py-1.5 rounded-full border border-surface-border text-gray-400 hover:border-brand-600 hover:text-brand-400 transition-all">
             {q}
           </button>
@@ -133,11 +133,11 @@ export default function Chat() {
             placeholder={`Fale com o Nexus, ${profile.name.split(' ')[0]}...`}
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
           />
           <button className="text-gray-500 hover:text-gray-300 transition-colors"><Mic size={18} /></button>
           <button
-            onClick={() => sendMessage()}
+            onClick={() => handleSendMessage()}
             disabled={!input.trim()}
             className="w-8 h-8 rounded-xl bg-brand-600 disabled:opacity-40 hover:bg-brand-500 flex items-center justify-center transition-all">
             <Send size={14} className="text-white" />
