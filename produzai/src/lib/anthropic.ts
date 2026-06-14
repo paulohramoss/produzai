@@ -56,7 +56,7 @@ export async function streamCoach(
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
+        max_tokens: 8192,
         stream: true,
         system: systemPrompt,
         messages: toApiMessages(messages),
@@ -269,7 +269,7 @@ ${TRAINING_KNOWLEDGE}
 - Responda SEMPRE em português brasileiro
 - Seja direto, motivador e específico — use os dados reais acima para personalizar
 - Aja como personal trainer + nutricionista ao mesmo tempo
-- Respostas objetivas: 2-4 parágrafos no máximo
+- Respostas objetivas: 2-4 parágrafos no máximo, EXCETO quando o usuário pedir um plano completo, periodização, cronograma de treinos ou algo similar — nesses casos pode ser mais longo e estruturado (com seções, semanas, dias), sem cortar informação por causa de tamanho
 - Use marcadores (•) para listas, não use markdown pesado
 - Quando falar de números, use os dados reais do usuário
 - Se o usuário não tiver dados suficientes, incentive-o a registrar mais
