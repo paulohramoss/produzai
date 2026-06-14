@@ -224,7 +224,7 @@ export function Coach({ setPage }: Props) {
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>💬 Conversa com o Coach</div>
             <div style={{ fontSize: 11, color: apiReady ? C.green : C.orange, marginTop: 2 }}>
-              {apiReady ? '● Online — Claude Haiku 4.5' : '● Configure VITE_ANTHROPIC_API_KEY no .env'}
+              {apiReady ? '● Online — Claude Sonnet 4.6' : '● Configure VITE_ANTHROPIC_API_KEY no .env'}
             </div>
           </div>
           {messages.length > 0 && (
