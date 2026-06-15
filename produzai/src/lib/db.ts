@@ -71,7 +71,7 @@ export async function saveDiet(data: WebDietData | null) {
 
 export interface Habit { id: string; icon: string; label: string; done: boolean }
 export interface FocusItem { id: string; text: string; done: boolean }
-export interface DailyData { habits?: Habit[]; focus?: FocusItem[] }
+export interface DailyData { habits?: Habit[]; focus?: FocusItem[]; waterMl?: number }
 
 export async function getDaily(date: string): Promise<DailyData | null> {
   if (!currentUid) return null
@@ -81,9 +81,9 @@ export async function getDaily(date: string): Promise<DailyData | null> {
   } catch { return null }
 }
 
-export async function saveDaily(date: string, data: DailyData) {
+export async function saveDaily(date: string, data: Partial<DailyData>) {
   if (!currentUid) return
-  try { await setDoc(subRef('daily', date), data) } catch { /* silent */ }
+  try { await setDoc(subRef('daily', date), data, { merge: true }) } catch { /* silent */ }
 }
 
 export async function getDailyHistory(dates: string[]): Promise<Record<string, DailyData>> {
@@ -250,6 +250,23 @@ export async function getProgressPhotos(): Promise<ProgressPhoto[]> {
 export async function saveProgressPhotos(photos: ProgressPhoto[]) {
   if (!currentUid) return
   try { await setDoc(dataRef('progress'), { items: photos }) } catch { /* silent */ }
+}
+
+// ── Hydration ────────────────────────────────────────────────────────────────
+
+export interface HydrationSettings { goalMl: number }
+
+export async function getHydration(): Promise<HydrationSettings | null> {
+  if (!currentUid) return null
+  try {
+    const snap = await getDoc(dataRef('hydration'))
+    return snap.exists() ? (snap.data() as HydrationSettings) : null
+  } catch { return null }
+}
+
+export async function saveHydration(data: HydrationSettings) {
+  if (!currentUid) return
+  try { await setDoc(dataRef('hydration'), data) } catch { /* silent */ }
 }
 
 // ── Weekly reviews ───────────────────────────────────────────────────────────

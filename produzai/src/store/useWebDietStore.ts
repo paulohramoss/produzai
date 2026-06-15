@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { userStorage } from '../lib/userStorage'
-import { saveDiet } from '../lib/db'
+import { saveDiet, saveHydration } from '../lib/db'
+
+export const DEFAULT_WATER_GOAL_ML = 3500
 
 export interface WebDietGoals {
   cal: number
@@ -40,6 +42,7 @@ interface WebDietState {
   pdfBase64: string | null
   pdfName: string | null
   compliance: DietCompliance[]
+  waterGoalMl: number
   setup: (goals: WebDietGoals, meals?: WebDietMeal[]) => void
   toggleMeal: (id: string) => void
   addMeal: (meal: Omit<WebDietMeal, 'id'>) => void
@@ -51,6 +54,7 @@ interface WebDietState {
   setPdf: (base64: string, name: string) => void
   removePdf: () => void
   logCompliance: (entry: DietCompliance) => void
+  setWaterGoal: (ml: number) => void
 }
 
 function sync(data: WebDietData | null) {
@@ -64,6 +68,7 @@ export const useWebDietStore = create<WebDietState>()(
       pdfBase64: null,
       pdfName: null,
       compliance: [],
+      waterGoalMl: DEFAULT_WATER_GOAL_ML,
 
       setup: (goals, meals = []) => {
         const data = { goals, meals }
@@ -123,6 +128,11 @@ export const useWebDietStore = create<WebDietState>()(
             entry,
           ],
         })),
+
+      setWaterGoal: ml => {
+        set({ waterGoalMl: ml })
+        saveHydration({ goalMl: ml })
+      },
     }),
     {
       name: 'webdiet_data',

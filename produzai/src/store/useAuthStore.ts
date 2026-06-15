@@ -14,7 +14,7 @@ import {
 } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { setUserStorageUid } from '../lib/userStorage'
-import { setDbUid, getProfile, getWorkouts, getDiet } from '../lib/db'
+import { setDbUid, getProfile, getWorkouts, getDiet, getHydration } from '../lib/db'
 import { useWorkoutStore } from './useWorkoutStore'
 import { useWebDietStore } from './useWebDietStore'
 import { useHabitsStore } from './useHabitsStore'
@@ -40,9 +40,10 @@ interface AuthState {
 }
 
 async function loadFirestoreData() {
-  const [cloudWorkouts, cloudDiet] = await Promise.all([
+  const [cloudWorkouts, cloudDiet, cloudHydration] = await Promise.all([
     getWorkouts(),
     getDiet(),
+    getHydration(),
   ])
 
   if (cloudWorkouts !== null) {
@@ -51,10 +52,12 @@ async function loadFirestoreData() {
     useWorkoutStore.persist.rehydrate()
   }
 
+  useWebDietStore.persist.rehydrate()
   if (cloudDiet !== null) {
     useWebDietStore.getState().setData(cloudDiet)
-  } else {
-    useWebDietStore.persist.rehydrate()
+  }
+  if (cloudHydration !== null) {
+    useWebDietStore.setState({ waterGoalMl: cloudHydration.goalMl })
   }
 
   // Carrega definições de hábitos customizados

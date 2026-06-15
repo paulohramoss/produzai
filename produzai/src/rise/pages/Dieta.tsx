@@ -2,9 +2,11 @@ import { useState, useRef, useEffect, useContext } from 'react'
 import { C, type Page } from '../data'
 import { Card, Tag, Bar, Dot } from '../primitives'
 import { useWebDietStore, type ComplianceStatus } from '../../store/useWebDietStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import { DietaModal } from '../DietaModal'
 import { LayoutContext } from '../LayoutContext'
 import { parsePdfDiet, estimateMealMacros } from '../../lib/anthropic'
+import { getDaily, saveDaily } from '../../lib/db'
 
 interface Props {
   setPage: (page: Page) => void
@@ -27,6 +29,12 @@ function dayLabel(dateStr: string) {
   return new Date(y, m - 1, d).toLocaleDateString('pt-BR', { weekday: 'short' })
 }
 
+const WATER_STEP_ML = 250
+
+function formatLiters(ml: number) {
+  return (ml / 1000).toFixed(1).replace('.', ',')
+}
+
 export function Dieta({ setPage: _setPage }: Props) {
   const [editOpen, setEditOpen] = useState(false)
   const { isMobile } = useContext(LayoutContext)
@@ -42,10 +50,18 @@ export function Dieta({ setPage: _setPage }: Props) {
 
   const setup      = useWebDietStore(s => s.setup)
   const updateMeal = useWebDietStore(s => s.updateMeal)
+  const waterGoalMl  = useWebDietStore(s => s.waterGoalMl)
+  const setWaterGoal = useWebDietStore(s => s.setWaterGoal)
+  const user = useAuthStore(s => s.user)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const today = getTodayStr()
+  const todayKey = new Date().toISOString().slice(0, 10)
   const todayLog = compliance.find(c => c.date === today)
+
+  const [waterMl, setWaterMl]       = useState(0)
+  const [editingGoal, setEditingGoal] = useState(false)
+  const [goalInput, setGoalInput]     = useState('')
 
   const [editing, setEditing]             = useState(false)
   const [pendingStatus, setPendingStatus] = useState<ComplianceStatus | null>(null)
@@ -85,6 +101,32 @@ export function Dieta({ setPage: _setPage }: Props) {
     setPendingStatus(null)
     setPendingNote('')
   }, [today])
+
+  useEffect(() => {
+    async function loadWater() {
+      if (!user) return
+      const daily = await getDaily(todayKey)
+      setWaterMl(daily?.waterMl ?? 0)
+    }
+    loadWater()
+  }, [user, todayKey])
+
+  function addWater(deltaMl: number) {
+    const next = Math.max(0, waterMl + deltaMl)
+    setWaterMl(next)
+    saveDaily(todayKey, { waterMl: next })
+  }
+
+  function handleEditGoal() {
+    setGoalInput(formatLiters(waterGoalMl))
+    setEditingGoal(true)
+  }
+
+  function handleSaveGoal() {
+    const liters = Number(goalInput.replace(',', '.'))
+    if (liters > 0) setWaterGoal(Math.round(liters * 1000))
+    setEditingGoal(false)
+  }
 
   const showForm = !todayLog || editing
 
@@ -330,14 +372,66 @@ export function Dieta({ setPage: _setPage }: Props) {
           </Card>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {/* Hydration (static for now) */}
-            <Card style={{ opacity: wd ? 1 : .5 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Hidratação</div>
+            {/* Hidratação */}
+            <Card>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>💧 Hidratação</div>
               <div style={{ textAlign: "center", margin: "8px 0" }}>
-                <div style={{ fontSize: 28, fontWeight: 800, color: C.blue }}>2,4L</div>
-                <div style={{ fontSize: 12, color: C.muted }}>de 3,5L · 69%</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: C.blue }}>{formatLiters(waterMl)}L</div>
+                {editingGoal ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 6 }}>
+                    <span style={{ fontSize: 12, color: C.muted }}>meta:</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0.5"
+                      autoFocus
+                      value={goalInput}
+                      onChange={e => setGoalInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSaveGoal()}
+                      style={{ width: 56, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 6, padding: "3px 6px", color: C.text, fontSize: 12, outline: "none" }}
+                    />
+                    <span style={{ fontSize: 12, color: C.muted }}>L</span>
+                    <button
+                      onClick={handleSaveGoal}
+                      style={{ background: `${C.green}18`, border: `1px solid ${C.green}44`, borderRadius: 6, padding: "3px 8px", color: C.green, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      ✓
+                    </button>
+                    <button
+                      onClick={() => setEditingGoal(false)}
+                      style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: 6, padding: "3px 8px", color: C.muted, fontSize: 12, cursor: "pointer" }}>
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={handleEditGoal}
+                    title="Clique para ajustar a meta"
+                    style={{ fontSize: 12, color: C.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}
+                  >
+                    de {formatLiters(waterGoalMl)}L · {waterGoalMl > 0 ? Math.round(waterMl / waterGoalMl * 100) : 0}%
+                    <span style={{ fontSize: 10 }}>✏️</span>
+                  </div>
+                )}
               </div>
-              <Bar pct={69} color={C.blue} h={8} />
+              <Bar pct={waterGoalMl > 0 ? Math.round(waterMl / waterGoalMl * 100) : 0} color={C.blue} h={8} />
+              <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+                <button
+                  onClick={() => addWater(WATER_STEP_ML)}
+                  style={{ flex: 1, background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: 8, padding: "7px", color: C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  + 250ml
+                </button>
+                <button
+                  onClick={() => addWater(500)}
+                  style={{ flex: 1, background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: 8, padding: "7px", color: C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  + 500ml
+                </button>
+                <button
+                  onClick={() => addWater(-WATER_STEP_ML)}
+                  disabled={waterMl === 0}
+                  style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "7px 10px", color: waterMl === 0 ? C.border2 : C.muted, fontSize: 12, fontWeight: 700, cursor: waterMl === 0 ? "default" : "pointer" }}>
+                  −
+                </button>
+              </div>
             </Card>
 
             {/* Check-in de hoje */}
