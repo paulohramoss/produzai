@@ -17,8 +17,10 @@ export function HabitosModal({ onClose }: Props) {
   const [adding, setAdding]     = useState(false)
   const [newIcon, setNewIcon]   = useState('🎯')
   const [newLabel, setNewLabel] = useState('')
+  const [newWhy, setNewWhy]     = useState('')
   const [editing, setEditing]   = useState<string | null>(null)
   const [editLabel, setEditLabel] = useState('')
+  const [editWhy, setEditWhy]     = useState('')
 
   const inp: React.CSSProperties = {
     background: C.card2, border: `1px solid ${C.border2}`,
@@ -26,16 +28,20 @@ export function HabitosModal({ onClose }: Props) {
     fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' as const,
   }
 
+  const textarea: React.CSSProperties = {
+    ...inp, resize: 'none' as const, lineHeight: 1.5, fontFamily: 'inherit',
+  }
+
   function submitAdd() {
     if (!newLabel.trim()) return
-    addDef({ icon: newIcon, label: newLabel.trim() })
+    addDef({ icon: newIcon, label: newLabel.trim(), why: newWhy.trim() || undefined })
     toast.success(`${newIcon} Hábito "${newLabel.trim()}" criado!`)
-    setNewLabel(''); setNewIcon('🎯'); setAdding(false)
+    setNewLabel(''); setNewIcon('🎯'); setNewWhy(''); setAdding(false)
   }
 
   function submitEdit(id: string) {
     if (!editLabel.trim()) return
-    updateDef(id, { label: editLabel.trim() })
+    updateDef(id, { label: editLabel.trim(), why: editWhy.trim() || undefined })
     toast.success('✏️ Hábito atualizado!')
     setEditing(null)
   }
@@ -62,36 +68,55 @@ export function HabitosModal({ onClose }: Props) {
         {/* Habit list */}
         <div style={{ overflowY: 'auto', flex: 1, padding: '16px 24px' }}>
           {defs.map(d => (
-            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: C.card2, borderRadius: 10, marginBottom: 8, border: `1px solid ${C.border}` }}>
-              <span style={{ fontSize: 20, flexShrink: 0 }}>{d.icon}</span>
+            <div key={d.id} style={{ padding: '10px 12px', background: C.card2, borderRadius: 10, marginBottom: 8, border: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 20, flexShrink: 0 }}>{d.icon}</span>
+
+                {editing === d.id ? (
+                  <input
+                    autoFocus
+                    value={editLabel}
+                    onChange={e => setEditLabel(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Escape') setEditing(null) }}
+                    style={{ ...inp, flex: 1 }}
+                  />
+                ) : (
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{d.label}</span>
+                )}
+
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  {editing === d.id ? (
+                    <>
+                      <button onClick={() => submitEdit(d.id)} style={{ background: C.green, border: 'none', borderRadius: 6, padding: '5px 10px', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Salvar</button>
+                      <button onClick={() => setEditing(null)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '5px 10px', color: C.muted, fontSize: 11, cursor: 'pointer' }}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => { setEditing(d.id); setEditLabel(d.label); setEditWhy(d.why ?? '') }} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: 6, padding: '5px 8px', color: C.muted, fontSize: 11, cursor: 'pointer' }}>✏️</button>
+                      {defs.length > 1 && (
+                        <button onClick={() => handleRemove(d.id)} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: 6, padding: '5px 8px', color: C.muted, fontSize: 11, cursor: 'pointer' }}>🗑</button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
 
               {editing === d.id ? (
-                <input
-                  autoFocus
-                  value={editLabel}
-                  onChange={e => setEditLabel(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') submitEdit(d.id); if (e.key === 'Escape') setEditing(null) }}
-                  style={{ ...inp, flex: 1 }}
-                />
-              ) : (
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{d.label}</span>
-              )}
-
-              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                {editing === d.id ? (
-                  <>
-                    <button onClick={() => submitEdit(d.id)} style={{ background: C.green, border: 'none', borderRadius: 6, padding: '5px 10px', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Salvar</button>
-                    <button onClick={() => setEditing(null)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '5px 10px', color: C.muted, fontSize: 11, cursor: 'pointer' }}>Cancel</button>
-                  </>
-                ) : (
-                  <>
-                    <button onClick={() => { setEditing(d.id); setEditLabel(d.label) }} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: 6, padding: '5px 8px', color: C.muted, fontSize: 11, cursor: 'pointer' }}>✏️</button>
-                    {defs.length > 1 && (
-                      <button onClick={() => handleRemove(d.id)} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: 6, padding: '5px 8px', color: C.muted, fontSize: 11, cursor: 'pointer' }}>🗑</button>
-                    )}
-                  </>
-                )}
-              </div>
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>💭 Por que esse hábito importa pra você?</div>
+                  <textarea
+                    value={editWhy}
+                    onChange={e => setEditWhy(e.target.value)}
+                    placeholder="Ex: porque dormir bem me deixa com mais paciência com meus filhos"
+                    rows={2}
+                    style={{ ...textarea, fontSize: 12 }}
+                  />
+                </div>
+              ) : d.why ? (
+                <div style={{ marginTop: 8, fontSize: 11, color: C.muted, lineHeight: 1.5, paddingLeft: 30 }}>
+                  💭 {d.why}
+                </div>
+              ) : null}
             </div>
           ))}
 
@@ -139,9 +164,20 @@ export function HabitosModal({ onClose }: Props) {
                 />
               </div>
 
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>💭 Por que esse hábito importa pra você? (opcional)</div>
+                <textarea
+                  value={newWhy}
+                  onChange={e => setNewWhy(e.target.value)}
+                  placeholder="Ex: porque ter mais energia me deixa mais presente com quem eu amo"
+                  rows={2}
+                  style={{ ...textarea, fontSize: 12 }}
+                />
+              </div>
+
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={submitAdd} disabled={!newLabel.trim()} style={{ flex: 1, background: newLabel.trim() ? C.green : C.card2, border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, color: newLabel.trim() ? '#fff' : C.muted, cursor: newLabel.trim() ? 'pointer' : 'default' }}>Criar</button>
-                <button onClick={() => { setAdding(false); setNewLabel(''); setNewIcon('🎯') }} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: C.muted, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={() => { setAdding(false); setNewLabel(''); setNewIcon('🎯'); setNewWhy('') }} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: C.muted, cursor: 'pointer' }}>Cancelar</button>
               </div>
             </div>
           )}

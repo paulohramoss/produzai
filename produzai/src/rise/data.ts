@@ -10,7 +10,7 @@ export const C = {
 
 export type Page =
   | "dashboard" | "hoje" | "treino" | "dieta" | "agenda"
-  | "projetos" | "mental" | "biblioteca" | "coach" | "galeria" | "perfil"
+  | "projetos" | "mental" | "biblioteca" | "coach" | "galeria" | "perfil" | "insights"
   // ProduzAI pages
   // | "chat" | "habits" | "finance" | "calendar" | "investments" | "goals" | "reports" | "settings"
 
@@ -57,6 +57,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { id: "projetos", icon: "🎯", label: "Projetos" },
     { id: "mental", icon: "🧠", label: "Mental" },
     { id: "biblioteca", icon: "📚", label: "Biblioteca" },
+    { id: "insights", icon: "🔍", label: "Insights" },
   ]},
   { label: "SUPORTE", items: [
     { id: "coach", icon: "🤖", label: "Coach IA" },

@@ -1,12 +1,43 @@
-import { useState, useEffect, useContext } from 'react'
+import { useState, useEffect, useContext, useRef } from 'react'
 import { C, type Page } from '../data'
 import { Card } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
-import { getMental, saveMental, getMentalHistory, type MentalEntry } from '../../lib/db'
+import { getMental, saveMental, getMentalHistory, getDaily, type MentalEntry } from '../../lib/db'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
+import { hasApiKey, generateReflectionQuestion, fallbackReflectionQuestion } from '../../lib/anthropic'
 
 interface Props { setPage: (p: Page) => void }
+
+// Web Speech API — disponível no Chrome/Edge via prefixo webkit
+interface SpeechRecognitionEventLike {
+  resultIndex: number
+  results: { [index: number]: { [index: number]: { transcript: string } }; length: number }
+}
+interface SpeechRecognitionLike {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null
+  onerror: (() => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+interface WindowWithSpeechRecognition extends Window {
+  SpeechRecognition?: SpeechRecognitionConstructor
+  webkitSpeechRecognition?: SpeechRecognitionConstructor
+}
+
+const SpeechRecognitionCtor: SpeechRecognitionConstructor | null =
+  typeof window !== 'undefined'
+    ? ((window as WindowWithSpeechRecognition).SpeechRecognition ?? (window as WindowWithSpeechRecognition).webkitSpeechRecognition ?? null)
+    : null
+
+function dateSeed(dateKey: string): number {
+  return Number(dateKey.replace(/-/g, ''))
+}
 
 const MOODS       = ['😞', '😕', '😐', '🙂', '😄']
 const MOOD_LABELS = ['Ruim', 'Regular', 'Ok', 'Bom', 'Ótimo']
@@ -37,6 +68,10 @@ export function Mental({ setPage: _s }: Props) {
   const [history, setHistory] = useState<{ date: string; mood: number }[]>([])
   const [loaded,  setLoaded]  = useState(false)
   const [savedNote, setSavedNote] = useState(false)
+  const [reflectionLoading, setReflectionLoading] = useState(false)
+  const [savedReflection, setSavedReflection] = useState(false)
+  const [recording, setRecording] = useState(false)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
   // Carrega entrada de hoje e histórico
   useEffect(() => {
@@ -64,6 +99,40 @@ export function Mental({ setPage: _s }: Props) {
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, today])
+
+  // Reflexão diária assistida: gera (uma vez por dia) uma pergunta
+  // metacognitiva baseada nos dados do dia — com fallback offline
+  useEffect(() => {
+    if (!loaded || entry.reflectionQuestion) return
+    let cancelled = false
+    async function gen() {
+      setReflectionLoading(true)
+      const daily = user ? await getDaily(today) : null
+      const habitsTotal = daily?.habits?.length ?? 0
+      const habitsDone  = daily?.habits?.filter(h => h.done).length ?? 0
+      const focusItems  = (daily?.focus ?? []).filter(f => f.text.trim())
+      const focusTotal  = focusItems.length
+      const focusDone   = focusItems.filter(f => f.done).length
+
+      let question: string | null = null
+      if (hasApiKey()) {
+        question = await generateReflectionQuestion({
+          habitsDone, habitsTotal, focusDone, focusTotal,
+          mood: entry.mood, energy: entry.energy,
+          userName: user?.displayName?.split(' ')[0],
+        })
+      }
+      if (!question) question = fallbackReflectionQuestion(dateSeed(today))
+
+      if (!cancelled) {
+        setReflectionLoading(false)
+        update({ reflectionQuestion: question })
+      }
+    }
+    gen()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded])
 
   const persist = (next: MentalEntry) => {
     localStorage.setItem(`mental_${today}`, JSON.stringify(next))
@@ -102,6 +171,44 @@ export function Mental({ setPage: _s }: Props) {
     toast.success('📝 Notas salvas!')
   }
 
+  const saveReflection = () => {
+    persist(entry)
+    setSavedReflection(true)
+    setTimeout(() => setSavedReflection(false), 2000)
+    toast.success('🤔 Reflexão salva!')
+  }
+
+  function toggleRecording() {
+    if (!SpeechRecognitionCtor) {
+      toast.error('Reconhecimento de voz não disponível neste navegador')
+      return
+    }
+    if (recording) {
+      recognitionRef.current?.stop()
+      return
+    }
+    const rec = new SpeechRecognitionCtor()
+    rec.lang = 'pt-BR'
+    rec.continuous = true
+    rec.interimResults = false
+    rec.onresult = (e: SpeechRecognitionEventLike) => {
+      let transcript = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) transcript += e.results[i][0].transcript
+      transcript = transcript.trim()
+      if (!transcript) return
+      setEntry(prev => {
+        const next = { ...prev, reflectionAnswer: prev.reflectionAnswer ? `${prev.reflectionAnswer} ${transcript}` : transcript }
+        persist(next)
+        return next
+      })
+    }
+    rec.onerror = () => setRecording(false)
+    rec.onend = () => setRecording(false)
+    rec.start()
+    recognitionRef.current = rec
+    setRecording(true)
+  }
+
   const hasMood   = entry.mood > 0
   const hasEnergy = entry.energy > 0
   const weekAvg   = Math.round(history.filter(h => h.mood > 0).reduce((s, h) => s + h.mood, 0) / Math.max(history.filter(h => h.mood > 0).length, 1))
@@ -118,6 +225,51 @@ export function Mental({ setPage: _s }: Props) {
         <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, marginBottom: 4 }}>🧠 Mental</div>
         <div style={{ fontSize: 13, color: C.muted }}>Bem-estar, humor e reflexão diária</div>
       </div>
+
+      {/* Reflexão diária assistida por IA */}
+      <Card style={{ marginBottom: 16, background: `${C.purple}0D`, border: `1px solid ${C.purple}33` }}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>🤔 Reflexão do dia</div>
+        {reflectionLoading || !entry.reflectionQuestion ? (
+          <div style={{ fontSize: 13, color: C.muted }}>Pensando numa pergunta pra você...</div>
+        ) : (
+          <>
+            <div style={{ fontSize: 14, color: C.text, lineHeight: 1.6, marginBottom: 12, fontStyle: 'italic' }}>
+              "{entry.reflectionQuestion}"
+            </div>
+            <div style={{ position: 'relative' }}>
+              <textarea
+                value={entry.reflectionAnswer ?? ''}
+                onChange={e => update({ reflectionAnswer: e.target.value })}
+                placeholder="Escreva sua resposta... ou grave em áudio"
+                rows={4}
+                style={{ ...inp, resize: 'none', lineHeight: 1.6, paddingRight: 44 } as React.CSSProperties}
+              />
+              {SpeechRecognitionCtor && (
+                <button
+                  onClick={toggleRecording}
+                  title={recording ? 'Parar gravação' : 'Gravar resposta por voz'}
+                  style={{
+                    position: 'absolute', right: 8, bottom: 8, width: 32, height: 32, borderRadius: 8,
+                    background: recording ? C.red : C.card2, border: `1px solid ${recording ? C.red : C.border2}`,
+                    color: recording ? '#fff' : C.muted, fontSize: 14, cursor: 'pointer',
+                  }}
+                >
+                  {recording ? '⏹' : '🎤'}
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+              <div style={{ fontSize: 11, color: C.muted }}>{recording ? '🔴 Ouvindo... fale livremente' : 'Sua resposta fica só com você'}</div>
+              <button
+                onClick={saveReflection}
+                style={{ background: savedReflection ? C.green : C.card2, border: `1px solid ${savedReflection ? C.green : C.border2}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, color: savedReflection ? '#fff' : C.text, cursor: 'pointer', transition: 'all .2s' }}
+              >
+                {savedReflection ? '✓ Salvo!' : 'Salvar reflexão'}
+              </button>
+            </div>
+          </>
+        )}
+      </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
 

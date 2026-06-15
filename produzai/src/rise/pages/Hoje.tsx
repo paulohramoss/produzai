@@ -8,13 +8,14 @@ import { getDaily, saveDaily } from '../../lib/db'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 import { HabitosModal } from '../components/HabitosModal'
+import { OneThingMode, type OneThing } from '../components/OneThingMode'
 import {
   notificationsSupported, requestPermission, loadPrefs, savePrefs, applyPrefs,
   type NotifPrefs,
 } from '../../lib/notifications'
 
 interface Props { setPage: (p: Page) => void }
-interface Habit { id: string; icon: string; label: string; done: boolean }
+interface Habit { id: string; icon: string; label: string; done: boolean; why?: string }
 interface FocusItem { id: string; text: string; done: boolean }
 
 const DEFAULT_FOCUS: FocusItem[] = [
@@ -35,6 +36,9 @@ export function Hoje({ setPage }: Props) {
   const [loaded,       setLoaded]       = useState(false)
   const [managingHabits, setManagingHabits] = useState(false)
   const [notifPrefs,   setNotifPrefs]   = useState<NotifPrefs>(loadPrefs)
+  const [missedYesterday, setMissedYesterday] = useState<Habit[]>([])
+  const [showMissed,   setShowMissed]   = useState(true)
+  const [oneThingOpen, setOneThingOpen] = useState(false)
 
   // Apply saved notification schedule on mount
   useEffect(() => {
@@ -82,6 +86,21 @@ export function Hoje({ setPage }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, todayKey, habitDefs])
 
+  // Lembrete gentil: hábitos que ficaram pra depois ontem, com o "porquê"
+  useEffect(() => {
+    async function loadYesterday() {
+      if (!user) return
+      const yKey = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      const cloud = await getDaily(yKey)
+      if (!cloud?.habits) { setMissedYesterday([]); return }
+      const missed = cloud.habits
+        .filter(h => !h.done)
+        .map(h => ({ ...h, why: habitDefs.find(d => d.id === h.id)?.why }))
+      setMissedYesterday(missed)
+    }
+    loadYesterday()
+  }, [user, todayKey, habitDefs])
+
   function persistDaily(h: Habit[], f: FocusItem[]) {
     localStorage.setItem(`habits_${todayKey}`, JSON.stringify(h))
     localStorage.setItem(`focus_${todayKey}`, JSON.stringify(f))
@@ -110,6 +129,21 @@ export function Hoje({ setPage }: Props) {
     persistDaily(habits, next)
   }
 
+  // Modo "uma coisa": próxima ação mais importante — primeiro foco pendente,
+  // senão o primeiro hábito pendente, senão tudo concluído
+  function nextThing(): OneThing {
+    const f = focus.find(x => x.text.trim() && !x.done)
+    if (f) return { kind: 'focus', id: f.id, icon: '🎯', text: f.text }
+    const h = habits.find(x => !x.done)
+    if (h) return { kind: 'habit', id: h.id, icon: h.icon, text: h.label, why: h.why }
+    return { kind: 'done', id: '', icon: '🎉', text: '' }
+  }
+
+  function handleOneThingComplete(kind: 'focus' | 'habit', id: string) {
+    if (kind === 'focus') toggleFocus(id)
+    else toggleHabit(id)
+  }
+
   const doneHabits = habits.filter(h => h.done).length
   const totalFocus = focus.filter(f => f.text).length
   const doneFocus  = focus.filter(f => f.done && f.text).length
@@ -133,10 +167,31 @@ export function Hoje({ setPage }: Props) {
   return (
     <div>
     {managingHabits && <HabitosModal onClose={() => setManagingHabits(false)} />}
+    {oneThingOpen && (
+      <OneThingMode
+        thing={nextThing()}
+        onComplete={handleOneThingComplete}
+        onClose={() => setOneThingOpen(false)}
+      />
+    )}
       {/* Header */}
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 13, color: C.muted, textTransform: 'capitalize' }}>{dateStr}</div>
-        <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800 }}>☀️ Hoje</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, color: C.muted, textTransform: 'capitalize' }}>{dateStr}</div>
+            <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800 }}>☀️ Hoje</div>
+          </div>
+          <button
+            onClick={() => setOneThingOpen(true)}
+            style={{
+              background: `${C.orange}18`, border: `1px solid ${C.orange}44`, borderRadius: 10,
+              padding: isMobile ? '8px 12px' : '9px 14px', fontSize: 12, fontWeight: 700,
+              color: C.orange, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            }}
+          >
+            🎯 Uma coisa
+          </button>
+        </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <div style={{ background: C.card2, borderRadius: 8, padding: '5px 11px', fontSize: 12 }}>
             🎯 {doneFocus}/{totalFocus || 3} foco
@@ -156,6 +211,32 @@ export function Hoje({ setPage }: Props) {
           )}
         </div>
       </div>
+
+      {/* Lembrete gentil: o que ficou pra depois ontem */}
+      {missedYesterday.length > 0 && showMissed && (
+        <Card style={{ marginBottom: 16, background: `${C.blue}0D`, border: `1px solid ${C.blue}33` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>💭 Ontem ficou pra depois</div>
+            <button
+              onClick={() => setShowMissed(false)}
+              style={{ background: 'none', border: 'none', color: C.muted, fontSize: 16, cursor: 'pointer', lineHeight: 1, padding: 0 }}
+            >
+              ×
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {missedYesterday.map(h => (
+              <div key={h.id}>
+                <div style={{ fontSize: 13 }}>{h.icon} {h.label}</div>
+                {h.why && <div style={{ fontSize: 11, color: C.muted, marginTop: 2, paddingLeft: 22, lineHeight: 1.5 }}>{h.why}</div>}
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>
+            Sem cobrança — só um lembrete do que importa pra você. Hoje é uma nova chance.
+          </div>
+        </Card>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
         {/* ── Left ── */}
@@ -205,11 +286,18 @@ export function Hoje({ setPage }: Props) {
                 <div
                   key={h.id}
                   onClick={() => toggleHabit(h.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: h.done ? `${C.green}11` : C.card2, borderRadius: 8, cursor: 'pointer', border: `1px solid ${h.done ? C.green + '44' : C.border}`, transition: 'all .12s' }}
+                  style={{ padding: '8px 10px', background: h.done ? `${C.green}11` : C.card2, borderRadius: 8, cursor: 'pointer', border: `1px solid ${h.done ? C.green + '44' : C.border}`, transition: 'all .12s' }}
                 >
-                  <span style={{ fontSize: 15 }}>{h.icon}</span>
-                  <span style={{ flex: 1, fontSize: 13, color: h.done ? C.muted : C.text, textDecoration: h.done ? 'line-through' : 'none' }}>{h.label}</span>
-                  <span style={{ color: h.done ? C.green : C.border2, fontSize: 14 }}>{h.done ? '✓' : '○'}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 15 }}>{h.icon}</span>
+                    <span style={{ flex: 1, fontSize: 13, color: h.done ? C.muted : C.text, textDecoration: h.done ? 'line-through' : 'none' }}>{h.label}</span>
+                    <span style={{ color: h.done ? C.green : C.border2, fontSize: 14 }}>{h.done ? '✓' : '○'}</span>
+                  </div>
+                  {!h.done && h.why && (
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 6, paddingLeft: 25, lineHeight: 1.5 }}>
+                      💭 {h.why}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -1,19 +1,434 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { C } from '../data'
+import { Tag } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
-import { saveProfile } from '../../lib/db'
+import { saveProfile, saveDaily } from '../../lib/db'
 import { useWebDietStore } from '../../store/useWebDietStore'
+import { useHabitsStore } from '../../store/useHabitsStore'
 import { toast } from '../../lib/toast'
+import {
+  streamCoach, onboardingSystemPrompt, generateOnboardingPlan, hasApiKey,
+  type ChatMessage, type OnboardingPlan,
+} from '../../lib/anthropic'
+
+// ─────────────────────────────────────────────────────────────────────────
+// Onboarding por conversa: a IA entrevista o usuário (objetivos, rotina,
+// valores) e gera o sistema inicial (hábitos com "porquê", metas, foco).
+// Sem chave de API, cai no wizard rápido por templates.
+// ─────────────────────────────────────────────────────────────────────────
+
+export function Onboarding() {
+  const apiReady = hasApiKey()
+  const [mode, setMode] = useState<'chat' | 'quick'>(apiReady ? 'chat' : 'quick')
+
+  if (mode === 'quick') {
+    return <QuickOnboarding onSwitchToChat={apiReady ? () => setMode('chat') : undefined} />
+  }
+  return <ConversationalOnboarding onSwitchToQuick={() => setMode('quick')} />
+}
+
+// ── Onboarding conversacional ───────────────────────────────────────────────
+
+function openingMessage(firstName: string): string {
+  return `Oi, ${firstName}! 👋 Eu sou seu assistente de configuração aqui no Rise Plan.\n\nEm vez de te jogar numa tela vazia pra você montar tudo do zero, eu queria te conhecer um pouco antes. Me conta: o que te trouxe até aqui agora? Quais são seus principais objetivos pros próximos meses — em saúde, trabalho, ou na vida em geral?`
+}
+
+function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => void }) {
+  const { user, setOnboardingDone } = useAuthStore()
+  const setupDiet   = useWebDietStore(s => s.setup)
+  const setHabitDefs = useHabitsStore(s => s.setDefs)
+
+  const firstName = user?.displayName?.split(' ')[0] || 'atleta'
+
+  const [messages, setMessages]     = useState<ChatMessage[]>([{ role: 'assistant', content: openingMessage(firstName) }])
+  const [input, setInput]           = useState('')
+  const [streaming, setStreaming]   = useState(false)
+  const [streamText, setStreamText] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [plan, setPlan]             = useState<OnboardingPlan | null>(null)
+  const [excluded, setExcluded]     = useState<Set<number>>(new Set())
+  const [saving, setSaving]         = useState(false)
+
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const userTurns = messages.filter(m => m.role === 'user').length
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, streamText, plan, generating])
+
+  async function send(text: string) {
+    const trimmed = text.trim()
+    if (!trimmed || streaming || generating) return
+
+    const next = [...messages, { role: 'user' as const, content: trimmed }]
+    setMessages(next)
+    setInput('')
+    setStreaming(true)
+    setStreamText('')
+
+    let full = ''
+    await streamCoach(
+      next,
+      onboardingSystemPrompt(firstName),
+      chunk => { full += chunk; setStreamText(full) },
+      () => {
+        setMessages(m => [...m, { role: 'assistant', content: full }])
+        setStreamText('')
+        setStreaming(false)
+      },
+      err => {
+        toast.error('Erro: ' + err)
+        setStreaming(false)
+      },
+    )
+  }
+
+  function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      send(input)
+    }
+  }
+
+  async function handleGeneratePlan() {
+    setGenerating(true)
+    const result = await generateOnboardingPlan(messages, user?.displayName || undefined)
+    setGenerating(false)
+    if (!result || !result.habits || result.habits.length === 0) {
+      toast.error('Não consegui gerar seu plano agora. Pode tentar de novo ou usar o modo rápido.')
+      return
+    }
+    setPlan(result)
+    setExcluded(new Set())
+  }
+
+  function toggleHabit(i: number) {
+    setExcluded(s => {
+      const next = new Set(s)
+      if (next.has(i)) next.delete(i); else next.add(i)
+      return next
+    })
+  }
+
+  async function confirmPlan() {
+    if (!plan) return
+    setSaving(true)
+
+    const habits = plan.habits
+      .filter((_, i) => !excluded.has(i))
+      .map(h => ({
+        id: Math.random().toString(36).slice(2),
+        icon: h.icon || '🎯',
+        label: h.label,
+        why: h.why,
+        createdAt: Date.now(),
+      }))
+
+    if (habits.length > 0) setHabitDefs(habits)
+    if (plan.macros && plan.macros.cal > 0) setupDiet(plan.macros)
+
+    if (plan.focusSuggestion) {
+      const todayKey = new Date().toISOString().slice(0, 10)
+      saveDaily(todayKey, {
+        focus: [
+          { id: '1', text: plan.focusSuggestion, done: false },
+          { id: '2', text: '', done: false },
+          { id: '3', text: '', done: false },
+        ],
+      })
+    }
+
+    await saveProfile({
+      onboardingDone: true,
+      createdAt: Date.now(),
+      goals: plan.goals,
+      values: plan.values,
+      onboardingSummary: plan.summary,
+    })
+    setOnboardingDone(true)
+    toast.success(`🚀 Bem-vindo ao The Rise Plan, ${firstName}!`)
+  }
+
+  const inputDisabled = streaming || generating
+
+  return (
+    <div style={{
+      minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', fontFamily: 'system-ui, sans-serif', padding: '20px 16px',
+    }}>
+      <div style={{ width: '100%', maxWidth: 620 }}>
+
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 18 }}>
+          <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ width: 120, borderRadius: 12, marginBottom: 12 }} />
+          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 4 }}>
+            {plan ? 'Seu sistema inicial está pronto ✨' : 'Vamos te conhecer'}
+          </div>
+          <div style={{ fontSize: 13, color: C.muted }}>
+            {plan
+              ? 'Revise e ajuste antes de começar — você pode editar tudo depois.'
+              : 'Uma conversa rápida em vez de uma tela vazia. Quando quiser, gere seu plano.'}
+          </div>
+        </div>
+
+        {!plan ? (
+          <>
+            {/* Chat */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 14 }}>
+              <div style={{ maxHeight: 420, minHeight: 280, overflowY: 'auto', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {messages.map((msg, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                    <div style={{
+                      maxWidth: '85%', padding: '10px 14px',
+                      borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                      background: msg.role === 'user' ? C.orange : C.card2,
+                      color: msg.role === 'user' ? '#fff' : C.text,
+                      fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap',
+                    }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+
+                {streaming && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                    <div style={{ maxWidth: '85%', padding: '10px 14px', borderRadius: '18px 18px 18px 4px', background: C.card2, fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', color: C.text }}>
+                      {streamText || (
+                        <span style={{ color: C.muted }}>
+                          <span style={{ animation: 'pulse 1s infinite' }}>●</span> digitando...
+                        </span>
+                      )}
+                      {streamText && <span style={{ opacity: 0.5 }}>▌</span>}
+                    </div>
+                  </div>
+                )}
+
+                {generating && (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
+                    <div style={{ fontSize: 12, color: C.orange, fontWeight: 700 }}>
+                      ✨ Montando seu sistema inicial...
+                    </div>
+                  </div>
+                )}
+
+                <div ref={bottomRef} />
+              </div>
+
+              {/* Input */}
+              <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <textarea
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKey}
+                  disabled={inputDisabled}
+                  placeholder="Conte um pouco sobre você... (Enter para enviar)"
+                  rows={1}
+                  style={{
+                    flex: 1, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 12,
+                    padding: '10px 14px', color: C.text, fontSize: 13, outline: 'none', resize: 'none',
+                    fontFamily: 'inherit', lineHeight: 1.5, maxHeight: 100, overflowY: 'auto',
+                  }}
+                  onInput={e => {
+                    const el = e.currentTarget
+                    el.style.height = 'auto'
+                    el.style.height = Math.min(el.scrollHeight, 100) + 'px'
+                  }}
+                />
+                <button
+                  onClick={() => send(input)}
+                  disabled={!input.trim() || inputDisabled}
+                  style={{
+                    background: input.trim() && !inputDisabled ? C.orange : C.border2, border: 'none',
+                    borderRadius: 12, width: 42, height: 42, flexShrink: 0, fontSize: 18,
+                    cursor: input.trim() && !inputDisabled ? 'pointer' : 'default', color: '#fff',
+                  }}
+                >
+                  {streaming ? '⏳' : '↑'}
+                </button>
+              </div>
+            </div>
+
+            {/* Generate plan */}
+            <button
+              onClick={handleGeneratePlan}
+              disabled={userTurns === 0 || inputDisabled}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 12, border: 'none',
+                background: userTurns > 0 ? C.green : C.border2,
+                color: userTurns > 0 ? '#fff' : C.muted,
+                fontSize: 15, fontWeight: 700, cursor: userTurns > 0 && !inputDisabled ? 'pointer' : 'default',
+                marginBottom: 10,
+              }}
+            >
+              {generating ? 'Gerando...' : '✨ Gerar meu plano inicial'}
+            </button>
+            <div style={{ textAlign: 'center' }}>
+              {userTurns === 0 && (
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>
+                  Responda pelo menos uma vez para liberar o seu plano.
+                </div>
+              )}
+              <span onClick={onSwitchToQuick} style={{ fontSize: 12, color: C.muted, cursor: 'pointer', textDecoration: 'underline' }}>
+                Prefiro o modo rápido (sem conversa)
+              </span>
+            </div>
+          </>
+        ) : (
+          <PlanReview
+            plan={plan}
+            excluded={excluded}
+            toggleHabit={toggleHabit}
+            saving={saving}
+            onBack={() => setPlan(null)}
+            onConfirm={confirmPlan}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Tela de revisão do plano gerado ─────────────────────────────────────────
+
+function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: {
+  plan: OnboardingPlan
+  excluded: Set<number>
+  toggleHabit: (i: number) => void
+  saving: boolean
+  onBack: () => void
+  onConfirm: () => void
+}) {
+  const includedCount = plan.habits.length - excluded.size
+
+  return (
+    <div className="fade-in">
+      {/* Summary */}
+      <div style={{ background: `${C.orange}11`, border: `1px solid ${C.orange}33`, borderRadius: 14, padding: 16, marginBottom: 16, fontSize: 13, lineHeight: 1.7, color: C.text }}>
+        {plan.summary}
+      </div>
+
+      {/* Goals + values */}
+      {(plan.goals?.length > 0 || plan.values?.length > 0) && (
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+          {plan.goals?.length > 0 && (
+            <div style={{ marginBottom: plan.values?.length > 0 ? 12 : 0 }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>🎯 Seus objetivos</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {plan.goals.map((g, i) => <Tag key={i} label={g} color={C.orange} />)}
+              </div>
+            </div>
+          )}
+          {plan.values?.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>💎 Valores identificados</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {plan.values.map((v, i) => <Tag key={i} label={v} color={C.purple} />)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Habits */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>✅ Hábitos sugeridos</div>
+          <span style={{ fontSize: 11, color: C.muted }}>{includedCount} selecionados</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {plan.habits.map((h, i) => {
+            const isOut = excluded.has(i)
+            return (
+              <div
+                key={i}
+                onClick={() => toggleHabit(i)}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
+                  background: isOut ? C.bg : C.card2, borderRadius: 10, cursor: 'pointer',
+                  border: `1px solid ${isOut ? C.border : C.border2}`, opacity: isOut ? 0.45 : 1,
+                  transition: 'all .12s',
+                }}
+              >
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{h.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, textDecoration: isOut ? 'line-through' : 'none' }}>{h.label}</div>
+                  {h.why && <div style={{ fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 1.5 }}>💭 {h.why}</div>}
+                </div>
+                <span style={{ fontSize: 12, color: isOut ? C.muted : C.green, flexShrink: 0 }}>{isOut ? '○' : '✓'}</span>
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 10, textAlign: 'center' }}>
+          Toque para incluir/remover. Você pode editar tudo depois em "Hoje".
+        </div>
+      </div>
+
+      {/* Focus suggestion */}
+      {plan.focusSuggestion && (
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>🎯 Sugestão de foco para hoje</div>
+          <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>{plan.focusSuggestion}</div>
+        </div>
+      )}
+
+      {/* Macros */}
+      {plan.macros && plan.macros.cal > 0 && (
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>🥗 Metas nutricionais sugeridas</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+            {[
+              { l: 'Kcal', v: plan.macros.cal, c: C.orange },
+              { l: 'Prot', v: plan.macros.prot, c: C.blue },
+              { l: 'Carb', v: plan.macros.carb, c: C.green },
+              { l: 'Gord', v: plan.macros.fat, c: C.purple },
+            ].map(({ l, v, c }) => (
+              <div key={l} style={{ background: c + '18', borderRadius: 10, padding: '10px 8px', textAlign: 'center', border: `1px solid ${c}33` }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: c }}>{v}</div>
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 10 }}>Você pode ajustar tudo depois na página de Dieta.</div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button
+          onClick={onBack}
+          style={{ flex: 1, padding: '13px', borderRadius: 12, background: C.card2, border: `1px solid ${C.border}`, color: C.muted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+        >
+          ← Continuar conversa
+        </button>
+        <button
+          onClick={onConfirm}
+          disabled={includedCount === 0 || saving}
+          style={{
+            flex: 2, padding: '13px', borderRadius: 12, border: 'none',
+            background: includedCount > 0 ? C.green : C.border2,
+            color: includedCount > 0 ? '#fff' : C.muted,
+            fontSize: 15, fontWeight: 700,
+            cursor: includedCount > 0 && !saving ? 'pointer' : 'default',
+          }}
+        >
+          {saving ? 'Salvando...' : '🚀 Confirmar e começar!'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Wizard rápido (fallback por template) ───────────────────────────────────
 
 const HABITS_OPTIONS = [
-  { id: 'agua',      icon: '💧', label: 'Água 3L' },
-  { id: 'treino',    icon: '🏋', label: 'Treino diário' },
-  { id: 'leitura',   icon: '📚', label: 'Leitura 30min' },
-  { id: 'meditacao', icon: '🧘', label: 'Meditação' },
-  { id: 'sono',      icon: '😴', label: 'Dormir bem' },
-  { id: 'proteina',  icon: '🥩', label: 'Meta de proteína' },
-  { id: 'caminhada', icon: '🚶', label: 'Caminhada diária' },
-  { id: 'sem_acucar',icon: '🚫', label: 'Sem açúcar' },
+  { id: 'agua',      icon: '💧', label: 'Água 3L',            why: 'Seu corpo e sua mente funcionam melhor hidratados.' },
+  { id: 'treino',    icon: '🏋', label: 'Treino diário',       why: 'Cuidar do corpo é a base para ter energia em tudo o resto.' },
+  { id: 'leitura',   icon: '📚', label: 'Leitura 30min',       why: 'Investir em conhecimento é investir em quem você está se tornando.' },
+  { id: 'meditacao', icon: '🧘', label: 'Meditação',           why: 'Uma mente calma toma decisões melhores.' },
+  { id: 'sono',      icon: '😴', label: 'Dormir bem',          why: 'Descanso de qualidade é o multiplicador invisível da sua produtividade.' },
+  { id: 'proteina',  icon: '🥩', label: 'Meta de proteína',    why: 'Alimentar bem o corpo sustenta seus objetivos físicos.' },
+  { id: 'caminhada', icon: '🚶', label: 'Caminhada diária',    why: 'Movimento diário, mesmo leve, acumula em saúde a longo prazo.' },
+  { id: 'sem_acucar',icon: '🚫', label: 'Sem açúcar',          why: 'Reduzir açúcar protege sua energia e seu humor durante o dia.' },
 ]
 
 const GOALS_OPTIONS = [
@@ -25,9 +440,10 @@ const GOALS_OPTIONS = [
   { id: 'correr',       icon: '🏃',  label: 'Correr / cardio' },
 ]
 
-export function Onboarding() {
+function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
   const { user, setOnboardingDone } = useAuthStore()
   const setupDiet = useWebDietStore(s => s.setup)
+  const setHabitDefs = useHabitsStore(s => s.setDefs)
 
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -56,8 +472,14 @@ export function Onboarding() {
     setSaving(true)
     // Salva plano de dieta com as metas definidas
     setupDiet(macros)
+    // Cria definições de hábitos com o "porquê" embutido
+    const habits = HABITS_OPTIONS
+      .filter(h => selectedHabits.includes(h.id))
+      .map(h => ({ id: Math.random().toString(36).slice(2), icon: h.icon, label: h.label, why: h.why, createdAt: Date.now() }))
+    setHabitDefs(habits)
     // Marca onboarding como concluído no Firestore
-    await saveProfile({ onboardingDone: true, createdAt: Date.now() })
+    const goals = GOALS_OPTIONS.filter(g => selectedGoals.includes(g.id)).map(g => g.label)
+    await saveProfile({ onboardingDone: true, createdAt: Date.now(), goals })
     setOnboardingDone(true)
     toast.success(`🚀 Bem-vindo ao The Rise Plan, ${firstName}!`)
   }
@@ -81,6 +503,13 @@ export function Onboarding() {
             Olá, {firstName}! 👋
           </div>
           <div style={{ fontSize: 14, color: C.muted }}>Vamos configurar seu plano em 3 passos rápidos</div>
+          {onSwitchToChat && (
+            <div style={{ marginTop: 10 }}>
+              <span onClick={onSwitchToChat} style={{ fontSize: 12, color: C.orange, cursor: 'pointer', textDecoration: 'underline' }}>
+                ✨ Prefiro conversar com a IA pra montar meu plano
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Progress bar */}

@@ -11,6 +11,7 @@ import { Biblioteca }   from "./pages/Biblioteca";
 import { Coach }        from "./pages/Coach";
 import { Galeria }      from "./pages/Galeria";
 import { Perfil }       from "./pages/Perfil";
+import { Insights }     from "./pages/Insights";
 import { Onboarding }   from "./pages/Onboarding";
 import { Toaster }      from "./components/Toaster";
 import { useAuthStore } from "../store/useAuthStore";
@@ -18,7 +19,7 @@ import { LayoutContext } from "./LayoutContext";
 
 const RISE_IMPLEMENTED: Page[] = [
   "dashboard", "hoje", "treino", "dieta", "agenda",
-  "projetos", "mental", "biblioteca", "coach", "galeria", "perfil",
+  "projetos", "mental", "biblioteca", "coach", "galeria", "perfil", "insights",
 ];
 
 const SIDEBAR_W = 210;
@@ -229,6 +230,7 @@ export function RisePlan() {
           {page === "coach"      && <Coach       setPage={navigate} />}
           {page === "galeria"    && <Galeria     setPage={navigate} />}
           {page === "perfil"    && <Perfil      setPage={navigate} />}
+          {page === "insights"  && <Insights    setPage={navigate} />}
 
           {!RISE_IMPLEMENTED.includes(page) && (
             <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>

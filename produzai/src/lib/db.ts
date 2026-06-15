@@ -19,6 +19,9 @@ function subRef(sub: string, id: string) {
 export interface UserProfile {
   onboardingDone: boolean
   createdAt?: number
+  goals?: string[]
+  values?: string[]
+  onboardingSummary?: string
 }
 
 export async function getProfile(): Promise<UserProfile | null> {
@@ -83,6 +86,15 @@ export async function saveDaily(date: string, data: DailyData) {
   try { await setDoc(subRef('daily', date), data) } catch { /* silent */ }
 }
 
+export async function getDailyHistory(dates: string[]): Promise<Record<string, DailyData>> {
+  const result: Record<string, DailyData> = {}
+  await Promise.all(dates.map(async d => {
+    const e = await getDaily(d)
+    if (e) result[d] = e
+  }))
+  return result
+}
+
 // ── Mental ───────────────────────────────────────────────────────────────────
 
 export interface MentalEntry {
@@ -90,6 +102,8 @@ export interface MentalEntry {
   energy: number
   gratitude: [string, string, string]
   note: string
+  reflectionQuestion?: string
+  reflectionAnswer?: string
 }
 
 export async function getMental(date: string): Promise<MentalEntry | null> {
@@ -167,7 +181,14 @@ export async function saveBooks(books: Book[]) {
 
 // ── Habit definitions ─────────────────────────────────────────────────────────
 
-export interface HabitDef { id: string; icon: string; label: string }
+export interface HabitDef {
+  id: string
+  icon: string
+  label: string
+  /** O "porquê" — intenção/valor por trás do hábito */
+  why?: string
+  createdAt?: number
+}
 
 export async function getHabitDefs(): Promise<HabitDef[] | null> {
   if (!currentUid) return null
@@ -229,4 +250,33 @@ export async function getProgressPhotos(): Promise<ProgressPhoto[]> {
 export async function saveProgressPhotos(photos: ProgressPhoto[]) {
   if (!currentUid) return
   try { await setDoc(dataRef('progress'), { items: photos }) } catch { /* silent */ }
+}
+
+// ── Weekly reviews ───────────────────────────────────────────────────────────
+
+export interface WeeklyReview {
+  weekKey: string      // "YYYY-Www" (ISO week)
+  generatedAt: number
+  summary: string
+  wins: string[]
+  slips: string[]
+  question: string
+  adjustment: string
+}
+
+export async function getWeeklyReviews(): Promise<WeeklyReview[]> {
+  if (!currentUid) return []
+  try {
+    const snap = await getDoc(dataRef('weeklyReviews'))
+    return snap.exists() ? ((snap.data().items as WeeklyReview[]) ?? []) : []
+  } catch { return [] }
+}
+
+export async function saveWeeklyReview(review: WeeklyReview) {
+  if (!currentUid) return
+  try {
+    const existing = await getWeeklyReviews()
+    const next = [review, ...existing.filter(r => r.weekKey !== review.weekKey)].slice(0, 26)
+    await setDoc(dataRef('weeklyReviews'), { items: next })
+  } catch { /* silent */ }
 }
