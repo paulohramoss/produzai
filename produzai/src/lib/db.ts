@@ -212,6 +212,9 @@ export interface LeaderboardEntry {
   xp: number
   streakDays: number
   weeklyWorkouts: number
+  weeklyXP: number
+  weekKey: string      // ISO week key e.g. "2026-W24"
+  inviteCode: string   // uid.slice(0,6).toUpperCase() — for friend lookup
   updatedAt: number
 }
 
@@ -227,6 +230,51 @@ export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
     const q = query(collection(db, 'leaderboard'), orderBy('xp', 'desc'), limit(10))
     const snap = await getDocs(q)
     return snap.docs.map(d => d.data() as LeaderboardEntry)
+  } catch { return [] }
+}
+
+// ── Friends ───────────────────────────────────────────────────────────────────
+
+export async function getFriends(): Promise<string[]> {
+  if (!currentUid) return []
+  try {
+    const snap = await getDoc(dataRef('friends'))
+    return snap.exists() ? ((snap.data().uids as string[]) ?? []) : []
+  } catch { return [] }
+}
+
+export async function addFriend(friendUid: string): Promise<void> {
+  if (!currentUid) return
+  const existing = await getFriends()
+  if (existing.includes(friendUid)) return
+  try { await setDoc(dataRef('friends'), { uids: [...existing, friendUid] }) } catch { /* silent */ }
+}
+
+export async function removeFriend(friendUid: string): Promise<void> {
+  if (!currentUid) return
+  const existing = await getFriends()
+  try { await setDoc(dataRef('friends'), { uids: existing.filter(u => u !== friendUid) }) } catch { /* silent */ }
+}
+
+export async function lookupByInviteCode(code: string): Promise<LeaderboardEntry | null> {
+  try {
+    const { getDocs, collection, query, where } = await import('firebase/firestore')
+    const q = query(collection(db, 'leaderboard'), where('inviteCode', '==', code.toUpperCase()))
+    const snap = await getDocs(q)
+    if (snap.empty) return null
+    return snap.docs[0].data() as LeaderboardEntry
+  } catch { return null }
+}
+
+export async function getFriendLeaderboard(uids: string[]): Promise<LeaderboardEntry[]> {
+  if (uids.length === 0) return []
+  try {
+    const results = await Promise.all(
+      uids.map(uid =>
+        getDoc(doc(db, 'leaderboard', uid)).then(s => (s.exists() ? s.data() as LeaderboardEntry : null)),
+      ),
+    )
+    return results.filter((e): e is LeaderboardEntry => e !== null)
   } catch { return [] }
 }
 
@@ -330,7 +378,7 @@ export async function deletePushSubscription(): Promise<void> {
 export async function deleteAllUserData(uid: string): Promise<void> {
   const DATA_DOCS = [
     'profile', 'workouts', 'diet', 'projects', 'books',
-    'habitDefs', 'progress', 'hydration', 'weeklyReviews', 'pushSubscription',
+    'habitDefs', 'progress', 'hydration', 'weeklyReviews', 'pushSubscription', 'friends',
   ]
 
   await Promise.all(
@@ -345,8 +393,8 @@ export async function deleteAllUserData(uid: string): Promise<void> {
   ])
 
   await Promise.all([
-    ...(dailySnap?.docs ?? []).map(d => deleteDoc(d.ref).catch(() => {})),
-    ...(mentalSnap?.docs ?? []).map(d => deleteDoc(d.ref).catch(() => {})),
+    ...(dailySnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
+    ...(mentalSnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
     deleteDoc(doc(db, 'leaderboard', uid)).catch(() => {}),
   ])
 }

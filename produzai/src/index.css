@@ -1,3 +1,37 @@
+/* ── The Rise Plan — Design Tokens ──────────────────────────────────────────
+   Single source of truth for all brand colors and surfaces.
+   Inline styles in rise/ reference these vars; CSS classes and Tailwind
+   utilities can also use them via the tailwind.config tokens.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --rise-bg:       #0C0C0C;
+  --rise-card:     #141414;
+  --rise-card-2:   #1C1C1C;
+  --rise-card-3:   #222222;
+  --rise-border:   #252525;
+  --rise-border-2: #2E2E2E;
+
+  /* Text */
+  --rise-text:     #F0F0F0;
+  --rise-muted:    #666666;
+  --rise-muted-2:  #999999;
+
+  /* Brand */
+  --rise-orange:   #F97316;
+  --rise-orange-d: rgba(249,115,22,.11);
+
+  /* Semantic */
+  --rise-green:    #22C55E;
+  --rise-blue:     #60A5FA;
+  --rise-purple:   #A78BFA;
+  --rise-pink:     #F472B6;
+  --rise-red:      #EF4444;
+
+  /* External */
+  --rise-strava:   #FC4C02;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -335,7 +335,7 @@ export function PrivacyPolicyText() {
         </li>
         <li>
           <strong style={{ color: C.text }}>Uso da plataforma:</strong>{' '}
-          projetos, livros, hidratação, histórico de conversas com o Coach IA
+          projetos, livros, hidratação, histórico de conversas com o Coach
         </li>
       </ul>
 

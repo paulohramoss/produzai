@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useContext } from 'react'
+import { Bot, Paperclip, ArrowUp, Download, MessageSquare } from 'lucide-react'
 import { C, type Page } from '../data'
 import { Card, Ring } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
@@ -7,7 +8,7 @@ import { useHabitsStore } from '../../store/useHabitsStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useCoachStore } from '../../store/useCoachStore'
 import { exportAllCSV, exportWorkoutsCSV, exportDietCSV } from '../../lib/exportData'
-import { streamCoach, hasApiKey, type ChatMessage, type ChatAttachment } from '../../lib/anthropic'
+import { streamCoach, type ChatMessage, type ChatAttachment } from '../../lib/anthropic'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 
@@ -22,7 +23,7 @@ const SUGGESTIONS = [
   { icon: '📅', text: 'Me dê um plano para essa semana' },
 ]
 
-const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
 const ACCEPTED_ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 export function Coach({ setPage }: Props) {
@@ -41,8 +42,8 @@ export function Coach({ setPage }: Props) {
   const [streaming, setStreaming]   = useState(false)
   const [streamText, setStreamText] = useState('')
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef  = useRef<HTMLTextAreaElement>(null)
+  const bottomRef    = useRef<HTMLDivElement>(null)
+  const inputRef     = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Derived data ─────────────────────────────────────────────────────────
@@ -95,7 +96,7 @@ export function Coach({ setPage }: Props) {
         setStreaming(false)
       },
       err => {
-        toast.error('Coach IA: ' + err)
+        toast.error('Erro no Coach: ' + err)
         setStreaming(false)
       },
     )
@@ -110,10 +111,10 @@ export function Coach({ setPage }: Props) {
 
   function handleExport(type: 'all' | 'workouts' | 'diet') {
     try {
-      if (type === 'all')      exportAllCSV(workouts, wd)
-      if (type === 'workouts') exportWorkoutsCSV(workouts)
-      if (type === 'diet' && wd) exportDietCSV(wd)
-      toast.success('📊 Arquivo CSV baixado!')
+      if (type === 'all')            exportAllCSV(workouts, wd)
+      if (type === 'workouts')       exportWorkoutsCSV(workouts)
+      if (type === 'diet' && wd)     exportDietCSV(wd)
+      toast.success('Arquivo CSV baixado!')
       setShowExport(false)
     } catch { toast.error('Erro ao exportar dados') }
   }
@@ -138,7 +139,7 @@ export function Coach({ setPage }: Props) {
     reader.readAsDataURL(file)
   }
 
-  const apiReady = hasApiKey()
+  const canSend = (input.trim() !== '' || attachment !== null) && !streaming
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -154,26 +155,33 @@ export function Coach({ setPage }: Props) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>🤖 Coach IA</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <Bot size={22} style={{ color: C.orange }} />
+            <span style={{ fontSize: 22, fontWeight: 800 }}>Coach</span>
+          </div>
           <div style={{ fontSize: 13, color: C.muted }}>Assistente pessoal de performance</div>
         </div>
         <button
           onClick={() => setShowExport(s => !s)}
-          style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '8px 14px', color: C.muted, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '8px 14px', color: C.muted, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
         >
-          📊 Exportar dados
+          <Download size={13} />
+          Exportar dados
         </button>
       </div>
 
       {/* Export panel */}
       {showExport && (
         <Card style={{ marginBottom: 20, border: `1px solid ${C.blue}44` }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: C.blue }}>📊 Exportar dados (CSV)</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, marginBottom: 12, color: C.blue }}>
+            <Download size={14} />
+            Exportar dados (CSV)
+          </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[
-              { label: 'Tudo (CSV)', action: () => handleExport('all'), color: C.blue, text: '#fff' },
-              { label: 'Só treinos', action: () => workouts.length > 0 ? handleExport('workouts') : toast.error('Nenhum treino'), color: C.card2, text: C.text },
-              { label: 'Só dieta', action: () => wd ? handleExport('diet') : toast.error('Configure a dieta'), color: C.card2, text: C.text },
+              { label: 'Tudo',       action: () => handleExport('all'),      color: C.blue,  text: '#fff' },
+              { label: 'Treinos',    action: () => workouts.length > 0 ? handleExport('workouts') : toast.error('Nenhum treino'), color: C.card2, text: C.text },
+              { label: 'Dieta',      action: () => wd ? handleExport('diet') : toast.error('Configure a dieta'), color: C.card2, text: C.text },
             ].map((b, i) => (
               <button key={i} onClick={b.action} style={{ background: b.color, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '8px 16px', color: b.text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                 {b.label}
@@ -199,10 +207,10 @@ export function Coach({ setPage }: Props) {
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
               <span onClick={() => setPage('treino')} style={{ fontSize: 11, color: C.orange, cursor: 'pointer' }}>
-                {weekWorkouts.length > 0 ? `🏋 ${weekWorkouts.length} treinos esta semana` : '+ Registrar treino'}
+                {weekWorkouts.length > 0 ? `${weekWorkouts.length} treinos esta semana` : '+ Registrar treino'}
               </span>
               <span onClick={() => setPage('dieta')} style={{ fontSize: 11, color: C.green, cursor: 'pointer' }}>
-                {wd ? `🥗 ${calPct}% da meta calórica` : '+ Configurar dieta'}
+                {wd ? `${calPct}% da meta calórica` : '+ Configurar dieta'}
               </span>
             </div>
           </div>
@@ -214,10 +222,11 @@ export function Coach({ setPage }: Props) {
         {/* Chat header */}
         <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>💬 Conversa com o Coach</div>
-            <div style={{ fontSize: 11, color: C.green, marginTop: 2 }}>
-              ● Online — Claude Sonnet 4.6
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 15 }}>
+              <MessageSquare size={16} style={{ color: C.muted }} />
+              Conversa com o Coach
             </div>
+            <div style={{ fontSize: 11, color: C.green, marginTop: 2 }}>● Disponível</div>
           </div>
           {messages.length > 0 && (
             <button
@@ -232,35 +241,23 @@ export function Coach({ setPage }: Props) {
         {/* Message area */}
         <div style={{ minHeight: isMobile ? 300 : 380, maxHeight: isMobile ? 400 : 520, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* No API key warning */}
-          {!apiReady && (
-            <div style={{ background: `${C.orange}18`, border: `1px solid ${C.orange}44`, borderRadius: 12, padding: '14px 16px' }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: C.orange, marginBottom: 6 }}>⚠️ Chave da API não configurada</div>
-              <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>
-                Adicione sua chave Anthropic no arquivo <code style={{ background: C.card2, padding: '1px 5px', borderRadius: 4 }}>.env</code>:<br />
-                <code style={{ color: C.green, fontSize: 11 }}>VITE_ANTHROPIC_API_KEY=sk-ant-...</code><br /><br />
-                Crie sua chave em <strong style={{ color: C.text }}>console.anthropic.com</strong> e reinicie o servidor.
-              </div>
-            </div>
-          )}
-
           {/* Empty state — suggestions */}
           {messages.length === 0 && !streaming && (
             <div>
               <div style={{ fontSize: 13, color: C.muted, marginBottom: 14, textAlign: 'center' }}>
-                {apiReady ? 'Olá! Pergunte qualquer coisa sobre treino, dieta ou performance.' : 'Configure a API para ativar o chat.'}
+                Olá! Pergunte qualquer coisa sobre treino, dieta ou performance.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
                 {SUGGESTIONS.map((s, i) => (
                   <button
                     key={i}
-                    onClick={() => apiReady && send(s.text)}
+                    onClick={() => send(s.text)}
                     style={{
                       background: C.card2, border: `1px solid ${C.border}`, borderRadius: 10,
-                      padding: '10px 14px', textAlign: 'left', cursor: apiReady ? 'pointer' : 'default',
-                      opacity: apiReady ? 1 : 0.4, transition: 'border-color .12s',
+                      padding: '10px 14px', textAlign: 'left', cursor: 'pointer',
+                      transition: 'border-color .12s',
                     }}
-                    onMouseEnter={e => apiReady && (e.currentTarget.style.borderColor = C.orange)}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = C.orange)}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
                   >
                     <span style={{ marginRight: 8 }}>{s.icon}</span>
@@ -268,23 +265,15 @@ export function Coach({ setPage }: Props) {
                   </button>
                 ))}
               </div>
-              {apiReady && (
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 14, textAlign: 'center' }}>
-                  📎 Anexe um PDF ou foto do seu treino para receber uma análise do coach.
-                </div>
-              )}
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 14, textAlign: 'center' }}>
+                Anexe um PDF ou foto do seu treino para receber uma análise do coach.
+              </div>
             </div>
           )}
 
           {/* Messages */}
           {messages.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              }}
-            >
+            <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div
                 style={{
                   maxWidth: '82%',
@@ -307,7 +296,7 @@ export function Coach({ setPage }: Props) {
                       />
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,.15)', borderRadius: 8, padding: '6px 10px' }}>
-                        <span>📄</span>
+                        <span style={{ fontSize: 14 }}>📄</span>
                         <span style={{ fontSize: 12 }}>{msg.attachment.name}</span>
                       </div>
                     )}
@@ -322,12 +311,7 @@ export function Coach({ setPage }: Props) {
           {streaming && (
             <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
               <div style={{ maxWidth: '82%', padding: '10px 14px', borderRadius: '18px 18px 18px 4px', background: C.card2, fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', color: C.text }}>
-                {streamText || (
-                  <span style={{ color: C.muted }}>
-                    <span style={{ animation: 'pulse 1s infinite' }}>●</span>
-                    {' '}Pensando...
-                  </span>
-                )}
+                {streamText || <span style={{ color: C.muted }}>Pensando...</span>}
                 {streamText && <span style={{ opacity: 0.5 }}>▌</span>}
               </div>
             </div>
@@ -365,7 +349,7 @@ export function Coach({ setPage }: Props) {
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={!apiReady || streaming}
+              disabled={streaming}
               title="Anexar PDF ou foto do treino"
               style={{
                 background: attachment ? `${C.blue}22` : C.card2,
@@ -376,21 +360,20 @@ export function Coach({ setPage }: Props) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: apiReady && !streaming ? 'pointer' : 'default',
-                opacity: apiReady && !streaming ? 1 : 0.4,
+                cursor: streaming ? 'default' : 'pointer',
+                opacity: streaming ? 0.4 : 1,
                 flexShrink: 0,
-                fontSize: 18,
               }}
             >
-              📎
+              <Paperclip size={17} />
             </button>
             <textarea
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
-              disabled={!apiReady || streaming}
-              placeholder={apiReady ? (attachment ? 'Adicione uma mensagem (opcional)...' : 'Pergunte ao seu coach... (Enter para enviar)') : 'Configure a API key para ativar'}
+              disabled={streaming}
+              placeholder={attachment ? 'Adicione uma mensagem (opcional)...' : 'Pergunte ao seu coach... (Enter para enviar)'}
               rows={1}
               style={{
                 flex: 1,
@@ -398,7 +381,7 @@ export function Coach({ setPage }: Props) {
                 border: `1px solid ${C.border2}`,
                 borderRadius: 12,
                 padding: '10px 14px',
-                color: apiReady ? C.text : C.muted,
+                color: C.text,
                 fontSize: 13,
                 outline: 'none',
                 resize: 'none',
@@ -415,9 +398,9 @@ export function Coach({ setPage }: Props) {
             />
             <button
               onClick={() => send(input)}
-              disabled={!apiReady || (!input.trim() && !attachment) || streaming}
+              disabled={!canSend}
               style={{
-                background: apiReady && (input.trim() || attachment) && !streaming ? C.orange : C.border2,
+                background: canSend ? C.orange : C.border2,
                 border: 'none',
                 borderRadius: 12,
                 width: 42,
@@ -425,13 +408,12 @@ export function Coach({ setPage }: Props) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: apiReady && (input.trim() || attachment) && !streaming ? 'pointer' : 'default',
+                cursor: canSend ? 'pointer' : 'default',
                 flexShrink: 0,
-                fontSize: 18,
                 transition: 'background .15s',
               }}
             >
-              {streaming ? '⏳' : '↑'}
+              <ArrowUp size={18} style={{ color: canSend ? '#fff' : C.muted }} />
             </button>
           </div>
         </div>

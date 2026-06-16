@@ -1,24 +1,40 @@
+import {
+  LayoutDashboard, Sun, Dumbbell, Utensils, CalendarDays,
+  Target, Brain, BookOpen, TrendingUp, Bot, Images,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+
+// ── Design tokens ────────────────────────────────────────────────────────────
+// C mirrors the CSS vars declared in index.css (:root).
+// Use C in inline styles; use var(--rise-*) in className-based styles.
+// Keep hex values here so alpha variants like `${C.orange}33` stay valid.
 export const C = {
-  bg: "#0C0C0C", card: "#141414", card2: "#1C1C1C", card3: "#222",
-  border: "#252525", border2: "#2E2E2E",
-  text: "#F0F0F0", muted: "#666", muted2: "#999",
-  orange: "#F97316", od: "rgba(249,115,22,.11)",
-  green: "#22C55E", blue: "#60A5FA", purple: "#A78BFA", pink: "#F472B6",
-  red: "#EF4444",
-  running: "#FC4C02",
+  bg:      '#0C0C0C',
+  card:    '#141414',
+  card2:   '#1C1C1C',
+  card3:   '#222222',
+  border:  '#252525',
+  border2: '#2E2E2E',
+  text:    '#F0F0F0',
+  muted:   '#666666',
+  muted2:  '#999999',
+  orange:  '#F97316',
+  od:      'rgba(249,115,22,.11)',
+  green:   '#22C55E',
+  blue:    '#60A5FA',
+  purple:  '#A78BFA',
+  pink:    '#F472B6',
+  red:     '#EF4444',
+  running: '#FC4C02',
 }
 
 export type Page =
-  | "dashboard" | "hoje" | "treino" | "dieta" | "agenda"
-  | "projetos" | "mental" | "biblioteca" | "coach" | "galeria" | "perfil" | "insights"
-  // ProduzAI pages
-  // | "chat" | "habits" | "finance" | "calendar" | "investments" | "goals" | "reports" | "settings"
-
-//export const PRODUZAI_PAGES: Page[] = ["chat", "habits", "finance", "calendar", "investments", "goals", "reports", "settings"]
+  | 'dashboard' | 'hoje' | 'treino' | 'dieta' | 'agenda'
+  | 'projetos' | 'mental' | 'biblioteca' | 'coach' | 'galeria' | 'perfil' | 'insights'
 
 export interface NavItem {
   id: Page
-  icon: string
+  icon: LucideIcon
   label: string
   color?: string
   badge?: boolean
@@ -44,33 +60,23 @@ export interface Activity {
 export interface Zone { z: string; pct: number; c: string }
 
 export const NAV_GROUPS: NavGroup[] = [
-  { label: "INÍCIO", items: [
-    { id: "dashboard", icon: "⊞", label: "Dashboard" },
-    { id: "hoje", icon: "☀️", label: "Hoje" },
+  { label: 'INÍCIO', items: [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'hoje',      icon: Sun,             label: 'Hoje' },
   ]},
-  { label: "EXECUÇÃO", items: [
-    { id: "treino", icon: "🏋", label: "Treino" },
-    { id: "dieta", icon: "🥗", label: "Dieta" },
-    { id: "agenda", icon: "📅", label: "Agenda" },
+  { label: 'EXECUÇÃO', items: [
+    { id: 'treino',  icon: Dumbbell,    label: 'Treino' },
+    { id: 'dieta',   icon: Utensils,    label: 'Dieta' },
+    { id: 'agenda',  icon: CalendarDays, label: 'Agenda' },
   ]},
-  { label: "CRESCIMENTO", items: [
-    { id: "projetos", icon: "🎯", label: "Projetos" },
-    { id: "mental", icon: "🧠", label: "Mental" },
-    { id: "biblioteca", icon: "📚", label: "Biblioteca" },
-    { id: "insights", icon: "🔍", label: "Insights" },
+  { label: 'CRESCIMENTO', items: [
+    { id: 'projetos',   icon: Target,      label: 'Projetos' },
+    { id: 'mental',     icon: Brain,       label: 'Mental' },
+    { id: 'biblioteca', icon: BookOpen,    label: 'Biblioteca' },
+    { id: 'insights',   icon: TrendingUp,  label: 'Insights' },
   ]},
-  { label: "SUPORTE", items: [
-    { id: "coach", icon: "🤖", label: "Coach IA" },
-    { id: "galeria", icon: "📸", label: "Galeria" },
+  { label: 'SUPORTE', items: [
+    { id: 'coach',   icon: Bot,    label: 'Coach' },
+    { id: 'galeria', icon: Images, label: 'Galeria' },
   ]},
-  // { label: "PRODUZAI", items: [
-  //   { id: "chat", icon: "💬", label: "Nexus IA" },
-  //   { id: "habits", icon: "✅", label: "Hábitos" },
-  //   { id: "finance", icon: "💰", label: "Financeiro" },
-  //   { id: "calendar", icon: "📆", label: "Calendário" },
-  //   { id: "investments", icon: "📈", label: "Investimentos" },
-  //   { id: "goals", icon: "⭐", label: "Sonhos" },
-  //   { id: "reports", icon: "📊", label: "Relatórios" },
-  //   { id: "settings", icon: "⚙️", label: "Configurações" },
-  // ]},
 ]

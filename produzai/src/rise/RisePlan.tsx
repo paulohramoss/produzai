@@ -135,7 +135,7 @@ export function RisePlan() {
                       transition: "all .12s",
                     }}
                   >
-                    <span style={{ fontSize: 15 }}>{item.icon}</span>
+                    <item.icon size={15} />
                     <span style={{ fontSize: 13, fontWeight: page === item.id ? 600 : 400 }}>
                       {item.label}
                     </span>
