@@ -213,19 +213,23 @@ export function RisePlan() {
                 ☰
               </button>
               <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ height: 28, borderRadius: 6 }} />
-              <div style={{ marginLeft: "auto" }} onClick={() => navigate("perfil")}>
+              <button
+                onClick={() => navigate("perfil")}
+                aria-label="Ir para perfil"
+                style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex" }}
+              >
                 <div style={{
                   width: 28, height: 28, borderRadius: "50%",
                   background: C.orange, overflow: "hidden",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, fontWeight: 800, color: "#000", cursor: "pointer",
+                  fontSize: 12, fontWeight: 800, color: "#000",
                 }}>
                   {photoURL
                     ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     : (displayName || user?.displayName || user?.email || "U")[0].toUpperCase()
                   }
                 </div>
-              </div>
+              </button>
             </div>
           )}
 

@@ -246,7 +246,11 @@ export function Galeria({ setPage: _setPage }: Props) {
       {/* Lightbox */}
       {selected && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Fechar imagem"
           onClick={() => setSelected(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') setSelected(null) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
           <div onClick={e => e.stopPropagation()} style={{ maxWidth: 600, width: '100%', background: C.card, borderRadius: 20, overflow: 'hidden', border: `1px solid ${C.border}` }}>

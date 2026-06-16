@@ -5,7 +5,13 @@ export const Card = ({ children, style, onClick }: {
   style?: React.CSSProperties
   onClick?: () => void
 }) => (
-  <div onClick={onClick} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, cursor: onClick ? "pointer" : undefined, ...style }}>
+  <div
+    onClick={onClick}
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+    style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, cursor: onClick ? "pointer" : undefined, ...style }}
+  >
     {children}
   </div>
 )

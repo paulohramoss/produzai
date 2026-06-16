@@ -11,13 +11,23 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
-      // daily/{date} — hábitos e foco diário
+      // daily/{date} — hábitos e foco diário (mantido durante transição)
       match /daily/{date} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
-      // mental/{date} — entradas de bem-estar diário
+      // mental/{date} — entradas de bem-estar diário (mantido durante transição)
       match /mental/{date} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // dailyMonthly/{yyyy-MM} — agregação mensal de hábitos/foco (1-2 leituras vs 35)
+      match /dailyMonthly/{month} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // mentalMonthly/{yyyy-MM} — agregação mensal de bem-estar
+      match /mentalMonthly/{month} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
