@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { C } from '../data'
 import { useAuthStore } from '../../store/useAuthStore'
+import { PolicyOverlay } from '../components/ConsentModal'
 
 type Mode = 'login' | 'register'
 
@@ -37,11 +38,13 @@ function GoogleIcon() {
 }
 
 export function Login() {
-  const [mode, setMode]         = useState<Mode>('login')
-  const [name, setName]         = useState('')
-  const [email, setEmail]       = useState('')
-  const [password, setPass]     = useState('')
-  const [showPass, setShowPass] = useState(false)
+  const [mode, setMode]               = useState<Mode>('login')
+  const [name, setName]               = useState('')
+  const [email, setEmail]             = useState('')
+  const [password, setPass]           = useState('')
+  const [showPass, setShowPass]       = useState(false)
+  const [consentChecked, setConsent]  = useState(false)
+  const [policyOpen, setPolicyOpen]   = useState(false)
 
   const { login, loginWithGoogle, register, loading, error, clearError } = useAuthStore()
 
@@ -51,13 +54,20 @@ export function Login() {
     setName('')
     setEmail('')
     setPass('')
+    setConsent(false)
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (mode === 'login') login(email, password)
-    else register(name, email, password)
+    if (mode === 'login') {
+      login(email, password)
+    } else {
+      if (!consentChecked) return
+      register(name, email, password)
+    }
   }
+
+  const canSubmit = mode === 'login' || consentChecked
 
   return (
     <div style={{
@@ -185,14 +195,46 @@ export function Login() {
               </div>
             </div>
 
+            {/* ── LGPD consent checkbox (registration only) ── */}
+            {mode === 'register' && (
+              <label style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+                cursor: 'pointer', userSelect: 'none',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={consentChecked}
+                  onChange={e => setConsent(e.target.checked)}
+                  required
+                  style={{ marginTop: 2, accentColor: C.orange, flexShrink: 0, width: 16, height: 16 }}
+                />
+                <span style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>
+                  Li e aceito a{' '}
+                  <button
+                    type="button"
+                    onClick={e => { e.preventDefault(); setPolicyOpen(true) }}
+                    style={{
+                      background: 'none', border: 'none', color: C.orange,
+                      cursor: 'pointer', fontSize: 12, padding: 0, textDecoration: 'underline',
+                    }}
+                  >
+                    Política de Privacidade
+                  </button>
+                  {' '}e autorizo o tratamento dos meus dados pessoais, incluindo dados de{' '}
+                  <strong style={{ color: C.text }}>saúde</strong>, pelo The Rise Plan, conforme a{' '}
+                  <strong style={{ color: C.text }}>LGPD</strong> (Lei 13.709/2018).
+                </span>
+              </label>
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !canSubmit}
               style={{
                 marginTop: 4, padding: '13px', borderRadius: 12, border: 'none',
-                background: loading ? C.border2 : C.orange,
+                background: loading || !canSubmit ? C.border2 : C.orange,
                 color: '#fff', fontSize: 15, fontWeight: 700,
-                cursor: loading ? 'not-allowed' : 'pointer',
+                cursor: loading || !canSubmit ? 'not-allowed' : 'pointer',
                 transition: 'background 0.15s',
               }}
             >
@@ -222,6 +264,8 @@ export function Login() {
           Seus dados ficam seguros e isolados por conta
         </div>
       </div>
+
+      {policyOpen && <PolicyOverlay onClose={() => setPolicyOpen(false)} />}
     </div>
   )
 }

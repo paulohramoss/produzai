@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from './firebase'
 import type { ManualWorkout } from '../store/useWorkoutStore'
 import type { WebDietData } from '../store/useWebDietStore'
@@ -19,6 +19,7 @@ function subRef(sub: string, id: string) {
 export interface UserProfile {
   onboardingDone: boolean
   createdAt?: number
+  consentAt?: number   // Unix ms — when the user accepted the privacy policy
   goals?: string[]
   values?: string[]
   onboardingSummary?: string
@@ -296,4 +297,34 @@ export async function saveWeeklyReview(review: WeeklyReview) {
     const next = [review, ...existing.filter(r => r.weekKey !== review.weekKey)].slice(0, 26)
     await setDoc(dataRef('weeklyReviews'), { items: next })
   } catch { /* silent */ }
+}
+
+// ── Account deletion (LGPD Art. 18, IV) ──────────────────────────────────────
+
+// Deletes every document this app ever writes under users/{uid}/ and the
+// leaderboard entry. Progress photo files in Storage are NOT deleted here
+// (their Firestore records are removed, making them effectively inaccessible;
+// clean up Storage with a Cloud Function or lifecycle rule).
+export async function deleteAllUserData(uid: string): Promise<void> {
+  const DATA_DOCS = [
+    'profile', 'workouts', 'diet', 'projects', 'books',
+    'habitDefs', 'progress', 'hydration', 'weeklyReviews',
+  ]
+
+  await Promise.all(
+    DATA_DOCS.map(name =>
+      deleteDoc(doc(db, 'users', uid, 'data', name)).catch(() => {}),
+    ),
+  )
+
+  const [dailySnap, mentalSnap] = await Promise.all([
+    getDocs(collection(db, 'users', uid, 'daily')).catch(() => null),
+    getDocs(collection(db, 'users', uid, 'mental')).catch(() => null),
+  ])
+
+  await Promise.all([
+    ...(dailySnap?.docs ?? []).map(d => deleteDoc(d.ref).catch(() => {})),
+    ...(mentalSnap?.docs ?? []).map(d => deleteDoc(d.ref).catch(() => {})),
+    deleteDoc(doc(db, 'leaderboard', uid)).catch(() => {}),
+  ])
 }

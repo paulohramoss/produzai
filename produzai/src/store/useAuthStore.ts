@@ -6,15 +6,21 @@ import {
   onAuthStateChanged,
   updateProfile,
   updatePassword,
+  deleteUser,
   EmailAuthProvider,
   reauthenticateWithCredential,
+  reauthenticateWithPopup,
   GoogleAuthProvider,
   signInWithPopup,
   type User,
 } from 'firebase/auth'
-import { auth } from '../lib/firebase'
+import { ref as storageRef, deleteObject } from 'firebase/storage'
+import { auth, storage } from '../lib/firebase'
 import { setUserStorageUid } from '../lib/userStorage'
-import { setDbUid, getProfile, getWorkouts, getDiet, getHydration } from '../lib/db'
+import {
+  setDbUid, getProfile, getWorkouts, getDiet, getHydration,
+  saveProfile, deleteAllUserData,
+} from '../lib/db'
 import { useWorkoutStore } from './useWorkoutStore'
 import { useWebDietStore } from './useWebDietStore'
 import { useHabitsStore } from './useHabitsStore'
@@ -28,14 +34,17 @@ interface AuthState {
   error:             string | null
   initialized:       boolean
   onboardingDone:    boolean
+  consentAccepted:   boolean
   login:             (email: string, password: string) => Promise<void>
   loginWithGoogle:   () => Promise<void>
   register:          (name: string, email: string, password: string) => Promise<void>
   logout:            () => Promise<void>
   clearError:        () => void
   setOnboardingDone: (v: boolean) => void
+  acceptConsent:     () => Promise<void>
   updateProfileData: (patch: { displayName?: string; photoURL?: string }) => Promise<void>
   changePassword:    (currentPass: string, newPass: string) => Promise<void>
+  deleteAccount:     (password?: string) => Promise<void>
   init:              () => () => void
 }
 
@@ -60,10 +69,7 @@ async function loadFirestoreData() {
     useWebDietStore.setState({ waterGoalMl: cloudHydration.goalMl })
   }
 
-  // Carrega definições de hábitos customizados
   await useHabitsStore.getState().loadFromCloud()
-
-  // Carrega histórico de conversas com o Coach IA (local, por usuário)
   useCoachStore.persist.rehydrate()
 }
 
@@ -91,19 +97,19 @@ function firebaseErrorMsg(e: unknown): string {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user:           null,
-  displayName:    null,
-  photoURL:       null,
-  loading:        false,
-  error:          null,
-  initialized:    false,
-  onboardingDone: false,
+  user:            null,
+  displayName:     null,
+  photoURL:        null,
+  loading:         false,
+  error:           null,
+  initialized:     false,
+  onboardingDone:  false,
+  consentAccepted: false,
 
   login: async (email, password) => {
     set({ loading: true, error: null })
     try {
       await signInWithEmailAndPassword(auth, email, password)
-      // onAuthStateChanged handles the rest
     } catch (e) {
       set({ error: firebaseErrorMsg(e), loading: false })
     }
@@ -114,7 +120,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const provider = new GoogleAuthProvider()
       await signInWithPopup(auth, provider)
-      // onAuthStateChanged handles the rest
     } catch (e) {
       const msg = firebaseErrorMsg(e)
       set({ error: msg || null, loading: false })
@@ -126,7 +131,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, password)
       await updateProfile(user, { displayName: name.trim() || email.split('@')[0] })
-      // onAuthStateChanged handles the rest
+      // Record consent immediately after account creation (checkbox was required)
+      setDbUid(user.uid)
+      await saveProfile({ consentAt: Date.now() })
     } catch (e) {
       set({ error: firebaseErrorMsg(e), loading: false })
     }
@@ -142,6 +149,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   clearError: () => set({ error: null }),
 
   setOnboardingDone: (v) => set({ onboardingDone: v }),
+
+  acceptConsent: async () => {
+    await saveProfile({ consentAt: Date.now() })
+    set({ consentAccepted: true })
+  },
 
   updateProfileData: async (patch) => {
     const u = auth.currentUser
@@ -161,6 +173,40 @@ export const useAuthStore = create<AuthState>((set) => ({
     await updatePassword(u, newPass)
   },
 
+  deleteAccount: async (password?: string) => {
+    const u = auth.currentUser
+    if (!u) throw new Error('Usuário não autenticado.')
+
+    // Re-authenticate before sensitive operation (Firebase requirement)
+    const isEmailUser = u.providerData.some(p => p.providerId === 'password')
+    if (isEmailUser) {
+      if (!password) throw new Error('Senha obrigatória para confirmar exclusão.')
+      const cred = EmailAuthProvider.credential(u.email!, password)
+      await reauthenticateWithCredential(u, cred)
+    } else {
+      const provider = new GoogleAuthProvider()
+      await reauthenticateWithPopup(u, provider)
+    }
+
+    const uid = u.uid
+
+    // Delete all Firestore data first
+    await deleteAllUserData(uid)
+
+    // Delete avatar from Storage (best effort — file may not exist)
+    try {
+      await deleteObject(storageRef(storage, `users/${uid}/avatar`))
+    } catch { /* no avatar or already gone */ }
+
+    // Delete the Firebase Auth account (must be last)
+    await deleteUser(u)
+
+    // Clear in-memory state (onAuthStateChanged will also fire and clean up)
+    clearStores()
+    setUserStorageUid('')
+    setDbUid('')
+  },
+
   init: () => {
     const unsub = onAuthStateChanged(auth, async user => {
       if (user) {
@@ -172,17 +218,18 @@ export const useAuthStore = create<AuthState>((set) => ({
         ])
         set({
           user,
-          displayName: user.displayName,
-          photoURL:    user.photoURL,
-          loading: false,
-          initialized: true,
-          onboardingDone: profile?.onboardingDone ?? false,
+          displayName:     user.displayName,
+          photoURL:        user.photoURL,
+          loading:         false,
+          initialized:     true,
+          onboardingDone:  profile?.onboardingDone ?? false,
+          consentAccepted: !!(profile?.consentAt),
         })
       } else {
         clearStores()
         setUserStorageUid('')
         setDbUid('')
-        set({ user: null, loading: false, initialized: true, onboardingDone: false })
+        set({ user: null, loading: false, initialized: true, onboardingDone: false, consentAccepted: false })
       }
     })
     return unsub

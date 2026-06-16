@@ -6,6 +6,7 @@ import { toast } from '../../lib/toast'
 import { C, type Page } from '../data'
 import { Card } from '../primitives'
 import { LayoutContext } from '../LayoutContext'
+import { PolicyOverlay } from '../components/ConsentModal'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -32,7 +33,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function Perfil({ setPage }: Props) {
   const { isMobile } = useContext(LayoutContext)
-  const { user, displayName: storedName, photoURL: storedPhoto, updateProfileData, changePassword, logout } = useAuthStore()
+  const { user, displayName: storedName, photoURL: storedPhoto, updateProfileData, changePassword, deleteAccount, logout } = useAuthStore()
 
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -48,6 +49,12 @@ export function Perfil({ setPage }: Props) {
   const [showCur, setShowCur]   = useState(false)
   const [showNew, setShowNew]   = useState(false)
   const [savingPass, setSavingPass] = useState(false)
+
+  // ── Account deletion state ─────────────────────────────────────────────────
+  const [deleteStep, setDeleteStep]   = useState<'idle' | 'confirm' | 'deleting'>('idle')
+  const [deletePass, setDeletePass]   = useState('')
+  const [deleteError, setDeleteError] = useState('')
+  const [policyOpen, setPolicyOpen]   = useState(false)
 
   const isEmailUser  = user?.providerData.some(p => p.providerId === 'password') ?? false
   const isGoogleUser = user?.providerData.some(p => p.providerId === 'google.com') ?? false
@@ -91,6 +98,24 @@ export function Perfil({ setPage }: Props) {
       setPreviewURL(null)
     } finally {
       setPhotoUploading(false)
+    }
+  }
+
+  // ── Delete account ─────────────────────────────────────────────────────────
+  async function handleDeleteAccount() {
+    setDeleteError('')
+    setDeleteStep('deleting')
+    try {
+      await deleteAccount(isEmailUser ? deletePass : undefined)
+      // onAuthStateChanged will sign out and reset the app
+    } catch (err) {
+      const code = (err as { code?: string })?.code
+      let msg = 'Erro ao excluir conta. Tente novamente.'
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') msg = 'Senha incorreta.'
+      else if (code === 'auth/too-many-requests') msg = 'Muitas tentativas. Aguarde e tente de novo.'
+      else if (code === 'auth/popup-closed-by-user') msg = 'Janela fechada antes de confirmar.'
+      setDeleteError(msg)
+      setDeleteStep('confirm')
     }
   }
 
@@ -322,9 +347,7 @@ export function Perfil({ setPage }: Props) {
       {/* ── Sessão ────────────────────────────────────────────────────────── */}
       <Section title="Sessão">
         <button
-          onClick={async () => {
-            await logout()
-          }}
+          onClick={async () => { await logout() }}
           style={{
             width: '100%', padding: '12px', borderRadius: 10, border: `1px solid ${C.border2}`,
             background: 'transparent', color: C.muted, fontSize: 14, fontWeight: 600,
@@ -336,6 +359,120 @@ export function Perfil({ setPage }: Props) {
           Sair da conta
         </button>
       </Section>
+
+      {/* ── Privacidade ───────────────────────────────────────────────────── */}
+      <Section title="Privacidade e LGPD">
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.65, marginBottom: 14 }}>
+          Seus dados de saúde, treinos e dieta são tratados com base no seu{' '}
+          <strong style={{ color: C.text }}>consentimento explícito</strong> (art. 7º, I e art. 11, I da LGPD).
+          Você pode exportar todos os seus dados via CSV no Coach, ou excluir tudo abaixo.
+        </div>
+        <button
+          onClick={() => setPolicyOpen(true)}
+          style={{
+            background: 'none', border: `1px solid ${C.border2}`, borderRadius: 8,
+            padding: '8px 14px', color: C.muted, fontSize: 12, cursor: 'pointer',
+          }}
+        >
+          📄 Ver Política de Privacidade
+        </button>
+      </Section>
+
+      {/* ── Zona de risco ─────────────────────────────────────────────────── */}
+      <Card style={{ marginBottom: 16, border: `1px solid ${C.red}33`, background: `${C.red}08` }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.red, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+          Zona de risco
+        </div>
+
+        {deleteStep === 'idle' && (
+          <>
+            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.65, marginBottom: 14 }}>
+              Excluir a conta apaga permanentemente todos os seus dados do servidor —
+              treinos, dieta, hábitos, fotos de progresso, histórico mental e conversas com o Coach.
+              Esta ação é irreversível.
+            </div>
+            <button
+              onClick={() => setDeleteStep('confirm')}
+              style={{
+                width: '100%', padding: '11px', borderRadius: 10,
+                border: `1px solid ${C.red}66`, background: 'transparent',
+                color: C.red, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                transition: 'background .15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${C.red}18` }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            >
+              Excluir minha conta definitivamente
+            </button>
+          </>
+        )}
+
+        {(deleteStep === 'confirm' || deleteStep === 'deleting') && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{
+              background: `${C.red}15`, border: `1px solid ${C.red}44`, borderRadius: 10,
+              padding: '12px 14px', fontSize: 12, color: C.red, lineHeight: 1.6,
+            }}>
+              ⚠️ Esta ação é <strong>permanente e irreversível</strong>. Todos os seus dados serão deletados.
+            </div>
+
+            {isEmailUser ? (
+              <div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Confirme sua senha para continuar
+                </div>
+                <input
+                  type="password"
+                  value={deletePass}
+                  onChange={e => setDeletePass(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={deleteStep === 'deleting'}
+                  style={{
+                    width: '100%', background: '#1C1C1C', border: `1px solid ${C.border2}`,
+                    borderRadius: 10, padding: '11px 14px', color: C.text,
+                    fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: C.muted, background: C.card2, borderRadius: 10, padding: '10px 14px' }}>
+                Você será redirecionado para confirmar com o Google antes da exclusão.
+              </div>
+            )}
+
+            {deleteError && (
+              <div style={{ fontSize: 12, color: C.red }}>{deleteError}</div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => { setDeleteStep('idle'); setDeletePass(''); setDeleteError('') }}
+                disabled={deleteStep === 'deleting'}
+                style={{
+                  flex: 1, padding: '11px', borderRadius: 10, border: `1px solid ${C.border2}`,
+                  background: 'transparent', color: C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteStep === 'deleting' || (isEmailUser && !deletePass)}
+                style={{
+                  flex: 2, padding: '11px', borderRadius: 10, border: 'none',
+                  background: deleteStep === 'deleting' || (isEmailUser && !deletePass) ? C.border2 : C.red,
+                  color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  transition: 'background .15s',
+                }}
+              >
+                {deleteStep === 'deleting' ? 'Excluindo...' : 'Confirmar exclusão'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {policyOpen && <PolicyOverlay onClose={() => setPolicyOpen(false)} />}
     </div>
   )
 }

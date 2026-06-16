@@ -13,6 +13,7 @@ import { Galeria }      from "./pages/Galeria";
 import { Perfil }       from "./pages/Perfil";
 import { Insights }     from "./pages/Insights";
 import { Onboarding }   from "./pages/Onboarding";
+import { ConsentModal } from "./components/ConsentModal";
 import { Toaster }      from "./components/Toaster";
 import { useAuthStore } from "../store/useAuthStore";
 import { LayoutContext } from "./LayoutContext";
@@ -25,7 +26,7 @@ const RISE_IMPLEMENTED: Page[] = [
 const SIDEBAR_W = 210;
 
 export function RisePlan() {
-  const { user, displayName, photoURL, logout, onboardingDone } = useAuthStore();
+  const { user, displayName, photoURL, logout, onboardingDone, consentAccepted } = useAuthStore();
   const [page, setPage]       = useState<Page>("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
   const [windowW, setWindowW] = useState(window.innerWidth);
@@ -42,6 +43,15 @@ export function RisePlan() {
     setPage(id);
     if (isMobile) setMenuOpen(false);
   }, [isMobile]);
+
+  if (!consentAccepted) {
+    return (
+      <>
+        <ConsentModal />
+        <Toaster />
+      </>
+    );
+  }
 
   if (!onboardingDone) {
     return (
