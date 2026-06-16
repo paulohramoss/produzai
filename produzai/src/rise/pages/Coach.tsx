@@ -7,7 +7,7 @@ import { useHabitsStore } from '../../store/useHabitsStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useCoachStore } from '../../store/useCoachStore'
 import { exportAllCSV, exportWorkoutsCSV, exportDietCSV } from '../../lib/exportData'
-import { streamCoach, buildSystemPrompt, hasApiKey, type ChatMessage, type ChatAttachment } from '../../lib/anthropic'
+import { streamCoach, hasApiKey, type ChatMessage, type ChatAttachment } from '../../lib/anthropic'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 
@@ -84,18 +84,10 @@ export function Coach({ setPage }: Props) {
     setStreaming(true)
     setStreamText('')
 
-    const system = buildSystemPrompt({
-      workouts,
-      weekWorkouts,
-      wd,
-      habitDefs,
-      userName: user?.displayName || undefined,
-    })
-
     let full = ''
     await streamCoach(
       next,
-      system,
+      { type: 'coach', workouts, weekWorkouts, wd, habitDefs, userName: user?.displayName || undefined },
       chunk => { full += chunk; setStreamText(full) },
       () => {
         setMessages(m => [...m, { role: 'assistant', content: full }])
@@ -223,8 +215,8 @@ export function Coach({ setPage }: Props) {
         <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>💬 Conversa com o Coach</div>
-            <div style={{ fontSize: 11, color: apiReady ? C.green : C.orange, marginTop: 2 }}>
-              {apiReady ? '● Online — Claude Sonnet 4.6' : '● Configure VITE_ANTHROPIC_API_KEY no .env'}
+            <div style={{ fontSize: 11, color: C.green, marginTop: 2 }}>
+              ● Online — Claude Sonnet 4.6
             </div>
           </div>
           {messages.length > 0 && (

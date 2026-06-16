@@ -7,7 +7,7 @@ import { useWebDietStore } from '../../store/useWebDietStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
 import { toast } from '../../lib/toast'
 import {
-  streamCoach, onboardingSystemPrompt, generateOnboardingPlan, hasApiKey,
+  streamCoach, generateOnboardingPlan, hasApiKey,
   type ChatMessage, type OnboardingPlan,
 } from '../../lib/anthropic'
 
@@ -69,7 +69,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
     let full = ''
     await streamCoach(
       next,
-      onboardingSystemPrompt(firstName),
+      { type: 'onboarding', userName: firstName },
       chunk => { full += chunk; setStreamText(full) },
       () => {
         setMessages(m => [...m, { role: 'assistant', content: full }])
