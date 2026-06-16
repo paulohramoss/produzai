@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { LayoutDashboard, Sun, Dumbbell, Brain, Bot, Menu } from "lucide-react";
 import { C, NAV_GROUPS, type Page } from "./data";
 import { Dashboard }    from "./pages/Dashboard";
 import { Treino }       from "./pages/Treino";
@@ -23,13 +24,23 @@ const RISE_IMPLEMENTED: Page[] = [
   "projetos", "mental", "biblioteca", "coach", "galeria", "perfil", "insights",
 ];
 
-const SIDEBAR_W = 210;
+// Bottom navigation for mobile — 4 key pages + hamburger
+const BOTTOM_NAV = [
+  { id: "dashboard" as Page, icon: LayoutDashboard, label: "Início" },
+  { id: "hoje"      as Page, icon: Sun,             label: "Hoje"  },
+  { id: "treino"   as Page, icon: Dumbbell,         label: "Treino" },
+  { id: "mental"   as Page, icon: Brain,            label: "Mental" },
+  { id: "coach"    as Page, icon: Bot,              label: "Coach"  },
+];
+
+const SIDEBAR_FULL = 210;
+const SIDEBAR_ICON = 62;
 
 export function RisePlan() {
   const { user, displayName, photoURL, logout, onboardingDone, consentAccepted } = useAuthStore();
-  const [page, setPage]       = useState<Page>("dashboard");
+  const [page, setPage]         = useState<Page>("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [windowW, setWindowW] = useState(window.innerWidth);
+  const [windowW, setWindowW]   = useState(window.innerWidth);
 
   useEffect(() => {
     const handler = () => setWindowW(window.innerWidth);
@@ -38,6 +49,7 @@ export function RisePlan() {
   }, []);
 
   const isMobile = windowW < 768;
+  const isTablet = windowW >= 768 && windowW < 1024;
 
   const navigate = useCallback((id: Page) => {
     setPage(id);
@@ -62,8 +74,11 @@ export function RisePlan() {
     );
   }
 
+  const sidebarW = isTablet ? SIDEBAR_ICON : SIDEBAR_FULL;
+  const avatarInitial = (displayName || user?.displayName || user?.email || "U")[0].toUpperCase();
+
   return (
-    <LayoutContext.Provider value={{ isMobile, menuOpen, setMenuOpen }}>
+    <LayoutContext.Provider value={{ isMobile, isTablet, menuOpen, setMenuOpen }}>
       <div style={{
         display: "flex",
         minHeight: "100vh",
@@ -74,17 +89,21 @@ export function RisePlan() {
         position: "relative",
       }}>
 
-        {/* Overlay mobile */}
+        {/* Overlay — closes sidebar on mobile */}
         {isMobile && menuOpen && (
           <div
+            role="button"
+            aria-label="Fechar menu"
+            tabIndex={0}
             onClick={() => setMenuOpen(false)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setMenuOpen(false) }}
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", zIndex: 40 }}
           />
         )}
 
-        {/* Sidebar */}
-        <div style={{
-          width: SIDEBAR_W,
+        {/* ── Sidebar ───────────────────────────────────────────────────── */}
+        <aside style={{
+          width: sidebarW,
           background: "#0A0A0A",
           borderRight: `1px solid ${C.border}`,
           display: "flex",
@@ -92,117 +111,198 @@ export function RisePlan() {
           padding: "20px 0",
           flexShrink: 0,
           overflowY: "auto",
+          overflowX: "hidden",
+          // Mobile: fixed sliding drawer; tablet/desktop: static in flow
           ...(isMobile ? {
             position: "fixed" as const,
             top: 0,
             left: 0,
             height: "100vh",
+            width: SIDEBAR_FULL,
             zIndex: 50,
-            transform: menuOpen ? "translateX(0)" : `translateX(-${SIDEBAR_W}px)`,
+            transform: menuOpen ? "translateX(0)" : `translateX(-${SIDEBAR_FULL}px)`,
             transition: "transform 0.25s ease",
           } : {}),
         }}>
-          <div style={{ padding: "0 10px 20px" }}>
-            <img
-              src="/rise-plan-logo.svg"
-              alt="The Rise Plan"
-              style={{ width: "100%", height: "auto", display: "block", borderRadius: 10 }}
-            />
-          </div>
+          {/* Logo — hide on tablet (too narrow) */}
+          {!isTablet && (
+            <div style={{ padding: "0 10px 20px" }}>
+              <img
+                src="/rise-plan-logo.svg"
+                alt="The Rise Plan"
+                style={{ width: "100%", height: "auto", display: "block", borderRadius: 10 }}
+              />
+            </div>
+          )}
+          {isTablet && (
+            <div style={{ display: "flex", justifyContent: "center", paddingBottom: 16 }}>
+              <img src="/rise-plan-logo.svg" alt="Rise" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover" }} />
+            </div>
+          )}
 
           <nav style={{ flex: 1 }}>
             {NAV_GROUPS.map((g, gi) => (
               <div key={gi} style={{ marginBottom: 6 }}>
-                <div style={{
-                  fontSize: 9, color: C.muted, fontWeight: 700,
-                  letterSpacing: 1.2, padding: "6px 18px 4px",
-                  textTransform: "uppercase",
-                }}>
-                  {g.label}
-                </div>
+                {/* Group label — only on full sidebar */}
+                {!isTablet && (
+                  <div style={{
+                    fontSize: 9, color: C.muted, fontWeight: 700,
+                    letterSpacing: 1.2, padding: "6px 18px 4px",
+                    textTransform: "uppercase",
+                  }}>
+                    {g.label}
+                  </div>
+                )}
                 {g.items.map((item, i) => (
-                  <div
+                  <button
                     key={i}
                     onClick={() => navigate(item.id)}
+                    title={isTablet ? item.label : undefined}
+                    aria-label={item.label}
                     style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "9px 18px", cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: isTablet ? "center" : "flex-start",
+                      gap: 10,
+                      width: "100%",
+                      padding: isTablet ? "11px 0" : "9px 18px",
+                      cursor: "pointer",
                       background: page === item.id ? "#1A1A1A" : "transparent",
-                      borderLeft: page === item.id
+                      borderLeft: !isTablet && page === item.id
                         ? `2px solid ${item.color || C.orange}`
                         : "2px solid transparent",
+                      borderRight: "none",
+                      borderTop: "none",
+                      borderBottom: "none",
                       color: page === item.id ? C.text : C.muted,
                       transition: "all .12s",
                     }}
                   >
-                    <item.icon size={15} />
-                    <span style={{ fontSize: 13, fontWeight: page === item.id ? 600 : 400 }}>
-                      {item.label}
-                    </span>
-                  </div>
+                    <item.icon size={isTablet ? 18 : 15} color={page === item.id ? (item.color || C.orange) : undefined} />
+                    {!isTablet && (
+                      <span style={{ fontSize: 13, fontWeight: page === item.id ? 600 : 400 }}>
+                        {item.label}
+                      </span>
+                    )}
+                  </button>
                 ))}
               </div>
             ))}
           </nav>
 
           {/* User + logout */}
-          <div style={{ padding: "12px 18px", borderTop: `1px solid ${C.border}` }}>
-            <div
-              onClick={() => navigate("perfil")}
-              style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, cursor: "pointer", borderRadius: 8, padding: "4px 0" }}
-            >
-              <div style={{
-                width: 32, height: 32, borderRadius: "50%",
-                background: C.orange, overflow: "hidden",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 13, fontWeight: 800, color: "#000", flexShrink: 0,
-              }}>
-                {photoURL
-                  ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  : (displayName || user?.displayName || user?.email || "U")[0].toUpperCase()
-                }
+          <div style={{ padding: isTablet ? "12px 0" : "12px 18px", borderTop: `1px solid ${C.border}` }}>
+            {isTablet ? (
+              /* Icon-only: just the avatar */
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <button
+                  onClick={() => navigate("perfil")}
+                  aria-label="Ir para perfil"
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                >
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: C.orange, overflow: "hidden",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, fontWeight: 800, color: "#000",
+                  }}>
+                    {photoURL
+                      ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : avatarInitial
+                    }
+                  </div>
+                </button>
+                <button
+                  onClick={logout}
+                  title="Sair"
+                  style={{
+                    background: "transparent", border: `1px solid ${C.border2}`,
+                    borderRadius: 8, padding: "6px", color: C.muted,
+                    fontSize: 14, cursor: "pointer", lineHeight: 1,
+                  }}
+                >
+                  ⏏
+                </button>
               </div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {displayName || user?.displayName || "Usuário"}
-                </div>
-                <div style={{ fontSize: 10, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {user?.email}
-                </div>
-              </div>
-              <span style={{ fontSize: 10, color: C.muted }}>⚙</span>
-            </div>
-            <button
-              onClick={logout}
-              style={{
-                width: "100%", padding: "7px 10px", borderRadius: 8,
-                background: "transparent", border: `1px solid ${C.border2}`,
-                color: C.muted, fontSize: 11, cursor: "pointer", fontWeight: 600,
-                transition: "color 0.12s",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.color = C.red)}
-              onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
-            >
-              Sair da conta
-            </button>
+            ) : (
+              /* Full sidebar: name + email + logout */
+              <>
+                <button
+                  onClick={() => navigate("perfil")}
+                  aria-label="Ir para perfil"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    marginBottom: 10, cursor: "pointer",
+                    background: "none", border: "none", padding: "4px 0",
+                    borderRadius: 8, width: "100%", textAlign: "left",
+                  }}
+                >
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: C.orange, overflow: "hidden",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, fontWeight: 800, color: "#000", flexShrink: 0,
+                  }}>
+                    {photoURL
+                      ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : avatarInitial
+                    }
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {displayName || user?.displayName || "Usuário"}
+                    </div>
+                    <div style={{ fontSize: 10, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {user?.email}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 10, color: C.muted }}>⚙</span>
+                </button>
+                <button
+                  onClick={logout}
+                  style={{
+                    width: "100%", padding: "7px 10px", borderRadius: 8,
+                    background: "transparent", border: `1px solid ${C.border2}`,
+                    color: C.muted, fontSize: 11, cursor: "pointer", fontWeight: 600,
+                    transition: "color 0.12s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = C.red)}
+                  onMouseLeave={e => (e.currentTarget.style.color = C.muted)}
+                >
+                  Sair da conta
+                </button>
+              </>
+            )}
           </div>
-        </div>
+        </aside>
 
-        {/* Main content */}
-        <div style={{
+        {/* ── Main content ──────────────────────────────────────────────── */}
+        <main style={{
           flex: 1,
           overflowY: "auto",
-          padding: isMobile ? "16px" : 28,
+          minWidth: 0,
+          paddingTop:    isMobile ? 0   : isTablet ? 24 : 28,
+          paddingLeft:   isMobile ? 16  : isTablet ? 20 : 28,
+          paddingRight:  isMobile ? 16  : isTablet ? 20 : 28,
+          paddingBottom: isMobile ? 80  : isTablet ? 24 : 28,
         }}>
-          {/* Top bar mobile */}
+          {/* Top bar — mobile only */}
           {isMobile && (
             <div style={{
-              display: "flex", alignItems: "center", gap: 12,
-              marginBottom: 16, paddingBottom: 14,
+              position: "sticky",
+              top: 0,
+              zIndex: 30,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 0 14px",
+              marginBottom: 8,
+              background: C.bg,
               borderBottom: `1px solid ${C.border}`,
             }}>
               <button
                 onClick={() => setMenuOpen(o => !o)}
+                aria-label="Abrir menu"
                 style={{
                   background: C.card2, border: `1px solid ${C.border}`,
                   borderRadius: 8, padding: "7px 11px",
@@ -219,14 +319,14 @@ export function RisePlan() {
                 style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex" }}
               >
                 <div style={{
-                  width: 28, height: 28, borderRadius: "50%",
+                  width: 32, height: 32, borderRadius: "50%",
                   background: C.orange, overflow: "hidden",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, fontWeight: 800, color: "#000",
+                  fontSize: 13, fontWeight: 800, color: "#000",
                 }}>
                   {photoURL
                     ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : (displayName || user?.displayName || user?.email || "U")[0].toUpperCase()
+                    : avatarInitial
                   }
                 </div>
               </button>
@@ -243,8 +343,8 @@ export function RisePlan() {
           {page === "biblioteca" && <Biblioteca  setPage={navigate} />}
           {page === "coach"      && <Coach       setPage={navigate} />}
           {page === "galeria"    && <Galeria     setPage={navigate} />}
-          {page === "perfil"    && <Perfil      setPage={navigate} />}
-          {page === "insights"  && <Insights    setPage={navigate} />}
+          {page === "perfil"     && <Perfil      setPage={navigate} />}
+          {page === "insights"   && <Insights    setPage={navigate} />}
 
           {!RISE_IMPLEMENTED.includes(page) && (
             <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>
@@ -253,7 +353,81 @@ export function RisePlan() {
               <div style={{ fontSize: 13 }}>Esta seção será implementada em breve.</div>
             </div>
           )}
-        </div>
+        </main>
+
+        {/* ── Bottom navigation (mobile only) ───────────────────────────── */}
+        {isMobile && (
+          <nav
+            aria-label="Navegação principal"
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 64,
+              background: "#0A0A0A",
+              borderTop: `1px solid ${C.border}`,
+              display: "flex",
+              alignItems: "stretch",
+              zIndex: 35,
+              // iOS safe area
+              paddingBottom: "env(safe-area-inset-bottom)",
+            }}
+          >
+            {BOTTOM_NAV.map(({ id, icon: Icon, label }) => {
+              const active = page === id
+              return (
+                <button
+                  key={id}
+                  onClick={() => navigate(id)}
+                  aria-label={label}
+                  aria-current={active ? "page" : undefined}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 3,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: active ? C.orange : C.muted,
+                    transition: "color .12s",
+                    padding: "8px 0",
+                  }}
+                >
+                  <Icon size={20} />
+                  <span style={{ fontSize: 9, fontWeight: active ? 700 : 500, letterSpacing: 0.3 }}>
+                    {label}
+                  </span>
+                </button>
+              )
+            })}
+            {/* "Mais" button — opens sidebar drawer */}
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              aria-label="Mais páginas"
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 3,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: menuOpen ? C.orange : C.muted,
+                transition: "color .12s",
+                padding: "8px 0",
+              }}
+            >
+              <Menu size={20} />
+              <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 0.3 }}>Mais</span>
+            </button>
+          </nav>
+        )}
 
         <Toaster />
       </div>

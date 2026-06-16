@@ -1,18 +1,23 @@
 import { createContext, useState, useEffect, ReactNode } from 'react';
 
-export const LayoutContext = createContext({ isMobile: false });
+// NOTE: This provider is not used — RisePlan creates its own provider.
+// Kept for possible future extraction. Always import from LayoutContext.ts.
+export const LayoutContext = createContext({ isMobile: false, isTablet: false });
 
 export function LayoutProvider({ children }: { children: ReactNode }) {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [windowW, setWindowW] = useState(window.innerWidth);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const handler = () => setWindowW(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
   }, []);
 
+  const isMobile = windowW < 768;
+  const isTablet = windowW >= 768 && windowW < 1024;
+
   return (
-    <LayoutContext.Provider value={{ isMobile }}>
+    <LayoutContext.Provider value={{ isMobile, isTablet }}>
       {children}
     </LayoutContext.Provider>
   );

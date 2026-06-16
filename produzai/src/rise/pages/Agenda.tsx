@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import { C, type Page } from '../data'
 import { Card } from '../primitives'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
+import { LayoutContext } from '../LayoutContext'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -19,6 +20,7 @@ function getWeekDates() {
 }
 
 export function Agenda({ setPage }: Props) {
+  const { isMobile } = useContext(LayoutContext)
   const wd       = useWebDietStore(s => s.data)
   const workouts = useWorkoutStore(s => s.workouts)
   const weekDates = getWeekDates()
@@ -27,7 +29,6 @@ export function Agenda({ setPage }: Props) {
 
   const meals = [...(wd?.meals ?? [])].sort((a, b) => a.time.localeCompare(b.time))
 
-  // Map manual workouts to day index within this week
   const weekStart = weekDates[0]
   const workoutsByDay: Record<number, typeof workouts> = {}
   workouts.forEach(w => {
@@ -43,46 +44,63 @@ export function Agenda({ setPage }: Props) {
   return (
     <div>
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>📅 Agenda</div>
+        <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, marginBottom: 4 }}>📅 Agenda</div>
         <div style={{ fontSize: 13, color: C.muted }}>Semana atual — treinos e refeições</div>
       </div>
 
-      {/* Week strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6, marginBottom: 20 }}>
-        {DAYS.map((day, i) => {
-          const d       = weekDates[i]
-          const acts    = workoutsByDay[i] ?? []
-          const isToday = i === todayIdx
-          const isSel   = i === selectedDay
-          return (
-            <div
-              key={i}
-              onClick={() => setSelectedDay(i)}
-              style={{ background: isSel ? C.orange : isToday ? `${C.orange}22` : C.card, border: `1px solid ${isSel ? C.orange : isToday ? C.orange + '55' : C.border}`, borderRadius: 12, padding: '10px 8px', textAlign: 'center', cursor: 'pointer', transition: 'all .12s' }}
-            >
-              <div style={{ fontSize: 10, color: isSel ? '#000' : C.muted, fontWeight: 700, marginBottom: 4 }}>{day}</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: isSel ? '#000' : isToday ? C.orange : C.text }}>{d.getDate()}</div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginTop: 6 }}>
-                {acts.slice(0, 3).map((_, j) => (
-                  <div key={j} style={{ width: 5, height: 5, borderRadius: '50%', background: C.purple }} />
-                ))}
-                {wd && meals.length > 0 && (
-                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.green }} />
-                )}
-              </div>
-            </div>
-          )
-        })}
+      {/* Week strip — horizontal scroll on mobile to avoid cramping 7 cells */}
+      <div style={{ overflowX: 'auto', marginBottom: 20, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+        <div style={{ display: 'flex', gap: 6, minWidth: isMobile ? 'max-content' : undefined }}>
+          {DAYS.map((day, i) => {
+            const d       = weekDates[i]
+            const acts    = workoutsByDay[i] ?? []
+            const isToday = i === todayIdx
+            const isSel   = i === selectedDay
+            return (
+              <button
+                key={i}
+                onClick={() => setSelectedDay(i)}
+                aria-pressed={isSel}
+                style={{
+                  flex: isMobile ? '0 0 60px' : '1',
+                  background: isSel ? C.orange : isToday ? `${C.orange}22` : C.card,
+                  border: `1px solid ${isSel ? C.orange : isToday ? C.orange + '55' : C.border}`,
+                  borderRadius: 12,
+                  padding: '10px 8px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all .12s',
+                }}
+              >
+                <div style={{ fontSize: 10, color: isSel ? '#000' : C.muted, fontWeight: 700, marginBottom: 4 }}>{day}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: isSel ? '#000' : isToday ? C.orange : C.text }}>{d.getDate()}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginTop: 6 }}>
+                  {acts.slice(0, 3).map((_, j) => (
+                    <div key={j} style={{ width: 5, height: 5, borderRadius: '50%', background: C.purple }} />
+                  ))}
+                  {wd && meals.length > 0 && (
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.green }} />
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Selected day detail */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
 
         {/* Activities */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>🏋 Treinos — {DAYS[selectedDay]}</div>
-            <span onClick={() => setPage('treino')} style={{ fontSize: 11, color: C.orange, cursor: 'pointer' }}>+ Registrar</span>
+            <button
+              onClick={() => setPage('treino')}
+              style={{ background: 'none', border: 'none', fontSize: 11, color: C.orange, cursor: 'pointer', padding: 0 }}
+            >
+              + Registrar
+            </button>
           </div>
           {(workoutsByDay[selectedDay] ?? []).length > 0 ? (
             (workoutsByDay[selectedDay] ?? []).map((w, i) => (
@@ -112,20 +130,20 @@ export function Agenda({ setPage }: Props) {
             meals.map(m => (
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ width: 36, fontSize: 10, color: C.muted, flexShrink: 0 }}>{m.time}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{m.name}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
                   <div style={{ fontSize: 10, color: C.muted }}>{m.cal} kcal · P:{m.prot}g C:{m.carb}g G:{m.fat}g</div>
                 </div>
                 {selectedDay === todayIdx && (
-                  <span style={{ fontSize: 10, color: m.done ? C.green : C.border2 }}>{m.done ? '✓' : '○'}</span>
+                  <span style={{ fontSize: 10, color: m.done ? C.green : C.border2, flexShrink: 0 }}>{m.done ? '✓' : '○'}</span>
                 )}
               </div>
             ))
           ) : (
             <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
               {wd
-                ? <span onClick={() => setPage('dieta')} style={{ color: C.green, cursor: 'pointer' }}>Adicionar refeições →</span>
-                : <span onClick={() => setPage('dieta')} style={{ color: C.orange, cursor: 'pointer' }}>Configurar dieta →</span>
+                ? <button onClick={() => setPage('dieta')} style={{ background: 'none', border: 'none', color: C.green, cursor: 'pointer', fontSize: 13 }}>Adicionar refeições →</button>
+                : <button onClick={() => setPage('dieta')} style={{ background: 'none', border: 'none', color: C.orange, cursor: 'pointer', fontSize: 13 }}>Configurar dieta →</button>
               }
             </div>
           )}
