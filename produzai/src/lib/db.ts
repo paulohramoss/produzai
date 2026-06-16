@@ -299,6 +299,28 @@ export async function saveWeeklyReview(review: WeeklyReview) {
   } catch { /* silent */ }
 }
 
+// ── Push subscription (Web Push VAPID) ───────────────────────────────────────
+// Stores the PushSubscription JSON under users/{uid}/data/pushSubscription so
+// that the server-side cron (api/push/cron.js) can fan out daily reminders.
+
+export async function savePushSubscription(sub: PushSubscriptionJSON): Promise<void> {
+  if (!currentUid) return
+  try { await setDoc(dataRef('pushSubscription'), sub as Record<string, unknown>) } catch { /* silent */ }
+}
+
+export async function getPushSubscription(): Promise<PushSubscriptionJSON | null> {
+  if (!currentUid) return null
+  try {
+    const snap = await getDoc(dataRef('pushSubscription'))
+    return snap.exists() ? (snap.data() as PushSubscriptionJSON) : null
+  } catch { return null }
+}
+
+export async function deletePushSubscription(): Promise<void> {
+  if (!currentUid) return
+  try { await deleteDoc(dataRef('pushSubscription')) } catch { /* silent */ }
+}
+
 // ── Account deletion (LGPD Art. 18, IV) ──────────────────────────────────────
 
 // Deletes every document this app ever writes under users/{uid}/ and the
@@ -308,7 +330,7 @@ export async function saveWeeklyReview(review: WeeklyReview) {
 export async function deleteAllUserData(uid: string): Promise<void> {
   const DATA_DOCS = [
     'profile', 'workouts', 'diet', 'projects', 'books',
-    'habitDefs', 'progress', 'hydration', 'weeklyReviews',
+    'habitDefs', 'progress', 'hydration', 'weeklyReviews', 'pushSubscription',
   ]
 
   await Promise.all(
