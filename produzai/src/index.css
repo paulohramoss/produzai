@@ -38,7 +38,7 @@
 
 @layer base {
   html, body, #root { height: 100%; }
-  body { @apply bg-surface text-white font-sans antialiased; margin: 0; }
+  body { @apply bg-surface text-white font-sans antialiased; margin: 0; font-optical-sizing: auto; font-variation-settings: "wdth" 100; }
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { @apply bg-surface; }
   ::-webkit-scrollbar-thumb { @apply bg-surface-border rounded-full; }
