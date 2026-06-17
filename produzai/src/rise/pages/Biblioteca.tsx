@@ -4,6 +4,7 @@ import { Card, Tag, Bar } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { getBooks, saveBooks, type Book } from '../../lib/db'
 import { toast } from '../../lib/toast'
+import { userStorage } from '../../lib/userStorage'
 import { LayoutContext } from '../LayoutContext'
 
 interface Props { setPage: (p: Page) => void }
@@ -27,7 +28,7 @@ const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
 })
 
 function loadLocal(): Book[] {
-  try { const r = localStorage.getItem('books'); return r ? JSON.parse(r) : DEFAULTS } catch { return DEFAULTS }
+  try { const r = userStorage.getItem('books'); return r ? JSON.parse(r) : DEFAULTS } catch { return DEFAULTS }
 }
 
 export function Biblioteca({ setPage: _s }: Props) {
@@ -54,7 +55,7 @@ export function Biblioteca({ setPage: _s }: Props) {
   }, [user])
 
   const persist = (next: Book[]) => {
-    localStorage.setItem('books', JSON.stringify(next))
+    userStorage.setItem('books', JSON.stringify(next))
     saveBooks(next)
     setBooks(next)
   }

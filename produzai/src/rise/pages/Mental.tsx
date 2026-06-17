@@ -4,6 +4,7 @@ import { Card } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { getMental, saveMental, getMentalHistory, getDaily, type MentalEntry } from '../../lib/db'
 import { toast } from '../../lib/toast'
+import { userStorage } from '../../lib/userStorage'
 import { LayoutContext } from '../LayoutContext'
 import { hasApiKey, generateReflectionQuestion, fallbackReflectionQuestion } from '../../lib/anthropic'
 
@@ -49,7 +50,7 @@ const EMPTY: MentalEntry = { mood: 0, energy: 0, gratitude: ['', '', ''], note: 
 
 function loadLocalEntry(key: string): MentalEntry {
   try {
-    const r = localStorage.getItem(`mental_${key}`)
+    const r = userStorage.getItem(`mental_${key}`)
     return r ? JSON.parse(r) : { ...EMPTY }
   } catch { return { ...EMPTY } }
 }
@@ -135,7 +136,7 @@ export function Mental({ setPage: _s }: Props) {
   }, [loaded])
 
   const persist = (next: MentalEntry) => {
-    localStorage.setItem(`mental_${today}`, JSON.stringify(next))
+    userStorage.setItem(`mental_${today}`, JSON.stringify(next))
     saveMental(today, next)
   }
 

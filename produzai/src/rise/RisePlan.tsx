@@ -5,6 +5,7 @@ import { Dashboard }    from "./pages/Dashboard";
 import { Treino }       from "./pages/Treino";
 import { Dieta }        from "./pages/Dieta";
 import { Hoje }         from "./pages/Hoje";
+import { Historico }    from "./pages/Historico";
 import { Agenda }       from "./pages/Agenda";
 import { Projetos }     from "./pages/Projetos";
 import { Mental }       from "./pages/Mental";
@@ -20,7 +21,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import { LayoutContext } from "./LayoutContext";
 
 const RISE_IMPLEMENTED: Page[] = [
-  "dashboard", "hoje", "treino", "dieta", "agenda",
+  "dashboard", "hoje", "historico", "treino", "dieta", "agenda",
   "projetos", "mental", "biblioteca", "coach", "galeria", "perfil", "insights",
 ];
 
@@ -335,6 +336,7 @@ export function RisePlan() {
 
           {page === "dashboard"  && <Dashboard   setPage={navigate} />}
           {page === "hoje"       && <Hoje        setPage={navigate} />}
+          {page === "historico"  && <Historico   setPage={navigate} />}
           {page === "treino"     && <Treino      setPage={navigate} />}
           {page === "dieta"      && <Dieta       setPage={navigate} />}
           {page === "agenda"     && <Agenda      setPage={navigate} />}

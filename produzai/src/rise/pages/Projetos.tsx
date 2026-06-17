@@ -4,6 +4,7 @@ import { Card, Tag, Bar } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { getProjects, saveProjects, type Project } from '../../lib/db'
 import { toast } from '../../lib/toast'
+import { userStorage } from '../../lib/userStorage'
 import { LayoutContext } from '../LayoutContext'
 
 interface Props { setPage: (p: Page) => void }
@@ -30,7 +31,7 @@ const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
 })
 
 function loadLocal(): Project[] {
-  try { const r = localStorage.getItem('projects'); return r ? JSON.parse(r) : DEFAULTS } catch { return DEFAULTS }
+  try { const r = userStorage.getItem('projects'); return r ? JSON.parse(r) : DEFAULTS } catch { return DEFAULTS }
 }
 
 export function Projetos({ setPage: _s }: Props) {
@@ -58,7 +59,7 @@ export function Projetos({ setPage: _s }: Props) {
   }, [user])
 
   const persist = (next: Project[]) => {
-    localStorage.setItem('projects', JSON.stringify(next))
+    userStorage.setItem('projects', JSON.stringify(next))
     saveProjects(next)
     setProjects(next)
   }

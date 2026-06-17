@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Sun, Dumbbell, Utensils, CalendarDays,
-  Target, Brain, BookOpen, TrendingUp, Bot, Images,
+  Target, Brain, BookOpen, TrendingUp, Bot, Images, History,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -29,7 +29,7 @@ export const C = {
 }
 
 export type Page =
-  | 'dashboard' | 'hoje' | 'treino' | 'dieta' | 'agenda'
+  | 'dashboard' | 'hoje' | 'historico' | 'treino' | 'dieta' | 'agenda'
   | 'projetos' | 'mental' | 'biblioteca' | 'coach' | 'galeria' | 'perfil' | 'insights'
 
 export interface NavItem {
@@ -61,8 +61,9 @@ export interface Zone { z: string; pct: number; c: string }
 
 export const NAV_GROUPS: NavGroup[] = [
   { label: 'INÍCIO', items: [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'hoje',      icon: Sun,             label: 'Hoje' },
+    { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'hoje',       icon: Sun,             label: 'Hoje' },
+    { id: 'historico',  icon: History,         label: 'Histórico' },
   ]},
   { label: 'EXECUÇÃO', items: [
     { id: 'treino',  icon: Dumbbell,    label: 'Treino' },
