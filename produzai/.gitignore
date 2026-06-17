@@ -26,6 +26,8 @@ dist-ssr
 *.sln
 *.sw?
 
+.superpowers/
+
 # Documentos de treino/dieta (material de referência, não versionar)
 Chapinha-Academia 1.pdf
 Chapinha-Academia 2.pdf
