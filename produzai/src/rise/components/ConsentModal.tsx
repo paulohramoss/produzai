@@ -3,7 +3,7 @@
 // Blocks access to the app until the user explicitly accepts.
 
 import { useState } from 'react';
-import { C } from '../data';
+import { T, C } from '../data';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export function ConsentModal() {
@@ -39,18 +39,18 @@ export function ConsentModal() {
             style={{
               width: 56,
               height: 56,
-              borderRadius: 14,
+              borderRadius: T.radius.xl,
               background: C.orange,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 26,
+              fontSize: T.text['6xl'],
               margin: '0 auto 12px',
             }}
           >
             ⚡
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.text }}>
+          <div style={{ fontSize: T.text['4xl'], fontWeight: T.weight.extrabold, color: C.text }}>
             The Rise Plan
           </div>
         </div>
@@ -59,14 +59,14 @@ export function ConsentModal() {
           style={{
             background: C.card,
             border: `1px solid ${C.border}`,
-            borderRadius: 20,
+            borderRadius: T.radius['4xl'],
             padding: 28,
           }}
         >
           <div
             style={{
               fontSize: 17,
-              fontWeight: 800,
+              fontWeight: T.weight.extrabold,
               color: C.text,
               marginBottom: 8,
             }}
@@ -75,7 +75,7 @@ export function ConsentModal() {
           </div>
           <div
             style={{
-              fontSize: 13,
+              fontSize: T.text.md,
               color: C.muted,
               lineHeight: 1.65,
               marginBottom: 20,
@@ -117,25 +117,25 @@ export function ConsentModal() {
                 marginBottom: 14,
                 background: C.card2,
                 border: `1px solid ${C.border}`,
-                borderRadius: 12,
+                borderRadius: T.radius.lg,
                 padding: '12px 14px',
               }}
             >
-              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>
+              <span style={{ fontSize: T.text['3xl'], flexShrink: 0, marginTop: 1 }}>
                 {icon}
               </span>
               <div>
                 <div
                   style={{
-                    fontSize: 12,
-                    fontWeight: 700,
+                    fontSize: T.text.base,
+                    fontWeight: T.weight.bold,
                     color: C.text,
                     marginBottom: 2,
                   }}
                 >
                   {title}
                 </div>
-                <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.55 }}>
+                <div style={{ fontSize: T.text.base, color: C.muted, lineHeight: 1.55 }}>
                   {text}
                 </div>
               </div>
@@ -149,7 +149,7 @@ export function ConsentModal() {
               border: 'none',
               color: C.orange,
               cursor: 'pointer',
-              fontSize: 12,
+              fontSize: T.text.base,
               padding: 0,
               marginBottom: 20,
               textDecoration: 'underline',
@@ -164,12 +164,12 @@ export function ConsentModal() {
             style={{
               width: '100%',
               padding: '14px',
-              borderRadius: 12,
+              borderRadius: T.radius.lg,
               border: 'none',
               background: saving ? C.border2 : C.orange,
               color: '#fff',
-              fontSize: 15,
-              fontWeight: 700,
+              fontSize: T.text.xl,
+              fontWeight: T.weight.bold,
               cursor: saving ? 'not-allowed' : 'pointer',
               marginBottom: 12,
               transition: 'background .15s',
@@ -183,11 +183,11 @@ export function ConsentModal() {
             style={{
               width: '100%',
               padding: '11px',
-              borderRadius: 12,
+              borderRadius: T.radius.lg,
               border: `1px solid ${C.border2}`,
               background: 'transparent',
               color: C.muted,
-              fontSize: 13,
+              fontSize: T.text.md,
               cursor: 'pointer',
             }}
           >
@@ -199,7 +199,7 @@ export function ConsentModal() {
           style={{
             textAlign: 'center',
             marginTop: 14,
-            fontSize: 11,
+            fontSize: T.text.sm,
             color: C.muted,
             lineHeight: 1.6,
           }}
@@ -235,7 +235,7 @@ export function PolicyOverlay({ onClose }: { onClose: () => void }) {
         style={{
           background: C.card,
           border: `1px solid ${C.border}`,
-          borderRadius: 18,
+          borderRadius: T.radius['3xl'],
           width: '100%',
           maxWidth: 600,
           maxHeight: '90vh',
@@ -254,7 +254,7 @@ export function PolicyOverlay({ onClose }: { onClose: () => void }) {
             flexShrink: 0,
           }}
         >
-          <div style={{ fontWeight: 800, fontSize: 15 }}>
+          <div style={{ fontWeight: T.weight.extrabold, fontSize: T.text.xl }}>
             Política de Privacidade
           </div>
           <button
@@ -263,7 +263,7 @@ export function PolicyOverlay({ onClose }: { onClose: () => void }) {
               background: 'none',
               border: 'none',
               color: C.muted,
-              fontSize: 20,
+              fontSize: T.text['4xl'],
               cursor: 'pointer',
               lineHeight: 1,
             }}
@@ -275,7 +275,7 @@ export function PolicyOverlay({ onClose }: { onClose: () => void }) {
           style={{
             overflowY: 'auto',
             padding: '20px',
-            fontSize: 12,
+            fontSize: T.text.base,
             color: C.muted,
             lineHeight: 1.75,
           }}
@@ -292,8 +292,8 @@ export function PolicyOverlay({ onClose }: { onClose: () => void }) {
 
 export function PrivacyPolicyText() {
   const h2: React.CSSProperties = {
-    fontSize: 13,
-    fontWeight: 700,
+    fontSize: T.text.md,
+    fontWeight: T.weight.bold,
     color: C.text,
     marginTop: 20,
     marginBottom: 6,
@@ -302,7 +302,7 @@ export function PrivacyPolicyText() {
 
   return (
     <div>
-      <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>
+      <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 16 }}>
         Última atualização: junho de 2026 · Versão 1.0
       </div>
 

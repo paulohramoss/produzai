@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import { C, type Page } from '../data'
+import { T, C, displayStyle, type Page } from '../data'
 import { Card } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
 import { useWebDietStore } from '../../store/useWebDietStore'
@@ -12,7 +12,7 @@ import {
 import { computeXP, computeStreak, computeBadges, getWeekWorkouts, getWeekKey } from '../../lib/xp'
 import { ShareCard } from '../components/ShareCard'
 import { LayoutContext } from '../LayoutContext'
-import { Share2 } from 'lucide-react'
+import { Share2, Dumbbell, Star, Salad, Award } from 'lucide-react'
 
 interface Props {
   setPage: (page: Page) => void
@@ -125,8 +125,8 @@ export function Dashboard({ setPage }: Props) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <div style={{ fontSize: 13, color: C.muted, textTransform: 'capitalize' }}>{dateStr}</div>
-          <div style={{ fontSize: 26, fontWeight: 800 }}>Dashboard</div>
+          <div style={{ fontSize: T.text.md, color: C.muted, textTransform: 'capitalize' }}>{dateStr}</div>
+          <div style={{ fontSize: T.text['6xl'], fontWeight: T.weight.extrabold, ...displayStyle }}>Dashboard</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           {([
@@ -135,17 +135,17 @@ export function Dashboard({ setPage }: Props) {
             { icon: '⭐', l: 'Ranking', v: myRank > 0 ? `#${myRank}` : '—', c: C.pink },
           ] as const).map((s, i) => (
             <Card key={i} style={{ textAlign: 'center', minWidth: 80, padding: '10px 12px' }}>
-              <div style={{ fontSize: 18 }}>{s.icon}</div>
-              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{s.l}</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: s.c, marginTop: 2 }}>{s.v}</div>
+              <div style={{ fontSize: T.text['3xl'] }}>{s.icon}</div>
+              <div style={{ fontSize: T.text.xs, color: C.muted, marginTop: 2 }}>{s.l}</div>
+              <div style={{ fontSize: T.text.xl, fontWeight: T.weight.extrabold, color: s.c, marginTop: 2 }}>{s.v}</div>
             </Card>
           ))}
           <button
             onClick={() => setShowShare(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: 7, padding: '9px 15px',
-              background: C.orange, border: 'none', borderRadius: 10,
-              color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              background: C.orange, border: 'none', borderRadius: T.radius.md,
+              color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer',
             }}
           >
             <Share2 size={14} /> Compartilhar
@@ -156,40 +156,40 @@ export function Dashboard({ setPage }: Props) {
       {/* KPI grid */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         <Card onClick={() => setPage('treino')}>
-          <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: .8 }}>Treinos — semana</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: C.running, margin: '8px 0 4px' }}>
+          <div style={{ fontSize: T.text.xs, color: C.muted, textTransform: 'uppercase', letterSpacing: .8 }}>Treinos — semana</div>
+          <div style={{ fontSize: T.text['6xl'], fontWeight: T.weight.extrabold, color: C.running, margin: '8px 0 4px', ...displayStyle }}>
             {weekWorkoutsList.length > 0 ? weekWorkoutsList.length : '—'}
           </div>
-          <div style={{ fontSize: 12, color: C.muted2 }}>
+          <div style={{ fontSize: T.text.base, color: C.muted2 }}>
             {weekWorkoutsList.length > 0
               ? (weekCal > 0 ? `${weekCal} kcal` : 'sem kcal')
               : 'Registre um treino'}
           </div>
         </Card>
         <Card>
-          <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: .8 }}>Sequência</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: streak >= 7 ? C.orange : C.text, margin: '8px 0 4px' }}>
+          <div style={{ fontSize: T.text.xs, color: C.muted, textTransform: 'uppercase', letterSpacing: .8 }}>Sequência</div>
+          <div style={{ fontSize: T.text['6xl'], fontWeight: T.weight.extrabold, color: streak >= 7 ? C.orange : C.text, margin: '8px 0 4px', ...displayStyle }}>
             {streak > 0 ? `${streak}d` : '—'}
           </div>
-          <div style={{ fontSize: 12, color: C.muted2 }}>
+          <div style={{ fontSize: T.text.base, color: C.muted2 }}>
             {streak === 0 ? 'Comece hoje' : streak >= 30 ? '🏆 Incrível' : streak >= 7 ? '🔥 Em chamas' : 'dias seguidos'}
           </div>
         </Card>
         <Card onClick={() => setPage('dieta')}>
-          <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: .8 }}>Nutrição — hoje</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: C.green, margin: '8px 0 4px' }}>
+          <div style={{ fontSize: T.text.xs, color: C.muted, textTransform: 'uppercase', letterSpacing: .8 }}>Nutrição — hoje</div>
+          <div style={{ fontSize: T.text['6xl'], fontWeight: T.weight.extrabold, color: C.green, margin: '8px 0 4px', ...displayStyle }}>
             {wd ? `${calConsumed} kcal` : '—'}
           </div>
-          <div style={{ fontSize: 12, color: C.muted2 }}>
+          <div style={{ fontSize: T.text.base, color: C.muted2 }}>
             {wd ? `de ${wd.goals.cal} kcal · ${doneMeals.length} refeições feitas` : 'Configure sua dieta'}
           </div>
         </Card>
         <Card>
-          <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: .8 }}>Ranking global</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: C.orange, margin: '8px 0 4px' }}>
+          <div style={{ fontSize: T.text.xs, color: C.muted, textTransform: 'uppercase', letterSpacing: .8 }}>Ranking global</div>
+          <div style={{ fontSize: T.text['6xl'], fontWeight: T.weight.extrabold, color: C.orange, margin: '8px 0 4px', ...displayStyle }}>
             {myRank > 0 ? `#${myRank}` : '—'}
           </div>
-          <div style={{ fontSize: 12, color: C.muted2 }}>
+          <div style={{ fontSize: T.text.base, color: C.muted2 }}>
             {leaderboard.length > 0 ? `de ${leaderboard.length} atletas` : 'Aguardando dados'}
           </div>
         </Card>
@@ -198,26 +198,26 @@ export function Dashboard({ setPage }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
         {/* Treino widget */}
         <Card onClick={() => setPage('treino')} style={{ borderTop: `2px solid ${C.running}` }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>🏋 Treino</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 14, ...displayStyle }}><Dumbbell size={17} color={C.running} /> Treino</div>
           {weekWorkoutsList.length > 0 ? (
             weekWorkoutsList.slice(0, 3).map((w, i) => (
-              <div key={i} style={{ padding: '10px 12px', background: C.card2, borderRadius: 10, borderLeft: `3px solid ${C.running}`, marginBottom: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{w.name}</div>
+              <div key={i} style={{ padding: '10px 12px', background: C.card2, borderRadius: T.radius.md, borderLeft: `3px solid ${C.running}`, marginBottom: 8 }}>
+                <div style={{ fontWeight: T.weight.bold, fontSize: T.text.md, marginBottom: 4 }}>{w.name}</div>
                 <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: 11, color: C.muted }}>{w.date}</div>
-                  {w.dist > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: C.running }}>{w.dist}km</div>}
-                  {w.cal > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: C.red }}>{w.cal} kcal</div>}
-                  <div style={{ fontSize: 11, color: C.muted }}>{w.time}</div>
+                  <div style={{ fontSize: T.text.sm, color: C.muted }}>{w.date}</div>
+                  {w.dist > 0 && <div style={{ fontSize: T.text.sm, fontWeight: T.weight.bold, color: C.running }}>{w.dist}km</div>}
+                  {w.cal > 0 && <div style={{ fontSize: T.text.sm, fontWeight: T.weight.bold, color: C.red }}>{w.cal} kcal</div>}
+                  <div style={{ fontSize: T.text.sm, color: C.muted }}>{w.time}</div>
                 </div>
               </div>
             ))
           ) : (
             <div style={{ textAlign: 'center', padding: '24px 0', color: C.muted }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>🏋</div>
-              <div style={{ fontSize: 13 }}>Nenhum treino registrado esta semana</div>
+              <div style={{ fontSize: T.text['7xl'], marginBottom: 10 }}>🏋</div>
+              <div style={{ fontSize: T.text.md }}>Nenhum treino registrado esta semana</div>
               <button
                 onClick={e => { e.stopPropagation(); setPage('treino') }}
-                style={{ marginTop: 12, background: C.purple, border: 'none', borderRadius: 8, padding: '8px 16px', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                style={{ marginTop: 12, background: C.purple, border: 'none', borderRadius: T.radius.sm, padding: '8px 16px', color: '#fff', fontSize: T.text.base, fontWeight: T.weight.bold, cursor: 'pointer' }}
               >
                 + Registrar treino
               </button>
@@ -228,17 +228,17 @@ export function Dashboard({ setPage }: Props) {
         {/* Leaderboard */}
         <Card style={{ borderTop: `2px solid ${C.pink}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>⭐ Ranking</div>
-            <div style={{ display: 'flex', gap: 2, background: C.card2, borderRadius: 8, padding: 3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, ...displayStyle }}><Star size={17} color={C.pink} /> Ranking</div>
+            <div style={{ display: 'flex', gap: 2, background: C.card2, borderRadius: T.radius.sm, padding: 3 }}>
               {(['global', 'amigos'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setLbTab(tab)}
                   style={{
-                    padding: '4px 11px', border: 'none', borderRadius: 6, cursor: 'pointer',
+                    padding: '4px 11px', border: 'none', borderRadius: T.radius.xs, cursor: 'pointer',
                     background: lbTab === tab ? C.card3 : 'transparent',
                     color: lbTab === tab ? C.text : C.muted,
-                    fontSize: 11, fontWeight: lbTab === tab ? 700 : 500,
+                    fontSize: T.text.sm, fontWeight: lbTab === tab ? 700 : 500,
                     transition: 'all .12s',
                   }}
                 >
@@ -262,13 +262,13 @@ export function Dashboard({ setPage }: Props) {
                       border: `1px solid ${isMe ? C.orange + '44' : C.border}`,
                     }}
                   >
-                    <span style={{ fontSize: 14, minWidth: 24, textAlign: 'center' }}>
+                    <span style={{ fontSize: T.text.lg, minWidth: 24, textAlign: 'center' }}>
                       {medals[i] ?? `${i + 1}`}
                     </span>
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? C.orange : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ flex: 1, fontSize: T.text.md, fontWeight: isMe ? 700 : 500, color: isMe ? C.orange : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {entry.displayName}{isMe ? ' (você)' : ''}
                     </span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.blue, flexShrink: 0 }}>
+                    <span style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.blue, flexShrink: 0 }}>
                       {entry.xp.toLocaleString('pt-BR')} XP
                     </span>
                   </div>
@@ -276,18 +276,18 @@ export function Dashboard({ setPage }: Props) {
               })
             ) : (
               <div style={{ textAlign: 'center', padding: '24px 0', color: C.muted }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>⭐</div>
-                <div style={{ fontSize: 13 }}>Registre treinos para entrar no ranking!</div>
+                <div style={{ fontSize: T.text['7xl'], marginBottom: 10 }}>⭐</div>
+                <div style={{ fontSize: T.text.md }}>Registre treinos para entrar no ranking!</div>
               </div>
             )
           ) : (
             /* Amigos tab */
             <>
               {/* User's invite code */}
-              <div style={{ background: C.card2, borderRadius: 10, padding: '10px 14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>SEU CÓDIGO DE CONVITE</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: C.orange, letterSpacing: 4 }}>{inviteCode}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>Passe esse código para seus amigos te adicionarem</div>
+              <div style={{ background: C.card2, borderRadius: T.radius.md, padding: '10px 14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: T.text.xs, color: C.muted, marginBottom: 4 }}>SEU CÓDIGO DE CONVITE</div>
+                <div style={{ fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, color: C.orange, letterSpacing: 4, ...displayStyle }}>{inviteCode}</div>
+                <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 3 }}>Passe esse código para seus amigos te adicionarem</div>
               </div>
 
               {/* Friend entries */}
@@ -303,18 +303,18 @@ export function Dashboard({ setPage }: Props) {
                         border: `1px solid ${isMe ? C.orange + '44' : C.border}`,
                       }}
                     >
-                      <span style={{ fontSize: 13, minWidth: 20, color: C.muted, textAlign: 'center' }}>{i + 1}</span>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? C.orange : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: T.text.md, minWidth: 20, color: C.muted, textAlign: 'center' }}>{i + 1}</span>
+                      <span style={{ flex: 1, fontSize: T.text.md, fontWeight: isMe ? 700 : 500, color: isMe ? C.orange : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {entry.displayName}{isMe ? ' (você)' : ''}
                       </span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: C.blue, flexShrink: 0 }}>
+                      <span style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.blue, flexShrink: 0 }}>
                         {entry.xp.toLocaleString('pt-BR')} XP
                       </span>
                     </div>
                   )
                 })
               ) : (
-                <div style={{ textAlign: 'center', padding: '12px 0 8px', color: C.muted, fontSize: 13 }}>
+                <div style={{ textAlign: 'center', padding: '12px 0 8px', color: C.muted, fontSize: T.text.md }}>
                   Adicione amigos para competir juntos
                 </div>
               )}
@@ -329,9 +329,9 @@ export function Dashboard({ setPage }: Props) {
                     maxLength={6}
                     placeholder="Código (6 chars)"
                     style={{
-                      flex: 1, background: C.card2, borderRadius: 8,
+                      flex: 1, background: C.card2, borderRadius: T.radius.sm,
                       border: `1px solid ${addError ? C.red : C.border}`,
-                      color: C.text, fontSize: 13, padding: '8px 12px',
+                      color: C.text, fontSize: T.text.md, padding: '8px 12px',
                       outline: 'none', fontFamily: 'system-ui', letterSpacing: 2,
                     }}
                   />
@@ -339,9 +339,9 @@ export function Dashboard({ setPage }: Props) {
                     onClick={handleAddFriend}
                     disabled={addLoading || addCode.length < 6}
                     style={{
-                      padding: '8px 14px', border: 'none', borderRadius: 8,
+                      padding: '8px 14px', border: 'none', borderRadius: T.radius.sm,
                       background: addCode.length === 6 ? C.orange : C.border,
-                      color: '#fff', fontSize: 12, fontWeight: 700,
+                      color: '#fff', fontSize: T.text.base, fontWeight: T.weight.bold,
                       cursor: addCode.length === 6 ? 'pointer' : 'default',
                       transition: 'background .12s',
                     }}
@@ -349,7 +349,7 @@ export function Dashboard({ setPage }: Props) {
                     {addLoading ? '...' : '+ Add'}
                   </button>
                 </div>
-                {addError && <div style={{ fontSize: 11, color: C.red, marginTop: 5 }}>{addError}</div>}
+                {addError && <div style={{ fontSize: T.text.sm, color: C.red, marginTop: 5 }}>{addError}</div>}
               </div>
             </>
           )}
@@ -358,26 +358,26 @@ export function Dashboard({ setPage }: Props) {
 
       {/* Dieta widget */}
       <Card onClick={() => setPage('dieta')} style={{ borderTop: wd ? `2px solid ${C.green}` : `2px solid ${C.border}`, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>🥗 Dieta & Nutrição</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 14, ...displayStyle }}><Salad size={17} color={C.green} /> Dieta & Nutrição</div>
         {wd ? (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[...wd.meals].sort((a, b) => a.time.localeCompare(b.time)).slice(0, 4).map((meal, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', background: C.card2, borderRadius: 8, borderLeft: `2px solid ${meal.done ? C.green : C.border}` }}>
-                  <span style={{ fontSize: 10, color: C.muted, minWidth: 40 }}>{meal.time}</span>
-                  <span style={{ fontSize: 12, flex: 1, color: meal.done ? C.muted : C.text, textDecoration: meal.done ? 'line-through' : 'none' }}>{meal.name}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.orange }}>{meal.cal}kcal</span>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', background: C.card2, borderRadius: T.radius.sm, borderLeft: `2px solid ${meal.done ? C.green : C.border}` }}>
+                  <span style={{ fontSize: T.text.xs, color: C.muted, minWidth: 40 }}>{meal.time}</span>
+                  <span style={{ fontSize: T.text.base, flex: 1, color: meal.done ? C.muted : C.text, textDecoration: meal.done ? 'line-through' : 'none' }}>{meal.name}</span>
+                  <span style={{ fontSize: T.text.sm, fontWeight: T.weight.bold, color: C.orange }}>{meal.cal}kcal</span>
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 10, fontSize: 11, color: C.muted, textAlign: 'right' }}>
+            <div style={{ marginTop: 10, fontSize: T.text.sm, color: C.muted, textAlign: 'right' }}>
               {calConsumed} / {wd.goals.cal} kcal
             </div>
           </>
         ) : (
           <div style={{ textAlign: 'center', padding: '24px 0', color: C.muted }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>🥗</div>
-            <div style={{ fontSize: 13 }}>Configure sua dieta para acompanhar macros e refeições</div>
+            <div style={{ fontSize: T.text['7xl'], marginBottom: 10 }}>🥗</div>
+            <div style={{ fontSize: T.text.md }}>Configure sua dieta para acompanhar macros e refeições</div>
           </div>
         )}
       </Card>
@@ -385,8 +385,8 @@ export function Dashboard({ setPage }: Props) {
       {/* Conquistas */}
       <Card style={{ borderTop: `2px solid ${C.purple}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>🏅 Conquistas</div>
-          <span style={{ fontSize: 11, color: C.purple, fontWeight: 700 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, ...displayStyle }}><Award size={17} color={C.purple} /> Conquistas</div>
+          <span style={{ fontSize: T.text.sm, color: C.purple, fontWeight: T.weight.bold }}>
             {earnedBadges.length}/{badges.length}
           </span>
         </div>
@@ -398,15 +398,15 @@ export function Dashboard({ setPage }: Props) {
               style={{
                 textAlign: 'center', padding: '10px 4px',
                 background: b.earnedAt ? C.od : C.card2,
-                borderRadius: 10,
+                borderRadius: T.radius.md,
                 border: `1px solid ${b.earnedAt ? C.orange + '44' : C.border}`,
                 opacity: b.earnedAt ? 1 : 0.38,
                 transition: 'opacity .15s',
                 cursor: 'default',
               }}
             >
-              <div style={{ fontSize: 22 }}>{b.icon}</div>
-              <div style={{ fontSize: 10, color: b.earnedAt ? C.text : C.muted, fontWeight: 600, marginTop: 4, lineHeight: 1.3 }}>
+              <div style={{ fontSize: T.text['5xl'] }}>{b.icon}</div>
+              <div style={{ fontSize: T.text.xs, color: b.earnedAt ? C.text : C.muted, fontWeight: T.weight.semibold, marginTop: 4, lineHeight: 1.3 }}>
                 {b.name}
               </div>
             </div>

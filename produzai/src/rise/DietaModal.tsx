@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { C } from './data'
+import { T, C } from './data'
 import { useWebDietStore, type WebDietGoals, type WebDietMeal } from '../store/useWebDietStore'
 import { toast } from '../lib/toast'
 import { DIET_TEMPLATES } from './data/templates'
@@ -16,16 +16,16 @@ const EMPTY_MEAL: Omit<WebDietMeal, 'id'> = {
 const inputStyle = {
   background: C.card,
   border: `1px solid ${C.border2}`,
-  borderRadius: 8,
+  borderRadius: T.radius.sm,
   padding: '8px 10px',
   color: C.text,
-  fontSize: 13,
+  fontSize: T.text.md,
   width: '100%',
   outline: 'none',
 } as React.CSSProperties
 
 const labelStyle = {
-  fontSize: 10,
+  fontSize: T.text.xs,
   color: C.muted,
   textTransform: 'uppercase' as const,
   letterSpacing: 0.8,
@@ -76,7 +76,7 @@ function MealFormBlock({ form, onChange, onSubmit, onCancel, submitLabel, canSub
   const hasItems = itemsToString(form.items).trim().length > 0
 
   return (
-    <div style={{ background: C.card2, borderRadius: 12, padding: 16, border: `1px solid ${C.border2}` }}>
+    <div style={{ background: C.card2, borderRadius: T.radius.lg, padding: 16, border: `1px solid ${C.border2}` }}>
       <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 10, marginBottom: 10 }}>
         <div>
           <label style={labelStyle}>Hora</label>
@@ -95,7 +95,7 @@ function MealFormBlock({ form, onChange, onSubmit, onCancel, submitLabel, canSub
             <button
               onClick={handleCalc}
               disabled={calcLoading}
-              style={{ background: calcLoading ? C.card : `${C.green}18`, border: `1px solid ${calcLoading ? C.border : C.green + '44'}`, borderRadius: 6, padding: '3px 10px', color: calcLoading ? C.muted : C.green, fontSize: 11, fontWeight: 600, cursor: calcLoading ? 'not-allowed' : 'pointer' }}>
+              style={{ background: calcLoading ? C.card : `${C.green}18`, border: `1px solid ${calcLoading ? C.border : C.green + '44'}`, borderRadius: T.radius.xs, padding: '3px 10px', color: calcLoading ? C.muted : C.green, fontSize: T.text.sm, fontWeight: T.weight.semibold, cursor: calcLoading ? 'not-allowed' : 'pointer' }}>
               {calcLoading ? '⏳ Calculando...' : '✨ Calcular macros'}
             </button>
           )}
@@ -133,12 +133,12 @@ function MealFormBlock({ form, onChange, onSubmit, onCancel, submitLabel, canSub
         <button
           onClick={onSubmit}
           disabled={!canSubmit}
-          style={{ flex: 1, background: canSubmit ? C.green : C.card, border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, color: canSubmit ? '#fff' : C.muted, cursor: canSubmit ? 'pointer' : 'default' }}>
+          style={{ flex: 1, background: canSubmit ? C.green : C.card, border: 'none', borderRadius: T.radius.sm, padding: '10px', fontSize: T.text.md, fontWeight: T.weight.bold, color: canSubmit ? '#fff' : C.muted, cursor: canSubmit ? 'pointer' : 'default' }}>
           {submitLabel}
         </button>
         <button
           onClick={onCancel}
-          style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: C.muted, cursor: 'pointer' }}>
+          style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.sm, padding: '10px 16px', fontSize: T.text.md, color: C.muted, cursor: 'pointer' }}>
           Cancelar
         </button>
       </div>
@@ -210,12 +210,12 @@ export function DietaModal({ onClose }: Props) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, width: '100%', maxWidth: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], width: '100%', maxWidth: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
         {/* Header */}
         <div style={{ padding: '22px 24px 16px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-          <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 18, background: 'transparent', border: 'none', color: C.muted, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
-          <div style={{ fontWeight: 800, fontSize: 17 }}>📊 Editar Plano Alimentar</div>
-          <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Metas diárias e refeições</div>
+          <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 18, background: 'transparent', border: 'none', color: C.muted, fontSize: T.text['5xl'], cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <div style={{ fontWeight: T.weight.extrabold, fontSize: 17 }}>📊 Editar Plano Alimentar</div>
+          <div style={{ fontSize: T.text.base, color: C.muted, marginTop: 2 }}>Metas diárias e refeições</div>
         </div>
 
         {/* Scrollable body */}
@@ -225,7 +225,7 @@ export function DietaModal({ onClose }: Props) {
           <div style={{ marginBottom: 20 }}>
             <button
               onClick={() => setShowTemplates(s => !s)}
-              style={{ width: '100%', background: showTemplates ? C.green : C.card2, border: `1px solid ${showTemplates ? C.green : C.border2}`, borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 700, color: showTemplates ? '#fff' : C.muted, cursor: 'pointer', textAlign: 'left' }}>
+              style={{ width: '100%', background: showTemplates ? C.green : C.card2, border: `1px solid ${showTemplates ? C.green : C.border2}`, borderRadius: T.radius.md, padding: '10px 14px', fontSize: T.text.md, fontWeight: T.weight.bold, color: showTemplates ? '#fff' : C.muted, cursor: 'pointer', textAlign: 'left' }}>
               📋 {showTemplates ? 'Fechar templates' : 'Usar um template de dieta'}
             </button>
             {showTemplates && (
@@ -234,14 +234,14 @@ export function DietaModal({ onClose }: Props) {
                   <div
                     key={i}
                     onClick={() => applyDietTemplate(tpl)}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: C.card2, borderRadius: 10, cursor: 'pointer', border: `1px solid ${C.border}` }}>
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: C.card2, borderRadius: T.radius.md, cursor: 'pointer', border: `1px solid ${C.border}` }}>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{tpl.name}</div>
-                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{tpl.goal}</div>
+                      <div style={{ fontSize: T.text.lg, fontWeight: T.weight.bold }}>{tpl.name}</div>
+                      <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 2 }}>{tpl.goal}</div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 10 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: C.orange }}>{tpl.goals.cal} kcal</div>
-                      <div style={{ fontSize: 10, color: C.muted }}>{tpl.meals.length} refeições</div>
+                      <div style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.orange }}>{tpl.goals.cal} kcal</div>
+                      <div style={{ fontSize: T.text.xs, color: C.muted }}>{tpl.meals.length} refeições</div>
                     </div>
                   </div>
                 ))}
@@ -251,7 +251,7 @@ export function DietaModal({ onClose }: Props) {
 
           {/* Goals */}
           <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>Metas diárias</div>
+            <div style={{ fontSize: T.text.sm, color: C.muted, fontWeight: T.weight.bold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>Metas diárias</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
               {([
                 { k: 'cal', l: 'Calorias', u: 'kcal', c: C.orange },
@@ -273,19 +273,19 @@ export function DietaModal({ onClose }: Props) {
             </div>
             <button
               onClick={saveGoals}
-              style={{ background: C.green, border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer' }}>
+              style={{ background: C.green, border: 'none', borderRadius: T.radius.sm, padding: '9px 18px', fontSize: T.text.md, fontWeight: T.weight.bold, color: '#fff', cursor: 'pointer' }}>
               {goalsSaved ? '✓ Metas salvas!' : 'Salvar metas'}
             </button>
           </div>
 
           {/* Meals list */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>
+            <div style={{ fontSize: T.text.sm, color: C.muted, fontWeight: T.weight.bold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>
               Refeições ({data.meals.length})
             </div>
 
             {data.meals.length === 0 && (
-              <div style={{ fontSize: 13, color: C.muted, padding: '12px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: T.text.md, color: C.muted, padding: '12px 0', textAlign: 'center' }}>
                 Nenhuma refeição. Adicione abaixo.
               </div>
             )}
@@ -302,20 +302,20 @@ export function DietaModal({ onClose }: Props) {
                     canSubmit={!!editForm.name.trim()}
                   />
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: C.card2, borderRadius: 10, borderLeft: `3px solid ${m.done ? C.green : C.border}` }}>
-                    <span style={{ fontSize: 11, color: C.muted, minWidth: 38, flexShrink: 0 }}>{m.time}</span>
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{m.name}</span>
-                    <span style={{ fontSize: 11, color: C.orange, flexShrink: 0 }}>{m.cal}kcal</span>
-                    <span style={{ fontSize: 10, color: C.blue, flexShrink: 0 }}>P:{m.prot}g</span>
-                    <span style={{ fontSize: 10, color: C.green, flexShrink: 0 }}>C:{m.carb}g</span>
-                    <span style={{ fontSize: 10, color: C.purple, flexShrink: 0 }}>G:{m.fat}g</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: C.card2, borderRadius: T.radius.md, borderLeft: `3px solid ${m.done ? C.green : C.border}` }}>
+                    <span style={{ fontSize: T.text.sm, color: C.muted, minWidth: 38, flexShrink: 0 }}>{m.time}</span>
+                    <span style={{ flex: 1, fontSize: T.text.md, fontWeight: T.weight.semibold }}>{m.name}</span>
+                    <span style={{ fontSize: T.text.sm, color: C.orange, flexShrink: 0 }}>{m.cal}kcal</span>
+                    <span style={{ fontSize: T.text.xs, color: C.blue, flexShrink: 0 }}>P:{m.prot}g</span>
+                    <span style={{ fontSize: T.text.xs, color: C.green, flexShrink: 0 }}>C:{m.carb}g</span>
+                    <span style={{ fontSize: T.text.xs, color: C.purple, flexShrink: 0 }}>G:{m.fat}g</span>
                     <button
                       onClick={() => startEdit(m)}
-                      style={{ background: 'transparent', border: 'none', color: C.muted, fontSize: 15, cursor: 'pointer', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
+                      style={{ background: 'transparent', border: 'none', color: C.muted, fontSize: T.text.xl, cursor: 'pointer', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
                       title="Editar">✏️</button>
                     <button
                       onClick={() => store.removeMeal(m.id)}
-                      style={{ background: 'transparent', border: 'none', color: C.muted, fontSize: 15, cursor: 'pointer', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
+                      style={{ background: 'transparent', border: 'none', color: C.muted, fontSize: T.text.xl, cursor: 'pointer', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
                       title="Remover">🗑</button>
                   </div>
                 )}
@@ -327,12 +327,12 @@ export function DietaModal({ onClose }: Props) {
           {!adding ? (
             <button
               onClick={() => { setAdding(true); setEditingId(null) }}
-              style={{ width: '100%', background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 10, padding: '11px', fontSize: 13, fontWeight: 700, color: C.green, cursor: 'pointer' }}>
+              style={{ width: '100%', background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: T.radius.md, padding: '11px', fontSize: T.text.md, fontWeight: T.weight.bold, color: C.green, cursor: 'pointer' }}>
               + Adicionar refeição
             </button>
           ) : (
             <>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.green, marginBottom: 8 }}>Nova refeição</div>
+              <div style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.green, marginBottom: 8 }}>Nova refeição</div>
               <MealFormBlock
                 form={addForm}
                 onChange={setAddField}
@@ -349,7 +349,7 @@ export function DietaModal({ onClose }: Props) {
         <div style={{ padding: '14px 24px', borderTop: `1px solid ${C.border}`, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={onClose}
-            style={{ background: C.green, border: 'none', borderRadius: 10, padding: '11px 24px', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer' }}>
+            style={{ background: C.green, border: 'none', borderRadius: T.radius.md, padding: '11px 24px', fontSize: T.text.lg, fontWeight: T.weight.bold, color: '#fff', cursor: 'pointer' }}>
             Concluir
           </button>
         </div>

@@ -3,7 +3,8 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../lib/firebase'
 import { useAuthStore } from '../../store/useAuthStore'
 import { toast } from '../../lib/toast'
-import { C, type Page } from '../data'
+import { T, C, type Page, displayStyle } from '../data'
+import { User } from 'lucide-react'
 import { Card } from '../primitives'
 import { LayoutContext } from '../LayoutContext'
 import { PolicyOverlay } from '../components/ConsentModal'
@@ -12,18 +13,18 @@ interface Props { setPage: (p: Page) => void }
 
 const inp: React.CSSProperties = {
   width: '100%', background: '#1C1C1C', border: `1px solid ${C.border2}`,
-  borderRadius: 10, padding: '11px 14px', color: C.text,
-  fontSize: 14, outline: 'none', boxSizing: 'border-box',
+  borderRadius: T.radius.md, padding: '11px 14px', color: C.text,
+  fontSize: T.text.lg, outline: 'none', boxSizing: 'border-box',
 }
 const label: React.CSSProperties = {
-  fontSize: 11, color: C.muted, display: 'block',
+  fontSize: T.text.sm, color: C.muted, display: 'block',
   marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.8,
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Card style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
+      <div style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
         {title}
       </div>
       {children}
@@ -93,7 +94,8 @@ export function Perfil({ setPage }: Props) {
       const url = await getDownloadURL(storageRef)
       await updateProfileData({ photoURL: url })
       toast.success('📸 Foto atualizada!')
-    } catch {
+    } catch (err) {
+      console.error('Avatar upload failed:', err)
       toast.error('Erro ao enviar foto. Verifique o Firebase Storage.')
       setPreviewURL(null)
     } finally {
@@ -149,12 +151,12 @@ export function Perfil({ setPage }: Props) {
       <div style={{ marginBottom: 24 }}>
         <button
           onClick={() => setPage('dashboard')}
-          style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 13, padding: 0, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+          style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text.md, padding: 0, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}
         >
           ← Voltar
         </button>
-        <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800 }}>👤 Meu Perfil</div>
-        <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>Gerencie suas informações pessoais</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: isMobile ? 20 : 24, fontWeight: T.weight.extrabold, ...displayStyle }}><User size={20} color={C.orange} /> Meu Perfil</div>
+        <div style={{ fontSize: T.text.md, color: C.muted, marginTop: 4 }}>Gerencie suas informações pessoais</div>
       </div>
 
       {/* ── Avatar + nome ─────────────────────────────────────────────────── */}
@@ -170,7 +172,7 @@ export function Perfil({ setPage }: Props) {
               {avatarURL ? (
                 <img src={avatarURL} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <span style={{ fontSize: 28, fontWeight: 800, color: C.orange }}>{initials}</span>
+                <span style={{ fontSize: 28, fontWeight: T.weight.extrabold, color: C.orange }}>{initials}</span>
               )}
             </div>
             <button
@@ -181,7 +183,7 @@ export function Perfil({ setPage }: Props) {
                 width: 26, height: 26, borderRadius: '50%',
                 background: C.orange, border: `2px solid ${C.bg}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: photoUploading ? 'not-allowed' : 'pointer', fontSize: 12,
+                cursor: photoUploading ? 'not-allowed' : 'pointer', fontSize: T.text.base,
               }}
               title="Alterar foto"
             >
@@ -191,10 +193,10 @@ export function Perfil({ setPage }: Props) {
           </div>
 
           <div style={{ flex: 1, minWidth: 180 }}>
-            <div style={{ fontSize: 13, color: C.muted, marginBottom: 4 }}>
+            <div style={{ fontSize: T.text.md, color: C.muted, marginBottom: 4 }}>
               {photoUploading ? 'Enviando foto...' : 'Clique no ícone para trocar a foto'}
             </div>
-            <div style={{ fontSize: 11, color: C.muted, opacity: 0.6 }}>
+            <div style={{ fontSize: T.text.sm, color: C.muted, opacity: 0.6 }}>
               JPG, PNG ou WebP · máx 5MB
             </div>
           </div>
@@ -216,8 +218,8 @@ export function Perfil({ setPage }: Props) {
               disabled={savingName || !name.trim() || name.trim() === (storedName ?? '')}
               style={{
                 background: savingName || !name.trim() || name.trim() === (storedName ?? '') ? C.border2 : C.orange,
-                border: 'none', borderRadius: 10, padding: '0 18px',
-                color: '#fff', fontSize: 13, fontWeight: 700,
+                border: 'none', borderRadius: T.radius.md, padding: '0 18px',
+                color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold,
                 cursor: savingName || !name.trim() ? 'not-allowed' : 'pointer',
                 whiteSpace: 'nowrap',
               }}
@@ -240,25 +242,25 @@ export function Perfil({ setPage }: Props) {
             <label style={label}>Método de login</label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {isGoogleUser && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.card2, border: `1px solid ${C.border}`, borderRadius: T.radius.sm, padding: '6px 12px' }}>
                   <svg width="14" height="14" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/><path d="M3.964 10.707A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Google</span>
+                  <span style={{ fontSize: T.text.base, fontWeight: T.weight.semibold, color: C.text }}>Google</span>
                 </div>
               )}
               {isEmailUser && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 12px' }}>
-                  <span style={{ fontSize: 13 }}>✉️</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>E-mail / Senha</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.card2, border: `1px solid ${C.border}`, borderRadius: T.radius.sm, padding: '6px 12px' }}>
+                  <span style={{ fontSize: T.text.md }}>✉️</span>
+                  <span style={{ fontSize: T.text.base, fontWeight: T.weight.semibold, color: C.text }}>E-mail / Senha</span>
                 </div>
               )}
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ background: `${C.green}18`, border: `1px solid ${C.green}33`, borderRadius: 8, padding: '6px 12px', fontSize: 11, color: C.green, fontWeight: 600 }}>
+            <div style={{ background: `${C.green}18`, border: `1px solid ${C.green}33`, borderRadius: T.radius.sm, padding: '6px 12px', fontSize: T.text.sm, color: C.green, fontWeight: T.weight.semibold }}>
               ● Conta ativa
             </div>
-            <div style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 12px', fontSize: 11, color: C.muted }}>
+            <div style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: T.radius.sm, padding: '6px 12px', fontSize: T.text.sm, color: C.muted }}>
               UID: {user?.uid?.slice(0, 12)}...
             </div>
           </div>
@@ -280,7 +282,7 @@ export function Perfil({ setPage }: Props) {
                   required
                   style={{ ...inp, paddingRight: 42 }}
                 />
-                <button type="button" onClick={() => setShowCur(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 14 }}>
+                <button type="button" onClick={() => setShowCur(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text.lg }}>
                   {showCur ? '🙈' : '👁'}
                 </button>
               </div>
@@ -297,7 +299,7 @@ export function Perfil({ setPage }: Props) {
                   required
                   style={{ ...inp, paddingRight: 42 }}
                 />
-                <button type="button" onClick={() => setShowNew(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 14 }}>
+                <button type="button" onClick={() => setShowNew(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text.lg }}>
                   {showNew ? '🙈' : '👁'}
                 </button>
               </div>
@@ -314,7 +316,7 @@ export function Perfil({ setPage }: Props) {
                 style={{ ...inp, borderColor: confPass && confPass !== newPass ? C.red : C.border2 }}
               />
               {confPass && confPass !== newPass && (
-                <div style={{ fontSize: 11, color: C.red, marginTop: 4 }}>As senhas não coincidem</div>
+                <div style={{ fontSize: T.text.sm, color: C.red, marginTop: 4 }}>As senhas não coincidem</div>
               )}
             </div>
 
@@ -322,9 +324,9 @@ export function Perfil({ setPage }: Props) {
               type="submit"
               disabled={savingPass || !curPass || !newPass || newPass !== confPass}
               style={{
-                padding: '12px', borderRadius: 10, border: 'none',
+                padding: '12px', borderRadius: T.radius.md, border: 'none',
                 background: savingPass || !curPass || !newPass || newPass !== confPass ? C.border2 : C.purple,
-                color: '#fff', fontSize: 14, fontWeight: 700,
+                color: '#fff', fontSize: T.text.lg, fontWeight: T.weight.bold,
                 cursor: savingPass || !curPass || !newPass || newPass !== confPass ? 'not-allowed' : 'pointer',
                 transition: 'background .15s',
               }}
@@ -337,7 +339,7 @@ export function Perfil({ setPage }: Props) {
 
       {isGoogleUser && !isEmailUser && (
         <Card style={{ marginBottom: 16, background: `${C.blue}0D`, border: `1px solid ${C.blue}33` }}>
-          <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+          <div style={{ fontSize: T.text.md, color: C.muted, lineHeight: 1.6 }}>
             <strong style={{ color: C.blue }}>Conta Google</strong> — a senha é gerenciada pelo Google.<br />
             Para alterar, acesse <strong>myaccount.google.com</strong>.
           </div>
@@ -349,8 +351,8 @@ export function Perfil({ setPage }: Props) {
         <button
           onClick={async () => { await logout() }}
           style={{
-            width: '100%', padding: '12px', borderRadius: 10, border: `1px solid ${C.border2}`,
-            background: 'transparent', color: C.muted, fontSize: 14, fontWeight: 600,
+            width: '100%', padding: '12px', borderRadius: T.radius.md, border: `1px solid ${C.border2}`,
+            background: 'transparent', color: C.muted, fontSize: T.text.lg, fontWeight: T.weight.semibold,
             cursor: 'pointer', transition: 'all .15s',
           }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = C.red; e.currentTarget.style.color = C.red }}
@@ -362,7 +364,7 @@ export function Perfil({ setPage }: Props) {
 
       {/* ── Privacidade ───────────────────────────────────────────────────── */}
       <Section title="Privacidade e LGPD">
-        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.65, marginBottom: 14 }}>
+        <div style={{ fontSize: T.text.base, color: C.muted, lineHeight: 1.65, marginBottom: 14 }}>
           Seus dados de saúde, treinos e dieta são tratados com base no seu{' '}
           <strong style={{ color: C.text }}>consentimento explícito</strong> (art. 7º, I e art. 11, I da LGPD).
           Você pode exportar todos os seus dados via CSV no Coach, ou excluir tudo abaixo.
@@ -370,8 +372,8 @@ export function Perfil({ setPage }: Props) {
         <button
           onClick={() => setPolicyOpen(true)}
           style={{
-            background: 'none', border: `1px solid ${C.border2}`, borderRadius: 8,
-            padding: '8px 14px', color: C.muted, fontSize: 12, cursor: 'pointer',
+            background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.sm,
+            padding: '8px 14px', color: C.muted, fontSize: T.text.base, cursor: 'pointer',
           }}
         >
           📄 Ver Política de Privacidade
@@ -380,13 +382,13 @@ export function Perfil({ setPage }: Props) {
 
       {/* ── Zona de risco ─────────────────────────────────────────────────── */}
       <Card style={{ marginBottom: 16, border: `1px solid ${C.red}33`, background: `${C.red}08` }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.red, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+        <div style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.red, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
           Zona de risco
         </div>
 
         {deleteStep === 'idle' && (
           <>
-            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.65, marginBottom: 14 }}>
+            <div style={{ fontSize: T.text.base, color: C.muted, lineHeight: 1.65, marginBottom: 14 }}>
               Excluir a conta apaga permanentemente todos os seus dados do servidor —
               treinos, dieta, hábitos, fotos de progresso, histórico mental e conversas com o Coach.
               Esta ação é irreversível.
@@ -394,9 +396,9 @@ export function Perfil({ setPage }: Props) {
             <button
               onClick={() => setDeleteStep('confirm')}
               style={{
-                width: '100%', padding: '11px', borderRadius: 10,
+                width: '100%', padding: '11px', borderRadius: T.radius.md,
                 border: `1px solid ${C.red}66`, background: 'transparent',
-                color: C.red, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                color: C.red, fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer',
                 transition: 'background .15s',
               }}
               onMouseEnter={e => { e.currentTarget.style.background = `${C.red}18` }}
@@ -410,15 +412,15 @@ export function Perfil({ setPage }: Props) {
         {(deleteStep === 'confirm' || deleteStep === 'deleting') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{
-              background: `${C.red}15`, border: `1px solid ${C.red}44`, borderRadius: 10,
-              padding: '12px 14px', fontSize: 12, color: C.red, lineHeight: 1.6,
+              background: `${C.red}15`, border: `1px solid ${C.red}44`, borderRadius: T.radius.md,
+              padding: '12px 14px', fontSize: T.text.base, color: C.red, lineHeight: 1.6,
             }}>
               ⚠️ Esta ação é <strong>permanente e irreversível</strong>. Todos os seus dados serão deletados.
             </div>
 
             {isEmailUser ? (
               <div>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.8 }}>
                   Confirme sua senha para continuar
                 </div>
                 <input
@@ -429,19 +431,19 @@ export function Perfil({ setPage }: Props) {
                   disabled={deleteStep === 'deleting'}
                   style={{
                     width: '100%', background: '#1C1C1C', border: `1px solid ${C.border2}`,
-                    borderRadius: 10, padding: '11px 14px', color: C.text,
-                    fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                    borderRadius: T.radius.md, padding: '11px 14px', color: C.text,
+                    fontSize: T.text.lg, outline: 'none', boxSizing: 'border-box',
                   }}
                 />
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: C.muted, background: C.card2, borderRadius: 10, padding: '10px 14px' }}>
+              <div style={{ fontSize: T.text.base, color: C.muted, background: C.card2, borderRadius: T.radius.md, padding: '10px 14px' }}>
                 Você será redirecionado para confirmar com o Google antes da exclusão.
               </div>
             )}
 
             {deleteError && (
-              <div style={{ fontSize: 12, color: C.red }}>{deleteError}</div>
+              <div style={{ fontSize: T.text.base, color: C.red }}>{deleteError}</div>
             )}
 
             <div style={{ display: 'flex', gap: 8 }}>
@@ -449,8 +451,8 @@ export function Perfil({ setPage }: Props) {
                 onClick={() => { setDeleteStep('idle'); setDeletePass(''); setDeleteError('') }}
                 disabled={deleteStep === 'deleting'}
                 style={{
-                  flex: 1, padding: '11px', borderRadius: 10, border: `1px solid ${C.border2}`,
-                  background: 'transparent', color: C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  flex: 1, padding: '11px', borderRadius: T.radius.md, border: `1px solid ${C.border2}`,
+                  background: 'transparent', color: C.muted, fontSize: T.text.md, fontWeight: T.weight.semibold, cursor: 'pointer',
                 }}
               >
                 Cancelar
@@ -459,9 +461,9 @@ export function Perfil({ setPage }: Props) {
                 onClick={handleDeleteAccount}
                 disabled={deleteStep === 'deleting' || (isEmailUser && !deletePass)}
                 style={{
-                  flex: 2, padding: '11px', borderRadius: 10, border: 'none',
+                  flex: 2, padding: '11px', borderRadius: T.radius.md, border: 'none',
                   background: deleteStep === 'deleting' || (isEmailUser && !deletePass) ? C.border2 : C.red,
-                  color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer',
                   transition: 'background .15s',
                 }}
               >

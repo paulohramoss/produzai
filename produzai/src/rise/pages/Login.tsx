@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { C } from '../data'
+import { T, C, displayStyle } from '../data'
 import { useAuthStore } from '../../store/useAuthStore'
 import { PolicyOverlay } from '../components/ConsentModal'
 
@@ -9,16 +9,16 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   background: '#1C1C1C',
   border: `1px solid ${C.border2}`,
-  borderRadius: 10,
+  borderRadius: T.radius.md,
   padding: '12px 14px',
   color: C.text,
-  fontSize: 14,
+  fontSize: T.text.lg,
   outline: 'none',
   boxSizing: 'border-box',
 }
 
 const labelStyle: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: T.text.sm,
   color: C.muted,
   display: 'block',
   marginBottom: 6,
@@ -84,18 +84,18 @@ export function Login() {
         {/* Brand */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={{
-            width: 60, height: 60, borderRadius: 16,
+            width: 60, height: 60, borderRadius: T.radius['2xl'],
             background: C.orange,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 28, margin: '0 auto 16px',
           }}>⚡</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>The Rise Plan</div>
-          <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>Performance Total</div>
+          <div style={{ fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, color: C.text, ...displayStyle }}>The Rise Plan</div>
+          <div style={{ fontSize: T.text.md, color: C.muted, marginTop: 4 }}>Performance Total</div>
         </div>
 
         {/* Card */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: 32 }}>
-          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 24, color: C.text }}>
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], padding: 32 }}>
+          <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold, marginBottom: 24, color: C.text }}>
             {mode === 'login' ? 'Entrar na conta' : 'Criar conta'}
           </div>
 
@@ -103,8 +103,8 @@ export function Login() {
           {error && (
             <div style={{
               background: `${C.red}18`, border: `1px solid ${C.red}40`,
-              borderRadius: 10, padding: '11px 14px', marginBottom: 18,
-              fontSize: 13, color: C.red,
+              borderRadius: T.radius.md, padding: '11px 14px', marginBottom: 18,
+              fontSize: T.text.md, color: C.red,
             }}>
               {error}
             </div>
@@ -121,9 +121,9 @@ export function Login() {
               padding: '12px 14px',
               background: '#fff',
               border: '1px solid #dadce0',
-              borderRadius: 10,
-              fontSize: 14,
-              fontWeight: 600,
+              borderRadius: T.radius.md,
+              fontSize: T.text.lg,
+              fontWeight: T.weight.semibold,
               color: '#3c4043',
               cursor: loading ? 'not-allowed' : 'pointer',
               marginBottom: 20,
@@ -140,7 +140,7 @@ export function Login() {
           {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
             <div style={{ flex: 1, height: 1, background: C.border }} />
-            <span style={{ fontSize: 12, color: C.muted }}>ou use e-mail</span>
+            <span style={{ fontSize: T.text.base, color: C.muted }}>ou use e-mail</span>
             <div style={{ flex: 1, height: 1, background: C.border }} />
           </div>
 
@@ -189,7 +189,7 @@ export function Login() {
                   onClick={() => setShowPass(v => !v)}
                   style={{
                     position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 15,
+                    background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text.xl,
                   }}
                 >{showPass ? '🙈' : '👁'}</button>
               </div>
@@ -208,14 +208,14 @@ export function Login() {
                   required
                   style={{ marginTop: 2, accentColor: C.orange, flexShrink: 0, width: 16, height: 16 }}
                 />
-                <span style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>
+                <span style={{ fontSize: T.text.base, color: C.muted, lineHeight: 1.6 }}>
                   Li e aceito a{' '}
                   <button
                     type="button"
                     onClick={e => { e.preventDefault(); setPolicyOpen(true) }}
                     style={{
                       background: 'none', border: 'none', color: C.orange,
-                      cursor: 'pointer', fontSize: 12, padding: 0, textDecoration: 'underline',
+                      cursor: 'pointer', fontSize: T.text.base, padding: 0, textDecoration: 'underline',
                     }}
                   >
                     Política de Privacidade
@@ -231,9 +231,9 @@ export function Login() {
               type="submit"
               disabled={loading || !canSubmit}
               style={{
-                marginTop: 4, padding: '13px', borderRadius: 12, border: 'none',
+                marginTop: 4, padding: '13px', borderRadius: T.radius.lg, border: 'none',
                 background: loading || !canSubmit ? C.border2 : C.orange,
-                color: '#fff', fontSize: 15, fontWeight: 700,
+                color: '#fff', fontSize: T.text.xl, fontWeight: T.weight.bold,
                 cursor: loading || !canSubmit ? 'not-allowed' : 'pointer',
                 transition: 'background 0.15s',
               }}
@@ -243,16 +243,16 @@ export function Login() {
           </form>
 
           {/* Toggle */}
-          <div style={{ textAlign: 'center', marginTop: 22, fontSize: 13, color: C.muted }}>
+          <div style={{ textAlign: 'center', marginTop: 22, fontSize: T.text.md, color: C.muted }}>
             {mode === 'login' ? (
               <>Não tem conta?{' '}
-                <button onClick={() => switchMode('register')} style={{ background: 'none', border: 'none', color: C.orange, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                <button onClick={() => switchMode('register')} style={{ background: 'none', border: 'none', color: C.orange, cursor: 'pointer', fontWeight: T.weight.bold, fontSize: T.text.md }}>
                   Criar conta
                 </button>
               </>
             ) : (
               <>Já tem conta?{' '}
-                <button onClick={() => switchMode('login')} style={{ background: 'none', border: 'none', color: C.orange, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                <button onClick={() => switchMode('login')} style={{ background: 'none', border: 'none', color: C.orange, cursor: 'pointer', fontWeight: T.weight.bold, fontSize: T.text.md }}>
                   Entrar
                 </button>
               </>
@@ -260,7 +260,7 @@ export function Login() {
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: C.muted }}>
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: T.text.sm, color: C.muted }}>
           Seus dados ficam seguros e isolados por conta
         </div>
       </div>

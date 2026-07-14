@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useContext } from 'react'
-import { C, type Page } from '../data'
+import { T, C, type Page, displayStyle } from '../data'
+import { BarChart3, ClipboardList, Droplet, Utensils } from 'lucide-react'
 import { Card, Tag, Bar, Dot } from '../primitives'
 import { useWebDietStore, type ComplianceStatus } from '../../store/useWebDietStore'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -193,20 +194,20 @@ export function Dieta({ setPage: _setPage }: Props) {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>🥗 Dieta & Nutrição</div>
-            <div style={{ fontSize: 13, color: C.muted }}>Plano alimentar personalizado</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, marginBottom: 4, ...displayStyle }}><Utensils size={20} color={C.orange} /> Dieta & Nutrição</div>
+            <div style={{ fontSize: T.text.md, color: C.muted }}>Plano alimentar personalizado</div>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <button
               onClick={() => fileInputRef.current?.click()}
-              style={{ background: pdfBase64 ? `${C.blue}22` : C.card2, border: `1px solid ${pdfBase64 ? C.blue : C.border2}`, borderRadius: 8, padding: "8px 14px", color: pdfBase64 ? C.blue : C.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              style={{ background: pdfBase64 ? `${C.blue}22` : C.card2, border: `1px solid ${pdfBase64 ? C.blue : C.border2}`, borderRadius: T.radius.sm, padding: "8px 14px", color: pdfBase64 ? C.blue : C.text, fontSize: T.text.md, fontWeight: T.weight.semibold, cursor: "pointer" }}>
               📎 {pdfBase64 ? 'Trocar PDF' : 'Anexar PDF'}
             </button>
             {wd ? (
               <>
                 <button
                   onClick={() => setEditOpen(true)}
-                  style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: "8px 14px", color: C.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, padding: "8px 14px", color: C.text, fontSize: T.text.md, fontWeight: T.weight.semibold, cursor: "pointer" }}>
                   ✏️ Editar plano
                 </button>
                 <Tag label="Plano ativo" color={C.green} />
@@ -214,7 +215,7 @@ export function Dieta({ setPage: _setPage }: Props) {
             ) : (
               <button
                 onClick={() => setEditOpen(true)}
-                style={{ background: C.green, border: "none", borderRadius: 8, padding: "8px 16px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                style={{ background: C.green, border: "none", borderRadius: T.radius.sm, padding: "8px 16px", color: "#fff", fontSize: T.text.md, fontWeight: T.weight.bold, cursor: "pointer" }}>
                 + Configurar dieta
               </button>
             )}
@@ -230,17 +231,17 @@ export function Dieta({ setPage: _setPage }: Props) {
             { l: "Gordura",     cur: cur.fat,  goal: goals.fat,  unit: "g",    c: C.purple },
           ].map((m, i) => (
             <Card key={i} style={{ opacity: wd ? 1 : .5 }}>
-              <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: .8 }}>{m.l}</div>
+              <div style={{ fontSize: T.text.xs, color: C.muted, textTransform: "uppercase", letterSpacing: .8 }}>{m.l}</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 4, margin: "8px 0 6px" }}>
-                <span style={{ fontSize: 22, fontWeight: 800, color: wd ? m.c : C.muted }}>
+                <span style={{ fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, color: wd ? m.c : C.muted, ...displayStyle }}>
                   {wd ? m.cur : "—"}
                 </span>
                 {wd && m.goal > 0 && (
-                  <span style={{ fontSize: 12, color: C.muted }}>/ {m.goal} {m.unit}</span>
+                  <span style={{ fontSize: T.text.base, color: C.muted }}>/ {m.goal} {m.unit}</span>
                 )}
               </div>
               <Bar pct={wd && m.goal > 0 ? Math.min(Math.round(m.cur / m.goal * 100), 100) : 0} color={m.c} />
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>
+              <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 5 }}>
                 {wd && m.goal > 0 ? `${Math.round(m.cur / m.goal * 100)}% da meta` : "Configure a dieta"}
               </div>
             </Card>
@@ -252,46 +253,46 @@ export function Dieta({ setPage: _setPage }: Props) {
           <Card style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 36, height: 36, background: `${C.blue}18`, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>📄</div>
+                <div style={{ width: 36, height: 36, background: `${C.blue}18`, borderRadius: T.radius.sm, display: "flex", alignItems: "center", justifyContent: "center", fontSize: T.text['3xl'], flexShrink: 0 }}>📄</div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{pdfName}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>Plano alimentar em PDF</div>
+                  <div style={{ fontWeight: T.weight.bold, fontSize: T.text.md, color: C.text }}>{pdfName}</div>
+                  <div style={{ fontSize: T.text.sm, color: C.muted }}>Plano alimentar em PDF</div>
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <button
                   onClick={handleImportPdf}
                   disabled={parsing}
-                  style={{ background: parsing ? C.card2 : `${C.green}18`, border: `1px solid ${parsing ? C.border2 : C.green + '44'}`, borderRadius: 8, padding: "6px 14px", color: parsing ? C.muted : C.green, fontSize: 12, fontWeight: 600, cursor: parsing ? "not-allowed" : "pointer" }}>
+                  style={{ background: parsing ? C.card2 : `${C.green}18`, border: `1px solid ${parsing ? C.border2 : C.green + '44'}`, borderRadius: T.radius.sm, padding: "6px 14px", color: parsing ? C.muted : C.green, fontSize: T.text.base, fontWeight: T.weight.semibold, cursor: parsing ? "not-allowed" : "pointer" }}>
                   {parsing ? '⏳ Analisando...' : '✨ Importar refeições'}
                 </button>
                 <button
                   onClick={() => { const a = document.createElement('a'); a.href = pdfSrc!; a.target = '_blank'; a.click() }}
-                  style={{ background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: 8, padding: "6px 14px", color: C.blue, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  style={{ background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: T.radius.sm, padding: "6px 14px", color: C.blue, fontSize: T.text.base, fontWeight: T.weight.semibold, cursor: "pointer" }}>
                   Abrir PDF
                 </button>
                 <button
                   onClick={removePdf}
-                  style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "6px 10px", color: C.muted, fontSize: 12, cursor: "pointer" }}>
+                  style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, padding: "6px 10px", color: C.muted, fontSize: T.text.base, cursor: "pointer" }}>
                   ✕
                 </button>
               </div>
             </div>
             {parseError && (
-              <div style={{ marginTop: 8, fontSize: 11, color: C.red }}>{parseError}</div>
+              <div style={{ marginTop: 8, fontSize: T.text.sm, color: C.red }}>{parseError}</div>
             )}
           </Card>
         ) : (
           <div
             onClick={() => fileInputRef.current?.click()}
-            style={{ display: "flex", alignItems: "center", gap: 12, border: `2px dashed ${C.border2}`, borderRadius: 12, padding: "14px 20px", cursor: "pointer", transition: "border-color .15s", marginBottom: 16 }}
+            style={{ display: "flex", alignItems: "center", gap: 12, border: `2px dashed ${C.border2}`, borderRadius: T.radius.lg, padding: "14px 20px", cursor: "pointer", transition: "border-color .15s", marginBottom: 16 }}
             onMouseEnter={e => (e.currentTarget.style.borderColor = C.blue)}
             onMouseLeave={e => (e.currentTarget.style.borderColor = C.border2)}
           >
-            <span style={{ fontSize: 22 }}>📎</span>
+            <span style={{ fontSize: T.text['5xl'] }}>📎</span>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 13, color: C.text }}>Anexar plano alimentar em PDF</div>
-              <div style={{ fontSize: 11, color: C.muted }}>Clique para selecionar o PDF do seu nutricionista · máx. 5MB</div>
+              <div style={{ fontWeight: T.weight.semibold, fontSize: T.text.md, color: C.text }}>Anexar plano alimentar em PDF</div>
+              <div style={{ fontSize: T.text.sm, color: C.muted }}>Clique para selecionar o PDF do seu nutricionista · máx. 5MB</div>
             </div>
           </div>
         )}
@@ -300,10 +301,10 @@ export function Dieta({ setPage: _setPage }: Props) {
           {/* Meal plan */}
           <Card>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>Plano alimentar do dia</div>
+              <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl }}>Plano alimentar do dia</div>
               {wd && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 12, color: C.muted }}>{doneMeals.length}/{wd.meals.length} feitas</span>
+                  <span style={{ fontSize: T.text.base, color: C.muted }}>{doneMeals.length}/{wd.meals.length} feitas</span>
                   <Tag label="Manual" color={C.green} />
                 </div>
               )}
@@ -314,25 +315,25 @@ export function Dieta({ setPage: _setPage }: Props) {
                 <div
                   key={m.id}
                   onClick={() => toggleMeal(m.id)}
-                  style={{ padding: "14px", background: C.card2, borderRadius: 12, marginBottom: 8, borderLeft: `3px solid ${m.done ? C.green : C.border}`, opacity: m.done ? .7 : 1, cursor: "pointer", transition: "opacity .15s, border-color .15s" }}
+                  style={{ padding: "14px", background: C.card2, borderRadius: T.radius.lg, marginBottom: 8, borderLeft: `3px solid ${m.done ? C.green : C.border}`, opacity: m.done ? .7 : 1, cursor: "pointer", transition: "opacity .15s, border-color .15s" }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 11, color: C.muted }}>{m.time}</span>
-                      <span style={{ fontWeight: 700, fontSize: 14, textDecoration: m.done ? "line-through" : "none", color: m.done ? C.muted : C.text }}>{m.name}</span>
+                      <span style={{ fontSize: T.text.sm, color: C.muted }}>{m.time}</span>
+                      <span style={{ fontWeight: T.weight.bold, fontSize: T.text.lg, textDecoration: m.done ? "line-through" : "none", color: m.done ? C.muted : C.text }}>{m.name}</span>
                       {m.done && <Tag label="✓ feito" color={C.green} />}
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: C.orange }}>{m.cal} kcal</span>
+                    <span style={{ fontSize: T.text.md, fontWeight: T.weight.extrabold, color: C.orange }}>{m.cal} kcal</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: m.items.length > 0 ? 8 : 0 }}>
-                    <span style={{ fontSize: 11, color: C.blue }}>🥩 {m.prot}g</span>
-                    <span style={{ fontSize: 11, color: C.green }}>🌾 {m.carb}g</span>
-                    <span style={{ fontSize: 11, color: C.purple }}>🫒 {m.fat}g</span>
+                    <span style={{ fontSize: T.text.sm, color: C.blue }}>🥩 {m.prot}g</span>
+                    <span style={{ fontSize: T.text.sm, color: C.green }}>🌾 {m.carb}g</span>
+                    <span style={{ fontSize: T.text.sm, color: C.purple }}>🫒 {m.fat}g</span>
                     {m.items.length > 0 && (
                       <button
                         onClick={e => handleCalcMacros(e, m.id, m.items)}
                         disabled={calcingId === m.id}
-                        style={{ marginLeft: "auto", background: calcingId === m.id ? C.card : `${C.green}18`, border: `1px solid ${calcingId === m.id ? C.border : C.green + '44'}`, borderRadius: 6, padding: "2px 8px", color: calcingId === m.id ? C.muted : C.green, fontSize: 10, fontWeight: 600, cursor: calcingId === m.id ? "not-allowed" : "pointer", flexShrink: 0 }}>
+                        style={{ marginLeft: "auto", background: calcingId === m.id ? C.card : `${C.green}18`, border: `1px solid ${calcingId === m.id ? C.border : C.green + '44'}`, borderRadius: T.radius.xs, padding: "2px 8px", color: calcingId === m.id ? C.muted : C.green, fontSize: T.text.xs, fontWeight: T.weight.semibold, cursor: calcingId === m.id ? "not-allowed" : "pointer", flexShrink: 0 }}>
                         {calcingId === m.id ? '⏳' : '✨ Calcular'}
                       </button>
                     )}
@@ -340,7 +341,7 @@ export function Dieta({ setPage: _setPage }: Props) {
                   {m.items.length > 0 && (
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                       {m.items.map((item, j) => (
-                        <span key={j} style={{ fontSize: 10, color: C.muted2, background: C.card, borderRadius: 4, padding: "2px 6px", border: `1px solid ${C.border}` }}>{item}</span>
+                        <span key={j} style={{ fontSize: T.text.xs, color: C.muted2, background: C.card, borderRadius: T.radius['2xs'], padding: "2px 6px", border: `1px solid ${C.border}` }}>{item}</span>
                       ))}
                     </div>
                   )}
@@ -348,11 +349,11 @@ export function Dieta({ setPage: _setPage }: Props) {
               )) : (
                 <div style={{ textAlign: "center", padding: "24px 0", color: C.muted }}>
                   <div style={{ fontSize: 36, marginBottom: 10 }}>🍽️</div>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Nenhuma refeição ainda</div>
-                  <div style={{ fontSize: 13 }}>Clique em "Editar plano" para adicionar suas refeições</div>
+                  <div style={{ fontWeight: T.weight.semibold, marginBottom: 6 }}>Nenhuma refeição ainda</div>
+                  <div style={{ fontSize: T.text.md }}>Clique em "Editar plano" para adicionar suas refeições</div>
                   <button
                     onClick={() => setEditOpen(true)}
-                    style={{ marginTop: 12, background: C.green, border: "none", borderRadius: 8, padding: "9px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    style={{ marginTop: 12, background: C.green, border: "none", borderRadius: T.radius.sm, padding: "9px 18px", color: "#fff", fontSize: T.text.md, fontWeight: T.weight.bold, cursor: "pointer" }}>
                     Adicionar refeições
                   </button>
                 </div>
@@ -360,11 +361,11 @@ export function Dieta({ setPage: _setPage }: Props) {
             ) : (
               <div style={{ textAlign: "center", padding: "32px 0", color: C.muted }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🥗</div>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Nenhum plano configurado</div>
-                <div style={{ fontSize: 13 }}>Configure sua dieta para acompanhar as refeições e macros</div>
+                <div style={{ fontWeight: T.weight.semibold, marginBottom: 6 }}>Nenhum plano configurado</div>
+                <div style={{ fontSize: T.text.md }}>Configure sua dieta para acompanhar as refeições e macros</div>
                 <button
                   onClick={() => setEditOpen(true)}
-                  style={{ marginTop: 14, background: C.green, border: "none", borderRadius: 8, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  style={{ marginTop: 14, background: C.green, border: "none", borderRadius: T.radius.sm, padding: "10px 20px", color: "#fff", fontSize: T.text.md, fontWeight: T.weight.bold, cursor: "pointer" }}>
                   Configurar Dieta
                 </button>
               </div>
@@ -374,12 +375,12 @@ export function Dieta({ setPage: _setPage }: Props) {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Hidratação */}
             <Card>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>💧 Hidratação</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 10, ...displayStyle }}><Droplet size={17} /> Hidratação</div>
               <div style={{ textAlign: "center", margin: "8px 0" }}>
-                <div style={{ fontSize: 28, fontWeight: 800, color: C.blue }}>{formatLiters(waterMl)}L</div>
+                <div style={{ fontSize: 28, fontWeight: T.weight.extrabold, color: C.blue }}>{formatLiters(waterMl)}L</div>
                 {editingGoal ? (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 6 }}>
-                    <span style={{ fontSize: 12, color: C.muted }}>meta:</span>
+                    <span style={{ fontSize: T.text.base, color: C.muted }}>meta:</span>
                     <input
                       type="number"
                       step="0.1"
@@ -388,17 +389,17 @@ export function Dieta({ setPage: _setPage }: Props) {
                       value={goalInput}
                       onChange={e => setGoalInput(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleSaveGoal()}
-                      style={{ width: 56, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 6, padding: "3px 6px", color: C.text, fontSize: 12, outline: "none" }}
+                      style={{ width: 56, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: "3px 6px", color: C.text, fontSize: T.text.base, outline: "none" }}
                     />
-                    <span style={{ fontSize: 12, color: C.muted }}>L</span>
+                    <span style={{ fontSize: T.text.base, color: C.muted }}>L</span>
                     <button
                       onClick={handleSaveGoal}
-                      style={{ background: `${C.green}18`, border: `1px solid ${C.green}44`, borderRadius: 6, padding: "3px 8px", color: C.green, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      style={{ background: `${C.green}18`, border: `1px solid ${C.green}44`, borderRadius: T.radius.xs, padding: "3px 8px", color: C.green, fontSize: T.text.base, fontWeight: T.weight.bold, cursor: "pointer" }}>
                       ✓
                     </button>
                     <button
                       onClick={() => setEditingGoal(false)}
-                      style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: 6, padding: "3px 8px", color: C.muted, fontSize: 12, cursor: "pointer" }}>
+                      style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: "3px 8px", color: C.muted, fontSize: T.text.base, cursor: "pointer" }}>
                       ✕
                     </button>
                   </div>
@@ -406,10 +407,10 @@ export function Dieta({ setPage: _setPage }: Props) {
                   <div
                     onClick={handleEditGoal}
                     title="Clique para ajustar a meta"
-                    style={{ fontSize: 12, color: C.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}
+                    style={{ fontSize: T.text.base, color: C.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}
                   >
                     de {formatLiters(waterGoalMl)}L · {waterGoalMl > 0 ? Math.round(waterMl / waterGoalMl * 100) : 0}%
-                    <span style={{ fontSize: 10 }}>✏️</span>
+                    <span style={{ fontSize: T.text.xs }}>✏️</span>
                   </div>
                 )}
               </div>
@@ -417,18 +418,18 @@ export function Dieta({ setPage: _setPage }: Props) {
               <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
                 <button
                   onClick={() => addWater(WATER_STEP_ML)}
-                  style={{ flex: 1, background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: 8, padding: "7px", color: C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  style={{ flex: 1, background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: T.radius.sm, padding: "7px", color: C.blue, fontSize: T.text.base, fontWeight: T.weight.bold, cursor: "pointer" }}>
                   + 250ml
                 </button>
                 <button
                   onClick={() => addWater(500)}
-                  style={{ flex: 1, background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: 8, padding: "7px", color: C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  style={{ flex: 1, background: `${C.blue}18`, border: `1px solid ${C.blue}44`, borderRadius: T.radius.sm, padding: "7px", color: C.blue, fontSize: T.text.base, fontWeight: T.weight.bold, cursor: "pointer" }}>
                   + 500ml
                 </button>
                 <button
                   onClick={() => addWater(-WATER_STEP_ML)}
                   disabled={waterMl === 0}
-                  style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "7px 10px", color: waterMl === 0 ? C.border2 : C.muted, fontSize: 12, fontWeight: 700, cursor: waterMl === 0 ? "default" : "pointer" }}>
+                  style={{ background: "transparent", border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, padding: "7px 10px", color: waterMl === 0 ? C.border2 : C.muted, fontSize: T.text.base, fontWeight: T.weight.bold, cursor: waterMl === 0 ? "default" : "pointer" }}>
                   −
                 </button>
               </div>
@@ -436,23 +437,23 @@ export function Dieta({ setPage: _setPage }: Props) {
 
             {/* Check-in de hoje */}
             <Card>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>📋 Check-in de hoje</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 12, ...displayStyle }}><ClipboardList size={17} /> Check-in de hoje</div>
 
               {!showForm && todayLog ? (
                 <div>
                   {(() => {
                     const opt = COMPLIANCE_OPTIONS.find(o => o.status === todayLog.status)!
                     return (
-                      <div style={{ padding: "12px 14px", background: `${opt.color}18`, borderRadius: 10, border: `1px solid ${opt.color}33`, marginBottom: 8 }}>
-                        <div style={{ fontSize: 22, marginBottom: 4 }}>{opt.emoji}</div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: opt.color }}>{opt.label}</div>
-                        {todayLog.note && <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>{todayLog.note}</div>}
+                      <div style={{ padding: "12px 14px", background: `${opt.color}18`, borderRadius: T.radius.md, border: `1px solid ${opt.color}33`, marginBottom: 8 }}>
+                        <div style={{ fontSize: T.text['5xl'], marginBottom: 4 }}>{opt.emoji}</div>
+                        <div style={{ fontWeight: T.weight.bold, fontSize: T.text.md, color: opt.color }}>{opt.label}</div>
+                        {todayLog.note && <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 5 }}>{todayLog.note}</div>}
                       </div>
                     )
                   })()}
                   <button
                     onClick={handleEdit}
-                    style={{ width: "100%", background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: "7px", fontSize: 12, color: C.muted, cursor: "pointer" }}>
+                    style={{ width: "100%", background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, padding: "7px", fontSize: T.text.base, color: C.muted, cursor: "pointer" }}>
                     Editar
                   </button>
                 </div>
@@ -465,15 +466,15 @@ export function Dieta({ setPage: _setPage }: Props) {
                         onClick={() => setPendingStatus(opt.status)}
                         style={{
                           padding: "10px 6px",
-                          borderRadius: 8,
+                          borderRadius: T.radius.sm,
                           border: `1px solid ${pendingStatus === opt.status ? opt.color : C.border}`,
                           background: pendingStatus === opt.status ? `${opt.color}20` : C.card2,
                           cursor: "pointer",
                           textAlign: "center",
                           transition: "all .15s",
                         }}>
-                        <div style={{ fontSize: 18 }}>{opt.emoji}</div>
-                        <div style={{ fontSize: 10, color: pendingStatus === opt.status ? opt.color : C.muted, fontWeight: 600, marginTop: 3, lineHeight: 1.3 }}>{opt.label}</div>
+                        <div style={{ fontSize: T.text['3xl'] }}>{opt.emoji}</div>
+                        <div style={{ fontSize: T.text.xs, color: pendingStatus === opt.status ? opt.color : C.muted, fontWeight: T.weight.semibold, marginTop: 3, lineHeight: 1.3 }}>{opt.label}</div>
                       </button>
                     ))}
                   </div>
@@ -483,17 +484,17 @@ export function Dieta({ setPage: _setPage }: Props) {
                         placeholder="Nota opcional..."
                         value={pendingNote}
                         onChange={e => setPendingNote(e.target.value)}
-                        style={{ width: "100%", background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", color: C.text, fontSize: 12, marginBottom: 8, boxSizing: "border-box", outline: "none" }}
+                        style={{ width: "100%", background: C.card2, border: `1px solid ${C.border}`, borderRadius: T.radius.sm, padding: "8px 10px", color: C.text, fontSize: T.text.base, marginBottom: 8, boxSizing: "border-box", outline: "none" }}
                       />
                       <button
                         onClick={handleSaveCompliance}
-                        style={{ width: "100%", background: C.green, border: "none", borderRadius: 8, padding: "9px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                        style={{ width: "100%", background: C.green, border: "none", borderRadius: T.radius.sm, padding: "9px", color: "#fff", fontSize: T.text.md, fontWeight: T.weight.bold, cursor: "pointer" }}>
                         Salvar check-in
                       </button>
                     </>
                   )}
                   {!pendingStatus && (
-                    <div style={{ textAlign: "center", fontSize: 12, color: C.muted, padding: "6px 0" }}>
+                    <div style={{ textAlign: "center", fontSize: T.text.base, color: C.muted, padding: "6px 0" }}>
                       Como foi sua alimentação hoje?
                     </div>
                   )}
@@ -506,13 +507,13 @@ export function Dieta({ setPage: _setPage }: Props) {
               <Card style={{ background: `${C.green}11`, border: `1px solid ${C.green}33` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <Dot color={C.green} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Plano configurado</span>
+                  <span style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.green }}>Plano configurado</span>
                 </div>
-                <div style={{ fontSize: 12, color: C.muted }}>{wd.meals.length} refeições · {doneMeals.length} concluídas</div>
-                <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Meta: {goals.cal} kcal · {goals.prot}g prot</div>
+                <div style={{ fontSize: T.text.base, color: C.muted }}>{wd.meals.length} refeições · {doneMeals.length} concluídas</div>
+                <div style={{ fontSize: T.text.base, color: C.muted, marginTop: 4 }}>Meta: {goals.cal} kcal · {goals.prot}g prot</div>
                 <button
                   onClick={() => setEditOpen(true)}
-                  style={{ marginTop: 12, width: "100%", background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: "8px", fontSize: 12, fontWeight: 600, color: C.text, cursor: "pointer" }}>
+                  style={{ marginTop: 12, width: "100%", background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, padding: "8px", fontSize: T.text.base, fontWeight: T.weight.semibold, color: C.text, cursor: "pointer" }}>
                   ✏️ Editar plano
                 </button>
               </Card>
@@ -521,13 +522,13 @@ export function Dieta({ setPage: _setPage }: Props) {
             {/* Progress summary */}
             {wd && goals.cal > 0 && (
               <Card>
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Progresso hoje</div>
+                <div style={{ fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 12 }}>Progresso hoje</div>
                 {[
                   { l: "Calorias", cur: cur.cal, goal: goals.cal, c: C.orange, u: "kcal" },
                   { l: "Proteína", cur: cur.prot, goal: goals.prot, c: C.blue, u: "g" },
                 ].map((m, i) => (
                   <div key={i} style={{ marginBottom: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.muted, marginBottom: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: T.text.sm, color: C.muted, marginBottom: 4 }}>
                       <span>{m.l}</span>
                       <span style={{ color: m.c }}>{m.cur}/{m.goal}{m.u}</span>
                     </div>
@@ -542,7 +543,7 @@ export function Dieta({ setPage: _setPage }: Props) {
         {/* Compliance History */}
         {compliance.length > 0 && (
           <Card>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14 }}>📊 Histórico de compliance (7 dias)</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 14, ...displayStyle }}><BarChart3 size={17} /> Histórico de compliance (7 dias)</div>
             <div style={{ display: "flex", gap: 8 }}>
               {last7.map(date => {
                 const log = compliance.find(c => c.date === date)
@@ -555,18 +556,18 @@ export function Dieta({ setPage: _setPage }: Props) {
                       flex: 1,
                       textAlign: "center",
                       padding: "10px 4px",
-                      borderRadius: 10,
+                      borderRadius: T.radius.md,
                       background: isToday ? `${C.blue}12` : C.card2,
                       border: `1px solid ${isToday ? C.blue + '44' : C.border}`,
                     }}
                   >
-                    <div style={{ fontSize: 20, marginBottom: 5, opacity: log ? 1 : 0.2 }}>
+                    <div style={{ fontSize: T.text['4xl'], marginBottom: 5, opacity: log ? 1 : 0.2 }}>
                       {opt ? opt.emoji : '○'}
                     </div>
-                    <div style={{ fontSize: 10, color: isToday ? C.blue : C.muted, fontWeight: isToday ? 700 : 400 }}>
+                    <div style={{ fontSize: T.text.xs, color: isToday ? C.blue : C.muted, fontWeight: isToday ? 700 : 400 }}>
                       {dayLabel(date)}
                     </div>
-                    {isToday && <div style={{ fontSize: 9, color: C.blue, marginTop: 2 }}>hoje</div>}
+                    {isToday && <div style={{ fontSize: T.text['2xs'], color: C.blue, marginTop: 2 }}>hoje</div>}
                   </div>
                 )
               })}
@@ -578,20 +579,20 @@ export function Dieta({ setPage: _setPage }: Props) {
               return (
                 <div style={{ display: "flex", gap: 16, marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: C.green }}>{perfect}</div>
-                    <div style={{ fontSize: 10, color: C.muted }}>perfeitos</div>
+                    <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold, color: C.green }}>{perfect}</div>
+                    <div style={{ fontSize: T.text.xs, color: C.muted }}>perfeitos</div>
                   </div>
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: C.orange }}>{good}</div>
-                    <div style={{ fontSize: 10, color: C.muted }}>≥90%</div>
+                    <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold, color: C.orange }}>{good}</div>
+                    <div style={{ fontSize: T.text.xs, color: C.muted }}>≥90%</div>
                   </div>
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: C.blue }}>{total}</div>
-                    <div style={{ fontSize: 10, color: C.muted }}>registrados</div>
+                    <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold, color: C.blue }}>{total}</div>
+                    <div style={{ fontSize: T.text.xs, color: C.muted }}>registrados</div>
                   </div>
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>{total > 0 ? Math.round(good / total * 100) : 0}%</div>
-                    <div style={{ fontSize: 10, color: C.muted }}>aderência</div>
+                    <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold, color: C.text }}>{total > 0 ? Math.round(good / total * 100) : 0}%</div>
+                    <div style={{ fontSize: T.text.xs, color: C.muted }}>aderência</div>
                   </div>
                 </div>
               )

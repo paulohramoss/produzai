@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { LayoutDashboard, Sun, Dumbbell, Brain, Bot, Menu } from "lucide-react";
-import { C, NAV_GROUPS, type Page } from "./data";
+import { T, C, NAV_GROUPS, type Page } from "./data";
 import { Dashboard }    from "./pages/Dashboard";
 import { Treino }       from "./pages/Treino";
 import { Dieta }        from "./pages/Dieta";
@@ -86,7 +86,7 @@ export function RisePlan() {
         background: C.bg,
         color: C.text,
         fontFamily: "system-ui,sans-serif",
-        fontSize: 14,
+        fontSize: T.text.lg,
         position: "relative",
       }}>
 
@@ -131,13 +131,13 @@ export function RisePlan() {
               <img
                 src="/rise-plan-logo.svg"
                 alt="The Rise Plan"
-                style={{ width: "100%", height: "auto", display: "block", borderRadius: 10 }}
+                style={{ width: "100%", height: "auto", display: "block", borderRadius: T.radius.md }}
               />
             </div>
           )}
           {isTablet && (
             <div style={{ display: "flex", justifyContent: "center", paddingBottom: 16 }}>
-              <img src="/rise-plan-logo.svg" alt="Rise" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover" }} />
+              <img src="/rise-plan-logo.svg" alt="Rise" style={{ width: 36, height: 36, borderRadius: T.radius.sm, objectFit: "cover" }} />
             </div>
           )}
 
@@ -147,7 +147,7 @@ export function RisePlan() {
                 {/* Group label — only on full sidebar */}
                 {!isTablet && (
                   <div style={{
-                    fontSize: 9, color: C.muted, fontWeight: 700,
+                    fontSize: T.text['2xs'], color: C.muted, fontWeight: T.weight.bold,
                     letterSpacing: 1.2, padding: "6px 18px 4px",
                     textTransform: "uppercase",
                   }}>
@@ -181,7 +181,7 @@ export function RisePlan() {
                   >
                     <item.icon size={isTablet ? 18 : 15} color={page === item.id ? (item.color || C.orange) : undefined} />
                     {!isTablet && (
-                      <span style={{ fontSize: 13, fontWeight: page === item.id ? 600 : 400 }}>
+                      <span style={{ fontSize: T.text.md, fontWeight: page === item.id ? 600 : 400 }}>
                         {item.label}
                       </span>
                     )}
@@ -205,7 +205,7 @@ export function RisePlan() {
                     width: 32, height: 32, borderRadius: "50%",
                     background: C.orange, overflow: "hidden",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 13, fontWeight: 800, color: "#000",
+                    fontSize: T.text.md, fontWeight: T.weight.extrabold, color: "#000",
                   }}>
                     {photoURL
                       ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -218,8 +218,8 @@ export function RisePlan() {
                   title="Sair"
                   style={{
                     background: "transparent", border: `1px solid ${C.border2}`,
-                    borderRadius: 8, padding: "6px", color: C.muted,
-                    fontSize: 14, cursor: "pointer", lineHeight: 1,
+                    borderRadius: T.radius.sm, padding: "6px", color: C.muted,
+                    fontSize: T.text.lg, cursor: "pointer", lineHeight: 1,
                   }}
                 >
                   ⏏
@@ -235,14 +235,14 @@ export function RisePlan() {
                     display: "flex", alignItems: "center", gap: 10,
                     marginBottom: 10, cursor: "pointer",
                     background: "none", border: "none", padding: "4px 0",
-                    borderRadius: 8, width: "100%", textAlign: "left",
+                    borderRadius: T.radius.sm, width: "100%", textAlign: "left",
                   }}
                 >
                   <div style={{
                     width: 32, height: 32, borderRadius: "50%",
                     background: C.orange, overflow: "hidden",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 13, fontWeight: 800, color: "#000", flexShrink: 0,
+                    fontSize: T.text.md, fontWeight: T.weight.extrabold, color: "#000", flexShrink: 0,
                   }}>
                     {photoURL
                       ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -250,21 +250,21 @@ export function RisePlan() {
                     }
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {displayName || user?.displayName || "Usuário"}
                     </div>
-                    <div style={{ fontSize: 10, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div style={{ fontSize: T.text.xs, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {user?.email}
                     </div>
                   </div>
-                  <span style={{ fontSize: 10, color: C.muted }}>⚙</span>
+                  <span style={{ fontSize: T.text.xs, color: C.muted }}>⚙</span>
                 </button>
                 <button
                   onClick={logout}
                   style={{
-                    width: "100%", padding: "7px 10px", borderRadius: 8,
+                    width: "100%", padding: "7px 10px", borderRadius: T.radius.sm,
                     background: "transparent", border: `1px solid ${C.border2}`,
-                    color: C.muted, fontSize: 11, cursor: "pointer", fontWeight: 600,
+                    color: C.muted, fontSize: T.text.sm, cursor: "pointer", fontWeight: T.weight.semibold,
                     transition: "color 0.12s",
                   }}
                   onMouseEnter={e => (e.currentTarget.style.color = C.red)}
@@ -306,14 +306,14 @@ export function RisePlan() {
                 aria-label="Abrir menu"
                 style={{
                   background: C.card2, border: `1px solid ${C.border}`,
-                  borderRadius: 8, padding: "7px 11px",
+                  borderRadius: T.radius.sm, padding: "7px 11px",
                   color: C.text, cursor: "pointer",
-                  fontSize: 18, lineHeight: 1, flexShrink: 0,
+                  fontSize: T.text['3xl'], lineHeight: 1, flexShrink: 0,
                 }}
               >
                 ☰
               </button>
-              <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ height: 28, borderRadius: 6 }} />
+              <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ height: 28, borderRadius: T.radius.xs }} />
               <button
                 onClick={() => navigate("perfil")}
                 aria-label="Ir para perfil"
@@ -323,7 +323,7 @@ export function RisePlan() {
                   width: 32, height: 32, borderRadius: "50%",
                   background: C.orange, overflow: "hidden",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 13, fontWeight: 800, color: "#000",
+                  fontSize: T.text.md, fontWeight: T.weight.extrabold, color: "#000",
                 }}>
                   {photoURL
                     ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -351,8 +351,8 @@ export function RisePlan() {
           {!RISE_IMPLEMENTED.includes(page) && (
             <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🚧</div>
-              <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Tela em construção</div>
-              <div style={{ fontSize: 13 }}>Esta seção será implementada em breve.</div>
+              <div style={{ fontWeight: T.weight.semibold, fontSize: T.text['2xl'], marginBottom: 8 }}>Tela em construção</div>
+              <div style={{ fontSize: T.text.md }}>Esta seção será implementada em breve.</div>
             </div>
           )}
         </main>
@@ -400,7 +400,7 @@ export function RisePlan() {
                   }}
                 >
                   <Icon size={20} />
-                  <span style={{ fontSize: 9, fontWeight: active ? 700 : 500, letterSpacing: 0.3 }}>
+                  <span style={{ fontSize: T.text['2xs'], fontWeight: active ? 700 : 500, letterSpacing: 0.3 }}>
                     {label}
                   </span>
                 </button>
@@ -426,7 +426,7 @@ export function RisePlan() {
               }}
             >
               <Menu size={20} />
-              <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 0.3 }}>Mais</span>
+              <span style={{ fontSize: T.text['2xs'], fontWeight: T.weight.medium, letterSpacing: 0.3 }}>Mais</span>
             </button>
           </nav>
         )}

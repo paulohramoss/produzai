@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { C } from '../data'
+import { T, C } from '../data'
 import { X, Download, Share2 } from 'lucide-react'
 
 interface ShareData {
@@ -247,7 +247,7 @@ export function ShareCard({ onClose, ...data }: Props) {
           height={960}
           style={{
             width: '100%',
-            borderRadius: 16,
+            borderRadius: T.radius['2xl'],
             boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
             display: 'block',
           }}
@@ -260,8 +260,8 @@ export function ShareCard({ onClose, ...data }: Props) {
             style={{
               flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
               gap: 8, padding: '12px 16px',
-              background: C.orange, border: 'none', borderRadius: 12,
-              color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              background: C.orange, border: 'none', borderRadius: T.radius.lg,
+              color: '#fff', fontSize: T.text.lg, fontWeight: T.weight.bold, cursor: 'pointer',
             }}
           >
             <Share2 size={16} /> Compartilhar
@@ -272,7 +272,7 @@ export function ShareCard({ onClose, ...data }: Props) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               gap: 7, padding: '12px 16px',
               background: C.card2, border: `1px solid ${C.border}`,
-              borderRadius: 12, color: C.muted, fontSize: 14, cursor: 'pointer',
+              borderRadius: T.radius.lg, color: C.muted, fontSize: T.text.lg, cursor: 'pointer',
             }}
           >
             <Download size={16} />
@@ -283,7 +283,7 @@ export function ShareCard({ onClose, ...data }: Props) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: '12px 16px',
               background: C.card2, border: `1px solid ${C.border}`,
-              borderRadius: 12, color: C.muted, fontSize: 14, cursor: 'pointer',
+              borderRadius: T.radius.lg, color: C.muted, fontSize: T.text.lg, cursor: 'pointer',
             }}
           >
             <X size={16} />

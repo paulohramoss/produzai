@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { C } from '../data'
+import { T, C, displayStyle } from '../data'
+import { CheckCircle2, Gem, Target, Utensils } from 'lucide-react'
 import { Tag } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { saveProfile, saveDaily } from '../../lib/db'
@@ -160,11 +161,11 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
-          <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ width: 120, borderRadius: 12, marginBottom: 12 }} />
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 4 }}>
+          <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ width: 120, borderRadius: T.radius.lg, marginBottom: 12 }} />
+          <div style={{ fontSize: T.text['4xl'], fontWeight: T.weight.extrabold, color: C.text, marginBottom: 4 }}>
             {plan ? 'Seu sistema inicial está pronto ✨' : 'Vamos te conhecer'}
           </div>
-          <div style={{ fontSize: 13, color: C.muted }}>
+          <div style={{ fontSize: T.text.md, color: C.muted }}>
             {plan
               ? 'Revise e ajuste antes de começar — você pode editar tudo depois.'
               : 'Uma conversa rápida em vez de uma tela vazia. Quando quiser, gere seu plano.'}
@@ -174,7 +175,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
         {!plan ? (
           <>
             {/* Chat */}
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 14 }}>
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], overflow: 'hidden', marginBottom: 14 }}>
               <div style={{ maxHeight: 420, minHeight: 280, overflowY: 'auto', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {messages.map((msg, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
@@ -183,7 +184,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
                       borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                       background: msg.role === 'user' ? C.orange : C.card2,
                       color: msg.role === 'user' ? '#fff' : C.text,
-                      fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap',
+                      fontSize: T.text.md, lineHeight: 1.65, whiteSpace: 'pre-wrap',
                     }}>
                       {msg.content}
                     </div>
@@ -192,7 +193,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
 
                 {streaming && (
                   <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                    <div style={{ maxWidth: '85%', padding: '10px 14px', borderRadius: '18px 18px 18px 4px', background: C.card2, fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', color: C.text }}>
+                    <div style={{ maxWidth: '85%', padding: '10px 14px', borderRadius: '18px 18px 18px 4px', background: C.card2, fontSize: T.text.md, lineHeight: 1.65, whiteSpace: 'pre-wrap', color: C.text }}>
                       {streamText || (
                         <span style={{ color: C.muted }}>
                           <span style={{ animation: 'pulse 1s infinite' }}>●</span> digitando...
@@ -205,7 +206,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
 
                 {generating && (
                   <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
-                    <div style={{ fontSize: 12, color: C.orange, fontWeight: 700 }}>
+                    <div style={{ fontSize: T.text.base, color: C.orange, fontWeight: T.weight.bold }}>
                       ✨ Montando seu sistema inicial...
                     </div>
                   </div>
@@ -224,8 +225,8 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
                   placeholder="Conte um pouco sobre você... (Enter para enviar)"
                   rows={1}
                   style={{
-                    flex: 1, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 12,
-                    padding: '10px 14px', color: C.text, fontSize: 13, outline: 'none', resize: 'none',
+                    flex: 1, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.lg,
+                    padding: '10px 14px', color: C.text, fontSize: T.text.md, outline: 'none', resize: 'none',
                     fontFamily: 'inherit', lineHeight: 1.5, maxHeight: 100, overflowY: 'auto',
                   }}
                   onInput={e => {
@@ -239,7 +240,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
                   disabled={!input.trim() || inputDisabled}
                   style={{
                     background: input.trim() && !inputDisabled ? C.orange : C.border2, border: 'none',
-                    borderRadius: 12, width: 42, height: 42, flexShrink: 0, fontSize: 18,
+                    borderRadius: T.radius.lg, width: 42, height: 42, flexShrink: 0, fontSize: T.text['3xl'],
                     cursor: input.trim() && !inputDisabled ? 'pointer' : 'default', color: '#fff',
                   }}
                 >
@@ -253,10 +254,10 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
               onClick={handleGeneratePlan}
               disabled={userTurns === 0 || inputDisabled}
               style={{
-                width: '100%', padding: '14px', borderRadius: 12, border: 'none',
+                width: '100%', padding: '14px', borderRadius: T.radius.lg, border: 'none',
                 background: userTurns > 0 ? C.green : C.border2,
                 color: userTurns > 0 ? '#fff' : C.muted,
-                fontSize: 15, fontWeight: 700, cursor: userTurns > 0 && !inputDisabled ? 'pointer' : 'default',
+                fontSize: T.text.xl, fontWeight: T.weight.bold, cursor: userTurns > 0 && !inputDisabled ? 'pointer' : 'default',
                 marginBottom: 10,
               }}
             >
@@ -264,11 +265,11 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
             </button>
             <div style={{ textAlign: 'center' }}>
               {userTurns === 0 && (
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>
+                <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 8 }}>
                   Responda pelo menos uma vez para liberar o seu plano.
                 </div>
               )}
-              <span onClick={onSwitchToQuick} style={{ fontSize: 12, color: C.muted, cursor: 'pointer', textDecoration: 'underline' }}>
+              <span onClick={onSwitchToQuick} style={{ fontSize: T.text.base, color: C.muted, cursor: 'pointer', textDecoration: 'underline' }}>
                 Prefiro o modo rápido (sem conversa)
               </span>
             </div>
@@ -303,16 +304,16 @@ function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: 
   return (
     <div className="fade-in">
       {/* Summary */}
-      <div style={{ background: `${C.orange}11`, border: `1px solid ${C.orange}33`, borderRadius: 14, padding: 16, marginBottom: 16, fontSize: 13, lineHeight: 1.7, color: C.text }}>
+      <div style={{ background: `${C.orange}11`, border: `1px solid ${C.orange}33`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16, fontSize: T.text.md, lineHeight: 1.7, color: C.text }}>
         {plan.summary}
       </div>
 
       {/* Goals + values */}
       {(plan.goals?.length > 0 || plan.values?.length > 0) && (
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16 }}>
           {plan.goals?.length > 0 && (
             <div style={{ marginBottom: plan.values?.length > 0 ? 12 : 0 }}>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>🎯 Seus objetivos</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: T.text.sm, color: C.muted, marginBottom: 8, fontWeight: T.weight.bold, textTransform: 'uppercase', letterSpacing: 0.6, ...displayStyle }}><Target size={17} /> Seus objetivos</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {plan.goals.map((g, i) => <Tag key={i} label={g} color={C.orange} />)}
               </div>
@@ -320,7 +321,7 @@ function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: 
           )}
           {plan.values?.length > 0 && (
             <div>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>💎 Valores identificados</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: T.text.sm, color: C.muted, marginBottom: 8, fontWeight: T.weight.bold, textTransform: 'uppercase', letterSpacing: 0.6, ...displayStyle }}><Gem size={17} /> Valores identificados</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {plan.values.map((v, i) => <Tag key={i} label={v} color={C.purple} />)}
               </div>
@@ -330,10 +331,10 @@ function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: 
       )}
 
       {/* Habits */}
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>✅ Hábitos sugeridos</div>
-          <span style={{ fontSize: 11, color: C.muted }}>{includedCount} selecionados</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, ...displayStyle }}><CheckCircle2 size={17} /> Hábitos sugeridos</div>
+          <span style={{ fontSize: T.text.sm, color: C.muted }}>{includedCount} selecionados</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {plan.habits.map((h, i) => {
@@ -344,38 +345,38 @@ function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: 
                 onClick={() => toggleHabit(i)}
                 style={{
                   display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
-                  background: isOut ? C.bg : C.card2, borderRadius: 10, cursor: 'pointer',
+                  background: isOut ? C.bg : C.card2, borderRadius: T.radius.md, cursor: 'pointer',
                   border: `1px solid ${isOut ? C.border : C.border2}`, opacity: isOut ? 0.45 : 1,
                   transition: 'all .12s',
                 }}
               >
-                <span style={{ fontSize: 18, flexShrink: 0 }}>{h.icon}</span>
+                <span style={{ fontSize: T.text['3xl'], flexShrink: 0 }}>{h.icon}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, textDecoration: isOut ? 'line-through' : 'none' }}>{h.label}</div>
-                  {h.why && <div style={{ fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 1.5 }}>💭 {h.why}</div>}
+                  <div style={{ fontSize: T.text.md, fontWeight: T.weight.semibold, textDecoration: isOut ? 'line-through' : 'none' }}>{h.label}</div>
+                  {h.why && <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 2, lineHeight: 1.5 }}>💭 {h.why}</div>}
                 </div>
-                <span style={{ fontSize: 12, color: isOut ? C.muted : C.green, flexShrink: 0 }}>{isOut ? '○' : '✓'}</span>
+                <span style={{ fontSize: T.text.base, color: isOut ? C.muted : C.green, flexShrink: 0 }}>{isOut ? '○' : '✓'}</span>
               </div>
             )
           })}
         </div>
-        <div style={{ fontSize: 11, color: C.muted, marginTop: 10, textAlign: 'center' }}>
+        <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 10, textAlign: 'center' }}>
           Toque para incluir/remover. Você pode editar tudo depois em "Hoje".
         </div>
       </div>
 
       {/* Focus suggestion */}
       {plan.focusSuggestion && (
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>🎯 Sugestão de foco para hoje</div>
-          <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>{plan.focusSuggestion}</div>
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 8, ...displayStyle }}><Target size={17} /> Sugestão de foco para hoje</div>
+          <div style={{ fontSize: T.text.md, color: C.muted, lineHeight: 1.6 }}>{plan.focusSuggestion}</div>
         </div>
       )}
 
       {/* Macros */}
       {plan.macros && plan.macros.cal > 0 && (
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>🥗 Metas nutricionais sugeridas</div>
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 12, ...displayStyle }}><Utensils size={17} /> Metas nutricionais sugeridas</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
             {[
               { l: 'Kcal', v: plan.macros.cal, c: C.orange },
@@ -383,20 +384,20 @@ function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: 
               { l: 'Carb', v: plan.macros.carb, c: C.green },
               { l: 'Gord', v: plan.macros.fat, c: C.purple },
             ].map(({ l, v, c }) => (
-              <div key={l} style={{ background: c + '18', borderRadius: 10, padding: '10px 8px', textAlign: 'center', border: `1px solid ${c}33` }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: c }}>{v}</div>
-                <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{l}</div>
+              <div key={l} style={{ background: c + '18', borderRadius: T.radius.md, padding: '10px 8px', textAlign: 'center', border: `1px solid ${c}33` }}>
+                <div style={{ fontSize: T.text['2xl'], fontWeight: T.weight.extrabold, color: c }}>{v}</div>
+                <div style={{ fontSize: T.text.xs, color: C.muted, marginTop: 2 }}>{l}</div>
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 10 }}>Você pode ajustar tudo depois na página de Dieta.</div>
+          <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 10 }}>Você pode ajustar tudo depois na página de Dieta.</div>
         </div>
       )}
 
       <div style={{ display: 'flex', gap: 10 }}>
         <button
           onClick={onBack}
-          style={{ flex: 1, padding: '13px', borderRadius: 12, background: C.card2, border: `1px solid ${C.border}`, color: C.muted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+          style={{ flex: 1, padding: '13px', borderRadius: T.radius.lg, background: C.card2, border: `1px solid ${C.border}`, color: C.muted, fontSize: T.text.lg, fontWeight: T.weight.semibold, cursor: 'pointer' }}
         >
           ← Continuar conversa
         </button>
@@ -404,10 +405,10 @@ function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: 
           onClick={onConfirm}
           disabled={includedCount === 0 || saving}
           style={{
-            flex: 2, padding: '13px', borderRadius: 12, border: 'none',
+            flex: 2, padding: '13px', borderRadius: T.radius.lg, border: 'none',
             background: includedCount > 0 ? C.green : C.border2,
             color: includedCount > 0 ? '#fff' : C.muted,
-            fontSize: 15, fontWeight: 700,
+            fontSize: T.text.xl, fontWeight: T.weight.bold,
             cursor: includedCount > 0 && !saving ? 'pointer' : 'default',
           }}
         >
@@ -498,14 +499,14 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ width: 160, borderRadius: 12, marginBottom: 16 }} />
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 6 }}>
+          <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ width: 160, borderRadius: T.radius.lg, marginBottom: 16 }} />
+          <div style={{ fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, color: C.text, marginBottom: 6, ...displayStyle }}>
             Olá, {firstName}! 👋
           </div>
-          <div style={{ fontSize: 14, color: C.muted }}>Vamos configurar seu plano em 3 passos rápidos</div>
+          <div style={{ fontSize: T.text.lg, color: C.muted }}>Vamos configurar seu plano em 3 passos rápidos</div>
           {onSwitchToChat && (
             <div style={{ marginTop: 10 }}>
-              <span onClick={onSwitchToChat} style={{ fontSize: 12, color: C.orange, cursor: 'pointer', textDecoration: 'underline' }}>
+              <span onClick={onSwitchToChat} style={{ fontSize: T.text.base, color: C.orange, cursor: 'pointer', textDecoration: 'underline' }}>
                 ✨ Prefiro conversar com a IA pra montar meu plano
               </span>
             </div>
@@ -517,11 +518,11 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
           {STEPS.map((s, i) => (
             <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
               <div style={{
-                height: 4, width: '100%', borderRadius: 4,
+                height: 4, width: '100%', borderRadius: T.radius['2xs'],
                 background: i <= step ? C.orange : C.border2,
                 transition: 'background 0.3s',
               }} />
-              <div style={{ fontSize: 10, color: i <= step ? C.orange : C.muted, fontWeight: i === step ? 700 : 400 }}>
+              <div style={{ fontSize: T.text.xs, color: i <= step ? C.orange : C.muted, fontWeight: i === step ? 700 : 400 }}>
                 {s}
               </div>
             </div>
@@ -531,8 +532,8 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
         {/* ── STEP 0: Objetivos ── */}
         {step === 0 && (
           <div className="fade-in">
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Quais são seus objetivos?</div>
-            <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Selecione todos que se aplicam</div>
+            <div style={{ fontWeight: T.weight.bold, fontSize: 17, marginBottom: 6 }}>Quais são seus objetivos?</div>
+            <div style={{ fontSize: T.text.md, color: C.muted, marginBottom: 20 }}>Selecione todos que se aplicam</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 28 }}>
               {GOALS_OPTIONS.map(g => {
                 const sel = selectedGoals.includes(g.id)
@@ -541,15 +542,15 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
                     key={g.id}
                     onClick={() => toggleGoal(g.id)}
                     style={{
-                      padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
+                      padding: '14px 16px', borderRadius: T.radius.lg, cursor: 'pointer',
                       background: sel ? `${C.orange}18` : '#1A1A1A',
                       border: `2px solid ${sel ? C.orange : C.border}`,
                       display: 'flex', alignItems: 'center', gap: 10,
                       transition: 'all 0.15s',
                     }}
                   >
-                    <span style={{ fontSize: 20 }}>{g.icon}</span>
-                    <span style={{ fontSize: 13, fontWeight: sel ? 700 : 400, color: sel ? C.text : C.muted }}>
+                    <span style={{ fontSize: T.text['4xl'] }}>{g.icon}</span>
+                    <span style={{ fontSize: T.text.md, fontWeight: sel ? 700 : 400, color: sel ? C.text : C.muted }}>
                       {g.label}
                     </span>
                   </div>
@@ -559,9 +560,9 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
             <button
               onClick={() => setStep(1)}
               style={{
-                width: '100%', padding: '14px', borderRadius: 12,
+                width: '100%', padding: '14px', borderRadius: T.radius.lg,
                 background: C.orange, border: 'none',
-                color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                color: '#fff', fontSize: T.text.xl, fontWeight: T.weight.bold, cursor: 'pointer',
               }}
             >
               Continuar →
@@ -572,11 +573,11 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
         {/* ── STEP 1: Nutrição ── */}
         {step === 1 && (
           <div className="fade-in">
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Metas nutricionais diárias</div>
-            <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Você pode ajustar depois na página de Dieta</div>
+            <div style={{ fontWeight: T.weight.bold, fontSize: 17, marginBottom: 6 }}>Metas nutricionais diárias</div>
+            <div style={{ fontSize: T.text.md, color: C.muted, marginBottom: 20 }}>Você pode ajustar depois na página de Dieta</div>
 
             <div style={{
-              background: '#1A1A1A', borderRadius: 12, padding: 16, marginBottom: 20,
+              background: '#1A1A1A', borderRadius: T.radius.lg, padding: 16, marginBottom: 20,
               border: `1px solid ${C.border}`,
             }}>
               {[
@@ -587,8 +588,8 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
               ].map(({ k, label, unit, color, min, max, step: s }, i, arr) => (
                 <div key={k} style={{ marginBottom: i === arr.length - 1 ? 0 : 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontSize: 13, color: C.muted }}>{label}</span>
-                    <span style={{ fontSize: 14, fontWeight: 800, color }}>
+                    <span style={{ fontSize: T.text.md, color: C.muted }}>{label}</span>
+                    <span style={{ fontSize: T.text.lg, fontWeight: T.weight.extrabold, color }}>
                       {macros[k]} {unit}
                     </span>
                   </div>
@@ -609,9 +610,9 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
                 { l: 'Carb',  v: macros.carb, c: C.green  },
                 { l: 'Gord',  v: macros.fat,  c: C.purple },
               ].map(({ l, v, c }) => (
-                <div key={l} style={{ background: c + '18', borderRadius: 10, padding: '10px 8px', textAlign: 'center', border: `1px solid ${c}33` }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: c }}>{v}</div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{l}</div>
+                <div key={l} style={{ background: c + '18', borderRadius: T.radius.md, padding: '10px 8px', textAlign: 'center', border: `1px solid ${c}33` }}>
+                  <div style={{ fontSize: T.text['2xl'], fontWeight: T.weight.extrabold, color: c }}>{v}</div>
+                  <div style={{ fontSize: T.text.xs, color: C.muted, marginTop: 2 }}>{l}</div>
                 </div>
               ))}
             </div>
@@ -619,13 +620,13 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => setStep(0)}
-                style={{ flex: 1, padding: '13px', borderRadius: 12, background: C.card2, border: `1px solid ${C.border}`, color: C.muted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '13px', borderRadius: T.radius.lg, background: C.card2, border: `1px solid ${C.border}`, color: C.muted, fontSize: T.text.lg, fontWeight: T.weight.semibold, cursor: 'pointer' }}
               >
                 ← Voltar
               </button>
               <button
                 onClick={() => setStep(2)}
-                style={{ flex: 2, padding: '13px', borderRadius: 12, background: C.orange, border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+                style={{ flex: 2, padding: '13px', borderRadius: T.radius.lg, background: C.orange, border: 'none', color: '#fff', fontSize: T.text.xl, fontWeight: T.weight.bold, cursor: 'pointer' }}
               >
                 Continuar →
               </button>
@@ -636,8 +637,8 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
         {/* ── STEP 2: Hábitos ── */}
         {step === 2 && (
           <div className="fade-in">
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Quais hábitos quer desenvolver?</div>
-            <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Estes aparecerão no seu checklist diário</div>
+            <div style={{ fontWeight: T.weight.bold, fontSize: 17, marginBottom: 6 }}>Quais hábitos quer desenvolver?</div>
+            <div style={{ fontSize: T.text.md, color: C.muted, marginBottom: 20 }}>Estes aparecerão no seu checklist diário</div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 28 }}>
               {HABITS_OPTIONS.map(h => {
@@ -647,25 +648,25 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
                     key={h.id}
                     onClick={() => toggleHabit(h.id)}
                     style={{
-                      padding: '13px 14px', borderRadius: 12, cursor: 'pointer',
+                      padding: '13px 14px', borderRadius: T.radius.lg, cursor: 'pointer',
                       background: sel ? `${C.green}15` : '#1A1A1A',
                       border: `2px solid ${sel ? C.green : C.border}`,
                       display: 'flex', alignItems: 'center', gap: 10,
                       transition: 'all 0.15s',
                     }}
                   >
-                    <span style={{ fontSize: 18 }}>{h.icon}</span>
-                    <span style={{ fontSize: 13, fontWeight: sel ? 700 : 400, color: sel ? C.text : C.muted }}>
+                    <span style={{ fontSize: T.text['3xl'] }}>{h.icon}</span>
+                    <span style={{ fontSize: T.text.md, fontWeight: sel ? 700 : 400, color: sel ? C.text : C.muted }}>
                       {h.label}
                     </span>
-                    {sel && <span style={{ marginLeft: 'auto', color: C.green, fontSize: 12 }}>✓</span>}
+                    {sel && <span style={{ marginLeft: 'auto', color: C.green, fontSize: T.text.base }}>✓</span>}
                   </div>
                 )
               })}
             </div>
 
             {selectedHabits.length === 0 && (
-              <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: T.text.base, color: C.red, textAlign: 'center', marginBottom: 16 }}>
                 Selecione ao menos 1 hábito
               </div>
             )}
@@ -673,7 +674,7 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => setStep(1)}
-                style={{ flex: 1, padding: '13px', borderRadius: 12, background: C.card2, border: `1px solid ${C.border}`, color: C.muted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '13px', borderRadius: T.radius.lg, background: C.card2, border: `1px solid ${C.border}`, color: C.muted, fontSize: T.text.lg, fontWeight: T.weight.semibold, cursor: 'pointer' }}
               >
                 ← Voltar
               </button>
@@ -681,10 +682,10 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
                 onClick={finish}
                 disabled={selectedHabits.length === 0 || saving}
                 style={{
-                  flex: 2, padding: '13px', borderRadius: 12, border: 'none',
+                  flex: 2, padding: '13px', borderRadius: T.radius.lg, border: 'none',
                   background: selectedHabits.length > 0 ? C.green : C.border2,
                   color: selectedHabits.length > 0 ? '#fff' : C.muted,
-                  fontSize: 15, fontWeight: 700,
+                  fontSize: T.text.xl, fontWeight: T.weight.bold,
                   cursor: selectedHabits.length > 0 && !saving ? 'pointer' : 'default',
                 }}
               >

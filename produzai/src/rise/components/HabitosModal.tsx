@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { C } from '../data'
+import { T, C } from '../data'
 import { useHabitsStore } from '../../store/useHabitsStore'
 import { toast } from '../../lib/toast'
 
@@ -24,8 +24,8 @@ export function HabitosModal({ onClose }: Props) {
 
   const inp: React.CSSProperties = {
     background: C.card2, border: `1px solid ${C.border2}`,
-    borderRadius: 8, padding: '9px 12px', color: C.text,
-    fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' as const,
+    borderRadius: T.radius.sm, padding: '9px 12px', color: C.text,
+    fontSize: T.text.md, outline: 'none', width: '100%', boxSizing: 'border-box' as const,
   }
 
   const textarea: React.CSSProperties = {
@@ -54,23 +54,23 @@ export function HabitosModal({ onClose }: Props) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400, padding: 20 }}>
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, width: '100%', maxWidth: 480, maxHeight: '90vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], width: '100%', maxWidth: 480, maxHeight: '90vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
         {/* Header */}
         <div style={{ padding: '20px 24px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 17 }}>✅ Gerenciar Hábitos</div>
-            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{defs.length} hábitos configurados</div>
+            <div style={{ fontWeight: T.weight.extrabold, fontSize: 17 }}>✅ Gerenciar Hábitos</div>
+            <div style={{ fontSize: T.text.base, color: C.muted, marginTop: 2 }}>{defs.length} hábitos configurados</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.muted, fontSize: T.text['5xl'], cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
         {/* Habit list */}
         <div style={{ overflowY: 'auto', flex: 1, padding: '16px 24px' }}>
           {defs.map(d => (
-            <div key={d.id} style={{ padding: '10px 12px', background: C.card2, borderRadius: 10, marginBottom: 8, border: `1px solid ${C.border}` }}>
+            <div key={d.id} style={{ padding: '10px 12px', background: C.card2, borderRadius: T.radius.md, marginBottom: 8, border: `1px solid ${C.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 20, flexShrink: 0 }}>{d.icon}</span>
+                <span style={{ fontSize: T.text['4xl'], flexShrink: 0 }}>{d.icon}</span>
 
                 {editing === d.id ? (
                   <input
@@ -81,20 +81,20 @@ export function HabitosModal({ onClose }: Props) {
                     style={{ ...inp, flex: 1 }}
                   />
                 ) : (
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{d.label}</span>
+                  <span style={{ flex: 1, fontSize: T.text.md, fontWeight: T.weight.medium }}>{d.label}</span>
                 )}
 
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                   {editing === d.id ? (
                     <>
-                      <button onClick={() => submitEdit(d.id)} style={{ background: C.green, border: 'none', borderRadius: 6, padding: '5px 10px', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Salvar</button>
-                      <button onClick={() => setEditing(null)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '5px 10px', color: C.muted, fontSize: 11, cursor: 'pointer' }}>Cancel</button>
+                      <button onClick={() => submitEdit(d.id)} style={{ background: C.green, border: 'none', borderRadius: T.radius.xs, padding: '5px 10px', color: '#fff', fontSize: T.text.sm, fontWeight: T.weight.bold, cursor: 'pointer' }}>Salvar</button>
+                      <button onClick={() => setEditing(null)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xs, padding: '5px 10px', color: C.muted, fontSize: T.text.sm, cursor: 'pointer' }}>Cancel</button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => { setEditing(d.id); setEditLabel(d.label); setEditWhy(d.why ?? '') }} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: 6, padding: '5px 8px', color: C.muted, fontSize: 11, cursor: 'pointer' }}>✏️</button>
+                      <button onClick={() => { setEditing(d.id); setEditLabel(d.label); setEditWhy(d.why ?? '') }} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '5px 8px', color: C.muted, fontSize: T.text.sm, cursor: 'pointer' }}>✏️</button>
                       {defs.length > 1 && (
-                        <button onClick={() => handleRemove(d.id)} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: 6, padding: '5px 8px', color: C.muted, fontSize: 11, cursor: 'pointer' }}>🗑</button>
+                        <button onClick={() => handleRemove(d.id)} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '5px 8px', color: C.muted, fontSize: T.text.sm, cursor: 'pointer' }}>🗑</button>
                       )}
                     </>
                   )}
@@ -103,17 +103,17 @@ export function HabitosModal({ onClose }: Props) {
 
               {editing === d.id ? (
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>💭 Por que esse hábito importa pra você?</div>
+                  <div style={{ fontSize: T.text.xs, color: C.muted, marginBottom: 4 }}>💭 Por que esse hábito importa pra você?</div>
                   <textarea
                     value={editWhy}
                     onChange={e => setEditWhy(e.target.value)}
                     placeholder="Ex: porque dormir bem me deixa com mais paciência com meus filhos"
                     rows={2}
-                    style={{ ...textarea, fontSize: 12 }}
+                    style={{ ...textarea, fontSize: T.text.base }}
                   />
                 </div>
               ) : d.why ? (
-                <div style={{ marginTop: 8, fontSize: 11, color: C.muted, lineHeight: 1.5, paddingLeft: 30 }}>
+                <div style={{ marginTop: 8, fontSize: T.text.sm, color: C.muted, lineHeight: 1.5, paddingLeft: 30 }}>
                   💭 {d.why}
                 </div>
               ) : null}
@@ -125,24 +125,24 @@ export function HabitosModal({ onClose }: Props) {
             <button
               onClick={() => setAdding(true)}
               disabled={defs.length >= 12}
-              style={{ width: '100%', background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 10, padding: '11px', fontSize: 13, fontWeight: 700, color: defs.length >= 12 ? C.muted : C.green, cursor: defs.length >= 12 ? 'default' : 'pointer', marginTop: 4 }}
+              style={{ width: '100%', background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: T.radius.md, padding: '11px', fontSize: T.text.md, fontWeight: T.weight.bold, color: defs.length >= 12 ? C.muted : C.green, cursor: defs.length >= 12 ? 'default' : 'pointer', marginTop: 4 }}
             >
               {defs.length >= 12 ? 'Máximo de 12 hábitos atingido' : '+ Adicionar hábito'}
             </button>
           ) : (
-            <div style={{ background: C.card2, borderRadius: 12, padding: 16, border: `1px solid ${C.border2}`, marginTop: 4 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.green, marginBottom: 12 }}>Novo hábito</div>
+            <div style={{ background: C.card2, borderRadius: T.radius.lg, padding: 16, border: `1px solid ${C.border2}`, marginTop: 4 }}>
+              <div style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.green, marginBottom: 12 }}>Novo hábito</div>
 
               {/* Emoji picker */}
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>Escolha um ícone</div>
+                <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 8 }}>Escolha um ícone</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {EMOJI_OPTIONS.map(e => (
                     <button
                       key={e}
                       onClick={() => setNewIcon(e)}
                       style={{
-                        fontSize: 18, padding: '6px 8px', borderRadius: 8, cursor: 'pointer', border: 'none',
+                        fontSize: T.text['3xl'], padding: '6px 8px', borderRadius: T.radius.sm, cursor: 'pointer', border: 'none',
                         background: newIcon === e ? `${C.orange}33` : C.card,
                         outline: newIcon === e ? `2px solid ${C.orange}` : 'none',
                       }}
@@ -165,19 +165,19 @@ export function HabitosModal({ onClose }: Props) {
               </div>
 
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>💭 Por que esse hábito importa pra você? (opcional)</div>
+                <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 6 }}>💭 Por que esse hábito importa pra você? (opcional)</div>
                 <textarea
                   value={newWhy}
                   onChange={e => setNewWhy(e.target.value)}
                   placeholder="Ex: porque ter mais energia me deixa mais presente com quem eu amo"
                   rows={2}
-                  style={{ ...textarea, fontSize: 12 }}
+                  style={{ ...textarea, fontSize: T.text.base }}
                 />
               </div>
 
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={submitAdd} disabled={!newLabel.trim()} style={{ flex: 1, background: newLabel.trim() ? C.green : C.card2, border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, color: newLabel.trim() ? '#fff' : C.muted, cursor: newLabel.trim() ? 'pointer' : 'default' }}>Criar</button>
-                <button onClick={() => { setAdding(false); setNewLabel(''); setNewIcon('🎯'); setNewWhy('') }} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, color: C.muted, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={submitAdd} disabled={!newLabel.trim()} style={{ flex: 1, background: newLabel.trim() ? C.green : C.card2, border: 'none', borderRadius: T.radius.sm, padding: '10px', fontSize: T.text.md, fontWeight: T.weight.bold, color: newLabel.trim() ? '#fff' : C.muted, cursor: newLabel.trim() ? 'pointer' : 'default' }}>Criar</button>
+                <button onClick={() => { setAdding(false); setNewLabel(''); setNewIcon('🎯'); setNewWhy('') }} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.sm, padding: '10px 16px', fontSize: T.text.md, color: C.muted, cursor: 'pointer' }}>Cancelar</button>
               </div>
             </div>
           )}
@@ -185,7 +185,7 @@ export function HabitosModal({ onClose }: Props) {
 
         {/* Footer */}
         <div style={{ padding: '12px 24px', borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-          <button onClick={onClose} style={{ width: '100%', background: C.orange, border: 'none', borderRadius: 10, padding: '11px', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer' }}>
+          <button onClick={onClose} style={{ width: '100%', background: C.orange, border: 'none', borderRadius: T.radius.md, padding: '11px', fontSize: T.text.lg, fontWeight: T.weight.bold, color: '#fff', cursor: 'pointer' }}>
             Concluir
           </button>
         </div>

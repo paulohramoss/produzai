@@ -1,5 +1,6 @@
 import { useState, useContext } from 'react'
-import { C, type Page } from '../data'
+import { T, C, type Page, displayStyle } from '../data'
+import { Dumbbell } from 'lucide-react'
 import { Card, Tag, Bar } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
 import { toast } from '../../lib/toast'
@@ -65,16 +66,16 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   background: C.card2,
   border: `1px solid ${C.border2}`,
-  borderRadius: 8,
+  borderRadius: T.radius.sm,
   padding: '10px 12px',
   color: C.text,
-  fontSize: 13,
+  fontSize: T.text.md,
   outline: 'none',
   boxSizing: 'border-box',
 }
 
 const labelStyle: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: T.text.sm,
   color: C.muted,
   textTransform: 'uppercase',
   letterSpacing: 0.8,
@@ -172,12 +173,12 @@ export function Treino({ setPage: _setPage }: Props) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>🏋 Treino</div>
-          <div style={{ fontSize: 13, color: C.muted }}>Performance física — força + cardio</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, marginBottom: 4, ...displayStyle }}><Dumbbell size={20} color={C.orange} /> Treino</div>
+          <div style={{ fontSize: T.text.md, color: C.muted }}>Performance física — força + cardio</div>
         </div>
         <button
           onClick={openModal}
-          style={{ background: C.purple, border: 'none', borderRadius: 8, padding: '8px 16px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{ background: C.purple, border: 'none', borderRadius: T.radius.sm, padding: '8px 16px', color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer' }}
         >
           + Registrar treino
         </button>
@@ -212,9 +213,9 @@ export function Treino({ setPage: _setPage }: Props) {
           },
         ].map((k, i) => (
           <Card key={i}>
-            <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>{k.l}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: k.c, marginBottom: 4 }}>{k.v}</div>
-            <div style={{ fontSize: 11, color: C.muted2 }}>{k.sub}</div>
+            <div style={{ fontSize: T.text.xs, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>{k.l}</div>
+            <div style={{ fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, color: k.c, marginBottom: 4, ...displayStyle }}>{k.v}</div>
+            <div style={{ fontSize: T.text.sm, color: C.muted2 }}>{k.sub}</div>
           </Card>
         ))}
       </div>
@@ -223,24 +224,24 @@ export function Treino({ setPage: _setPage }: Props) {
         {/* Activities */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Atividades recentes</div>
+            <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl }}>Atividades recentes</div>
             {workouts.length > 0 && <Tag label="Manual" color={C.purple} />}
           </div>
 
           {workouts.length > 0 ? (
             workouts.slice(0, 6).map((a, i) => (
-              <div key={i} style={{ padding: 14, background: C.card2, borderRadius: 12, marginBottom: 8, borderLeft: `3px solid ${typeColor(a.type)}` }}>
+              <div key={i} style={{ padding: 14, background: C.card2, borderRadius: T.radius.lg, marginBottom: 8, borderLeft: `3px solid ${typeColor(a.type)}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{a.name}</div>
-                    <div style={{ fontSize: 11, color: C.muted }}>{a.date}</div>
+                    <div style={{ fontWeight: T.weight.bold, fontSize: T.text.lg }}>{a.name}</div>
+                    <div style={{ fontSize: T.text.sm, color: C.muted }}>{a.date}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                     <Tag label={a.type} color={typeColor(a.type)} />
                     <button
                       onClick={() => handleRemove(a.id)}
                       title="Remover"
-                      style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
+                      style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text['2xl'], padding: '0 2px', lineHeight: 1 }}
                     >×</button>
                   </div>
                 </div>
@@ -253,8 +254,8 @@ export function Treino({ setPage: _setPage }: Props) {
                     { l: 'bpm',   v: a.hr > 0  ? String(a.hr)  : '—',  c: C.pink },
                   ].map((s, j) => (
                     <div key={j} style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: s.c }}>{s.v}</div>
-                      <div style={{ fontSize: 10, color: C.muted }}>{s.l}</div>
+                      <div style={{ fontSize: T.text.lg, fontWeight: T.weight.extrabold, color: s.c }}>{s.v}</div>
+                      <div style={{ fontSize: T.text.xs, color: C.muted }}>{s.l}</div>
                     </div>
                   ))}
                 </div>
@@ -263,11 +264,11 @@ export function Treino({ setPage: _setPage }: Props) {
           ) : (
             <div style={{ textAlign: 'center', padding: '32px 0', color: C.muted }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🏋</div>
-              <div style={{ fontWeight: 600, marginBottom: 6 }}>Nenhuma atividade registrada</div>
-              <div style={{ fontSize: 13 }}>Registre seus treinos manualmente</div>
+              <div style={{ fontWeight: T.weight.semibold, marginBottom: 6 }}>Nenhuma atividade registrada</div>
+              <div style={{ fontSize: T.text.md }}>Registre seus treinos manualmente</div>
               <button
                 onClick={openModal}
-                style={{ marginTop: 16, background: C.purple, border: 'none', borderRadius: 8, padding: '8px 20px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                style={{ marginTop: 16, background: C.purple, border: 'none', borderRadius: T.radius.sm, padding: '8px 20px', color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer' }}
               >
                 + Registrar treino
               </button>
@@ -278,7 +279,7 @@ export function Treino({ setPage: _setPage }: Props) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {weekCount > 0 && (
             <Card>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Resumo semanal</div>
+              <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 12 }}>Resumo semanal</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
                   { l: 'Atividades', v: String(weekCount),      c: C.text },
@@ -286,8 +287,8 @@ export function Treino({ setPage: _setPage }: Props) {
                   { l: 'Calorias',   v: `${weekCal} kcal`,      c: C.red },
                 ].map((r, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, color: C.muted }}>{r.l}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: r.c }}>{r.v}</span>
+                    <span style={{ fontSize: T.text.md, color: C.muted }}>{r.l}</span>
+                    <span style={{ fontSize: T.text.md, fontWeight: T.weight.bold, color: r.c }}>{r.v}</span>
                   </div>
                 ))}
               </div>
@@ -296,12 +297,12 @@ export function Treino({ setPage: _setPage }: Props) {
 
           {monthKm > 0 && (
             <Card>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Volume mensal</div>
+              <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 10 }}>Volume mensal</div>
               <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                <div style={{ fontSize: 34, fontWeight: 900, color: C.running }}>{monthKm}<span style={{ fontSize: 16, color: C.muted }}> km</span></div>
+                <div style={{ fontSize: 34, fontWeight: 900, color: C.running }}>{monthKm}<span style={{ fontSize: T.text['2xl'], color: C.muted }}> km</span></div>
               </div>
               <Bar pct={Math.min(Math.round(monthKm / 120 * 100), 100)} color={C.running} h={8} />
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 6, textAlign: 'right' }}>meta: 120km</div>
+              <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 6, textAlign: 'right' }}>meta: 120km</div>
             </Card>
           )}
         </div>
@@ -313,9 +314,9 @@ export function Treino({ setPage: _setPage }: Props) {
           onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 18, padding: 28, width: '100%', maxWidth: 480 }}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 28, width: '100%', maxWidth: 480 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>Registrar treino</div>
+              <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold }}>Registrar treino</div>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 24, lineHeight: 1 }}>×</button>
             </div>
 
@@ -323,7 +324,7 @@ export function Treino({ setPage: _setPage }: Props) {
             <div style={{ marginBottom: 16 }}>
               <button
                 onClick={() => setShowTemplates(s => !s)}
-                style={{ background: showTemplates ? C.purple : C.card2, border: `1px solid ${showTemplates ? C.purple : C.border2}`, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, color: showTemplates ? '#fff' : C.muted, cursor: 'pointer', width: '100%', textAlign: 'left' }}
+                style={{ background: showTemplates ? C.purple : C.card2, border: `1px solid ${showTemplates ? C.purple : C.border2}`, borderRadius: T.radius.sm, padding: '7px 14px', fontSize: T.text.base, fontWeight: T.weight.bold, color: showTemplates ? '#fff' : C.muted, cursor: 'pointer', width: '100%', textAlign: 'left' }}
               >
                 📋 {showTemplates ? 'Fechar templates' : 'Usar um template de treino'}
               </button>
@@ -336,10 +337,10 @@ export function Treino({ setPage: _setPage }: Props) {
                       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', background: C.card2, borderRadius: 9, cursor: 'pointer', border: `1px solid ${C.border}` }}
                     >
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{t.name}</div>
-                        <div style={{ fontSize: 10, color: C.muted }}>{t.label} · {t.durationMin}min{t.cal > 0 ? ` · ~${t.cal}kcal` : ''}</div>
+                        <div style={{ fontSize: T.text.md, fontWeight: T.weight.semibold }}>{t.name}</div>
+                        <div style={{ fontSize: T.text.xs, color: C.muted }}>{t.label} · {t.durationMin}min{t.cal > 0 ? ` · ~${t.cal}kcal` : ''}</div>
                       </div>
-                      <span style={{ fontSize: 11, color: C.purple, fontWeight: 700, flexShrink: 0 }}>{t.type}</span>
+                      <span style={{ fontSize: T.text.sm, color: C.purple, fontWeight: T.weight.bold, flexShrink: 0 }}>{t.type}</span>
                     </div>
                   ))}
                 </div>
@@ -355,7 +356,7 @@ export function Treino({ setPage: _setPage }: Props) {
                     key={t}
                     onClick={() => setForm(f => ({ ...f, type: t, name: '' }))}
                     style={{
-                      padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                      padding: '6px 14px', borderRadius: T.radius.sm, border: 'none', cursor: 'pointer', fontSize: T.text.md, fontWeight: T.weight.semibold,
                       background: form.type === t ? typeColor(t) : C.card2,
                       color: form.type === t ? '#fff' : C.muted,
                     }}
@@ -434,7 +435,7 @@ export function Treino({ setPage: _setPage }: Props) {
 
             {/* Pace preview */}
             {form.durationMin && form.dist && parseFloat(form.dist) > 0 && (
-              <div style={{ background: C.card2, borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: C.muted }}>
+              <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
                 Ritmo estimado: <strong style={{ color: C.text }}>{calcPace(parseInt(form.durationMin), parseFloat(form.dist))} /km</strong>
               </div>
             )}
@@ -443,10 +444,10 @@ export function Treino({ setPage: _setPage }: Props) {
               onClick={handleSubmit}
               disabled={!form.durationMin || parseInt(form.durationMin) <= 0}
               style={{
-                width: '100%', padding: 12, borderRadius: 10, border: 'none',
+                width: '100%', padding: 12, borderRadius: T.radius.md, border: 'none',
                 cursor: form.durationMin && parseInt(form.durationMin) > 0 ? 'pointer' : 'not-allowed',
                 background: form.durationMin && parseInt(form.durationMin) > 0 ? typeColor(form.type) : C.border2,
-                color: '#fff', fontSize: 15, fontWeight: 700,
+                color: '#fff', fontSize: T.text.xl, fontWeight: T.weight.bold,
               }}
             >
               Salvar treino

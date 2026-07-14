@@ -1,5 +1,5 @@
 import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react'
-import { C } from '../data'
+import { T, C } from '../data'
 import { Card, Bar } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
@@ -126,7 +126,7 @@ export const DailyChecklist = forwardRef<DailyChecklistHandle, Props>(function D
 
   if (!loaded) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, color: C.muted, fontSize: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, color: C.muted, fontSize: T.text.lg }}>
         Carregando...
       </div>
     )
@@ -138,14 +138,14 @@ export const DailyChecklist = forwardRef<DailyChecklistHandle, Props>(function D
 
       {/* Foco */}
       <Card>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>🎯 Foco do dia</div>
+        <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 14 }}>🎯 Foco do dia</div>
         {focus.map((f, i) => (
           <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: i < focus.length - 1 ? 12 : 0 }}>
             <div
               onClick={() => f.text && toggleFocus(f.id)}
-              style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${f.done ? C.orange : C.border2}`, background: f.done ? C.orange : 'transparent', flexShrink: 0, cursor: f.text && editable ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 20, height: 20, borderRadius: T.radius.xs, border: `2px solid ${f.done ? C.orange : C.border2}`, background: f.done ? C.orange : 'transparent', flexShrink: 0, cursor: f.text && editable ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              {f.done && <span style={{ fontSize: 10, color: '#000', fontWeight: 900 }}>✓</span>}
+              {f.done && <span style={{ fontSize: T.text.xs, color: '#000', fontWeight: 900 }}>✓</span>}
             </div>
             <input
               type="text"
@@ -153,7 +153,7 @@ export const DailyChecklist = forwardRef<DailyChecklistHandle, Props>(function D
               onChange={e => updateFocus(f.id, e.target.value)}
               placeholder={`Prioridade ${i + 1}...`}
               disabled={!editable}
-              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: f.done ? C.muted : C.text, fontSize: 13, textDecoration: f.done ? 'line-through' : 'none', padding: 0 }}
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: f.done ? C.muted : C.text, fontSize: T.text.md, textDecoration: f.done ? 'line-through' : 'none', padding: 0 }}
             />
           </div>
         ))}
@@ -162,15 +162,15 @@ export const DailyChecklist = forwardRef<DailyChecklistHandle, Props>(function D
       {/* Hábitos */}
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>✅ Hábitos</div>
+          <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl }}>✅ Hábitos</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
               onClick={() => setManagingHabits(true)}
-              style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: 6, padding: '3px 8px', fontSize: 10, color: C.muted, cursor: 'pointer', fontWeight: 600 }}
+              style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '3px 8px', fontSize: T.text.xs, color: C.muted, cursor: 'pointer', fontWeight: T.weight.semibold }}
             >
               ⚙ Editar
             </button>
-            <span style={{ fontSize: 13, fontWeight: 700, color: doneHabits === habits.length ? C.green : C.muted }}>
+            <span style={{ fontSize: T.text.md, fontWeight: T.weight.bold, color: doneHabits === habits.length ? C.green : C.muted }}>
               {doneHabits}/{habits.length}
             </span>
           </div>
@@ -181,15 +181,15 @@ export const DailyChecklist = forwardRef<DailyChecklistHandle, Props>(function D
             <div
               key={h.id}
               onClick={() => toggleHabit(h.id)}
-              style={{ padding: '8px 10px', background: h.done ? `${C.green}11` : C.card2, borderRadius: 8, cursor: editable ? 'pointer' : 'default', border: `1px solid ${h.done ? C.green + '44' : C.border}`, transition: 'all .12s' }}
+              style={{ padding: '8px 10px', background: h.done ? `${C.green}11` : C.card2, borderRadius: T.radius.sm, cursor: editable ? 'pointer' : 'default', border: `1px solid ${h.done ? C.green + '44' : C.border}`, transition: 'all .12s' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 15 }}>{h.icon}</span>
-                <span style={{ flex: 1, fontSize: 13, color: h.done ? C.muted : C.text, textDecoration: h.done ? 'line-through' : 'none' }}>{h.label}</span>
-                <span style={{ color: h.done ? C.green : C.border2, fontSize: 14 }}>{h.done ? '✓' : '○'}</span>
+                <span style={{ fontSize: T.text.xl }}>{h.icon}</span>
+                <span style={{ flex: 1, fontSize: T.text.md, color: h.done ? C.muted : C.text, textDecoration: h.done ? 'line-through' : 'none' }}>{h.label}</span>
+                <span style={{ color: h.done ? C.green : C.border2, fontSize: T.text.lg }}>{h.done ? '✓' : '○'}</span>
               </div>
               {!h.done && h.why && (
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 6, paddingLeft: 25, lineHeight: 1.5 }}>
+                <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 6, paddingLeft: 25, lineHeight: 1.5 }}>
                   💭 {h.why}
                 </div>
               )}

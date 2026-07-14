@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react'
-import { C, type Page } from '../data'
+import { T, C, type Page, displayStyle } from '../data'
+import { CalendarDays, Puzzle, TrendingUp, Zap } from 'lucide-react'
 import { Card, Bar } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useHabitsStore, type HabitDef } from '../../store/useHabitsStore'
@@ -158,21 +159,21 @@ export function Insights({ setPage }: Props) {
   }
 
   if (!loaded) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: 14 }}>Carregando...</div>
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: T.text.lg }}>Carregando...</div>
   }
 
   return (
     <div>
       <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div>
-          <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, marginBottom: 4 }}>🔍 Insights</div>
-          <div style={{ fontSize: 13, color: C.muted }}>Padrões, energia e revisões — o que seus dados dizem sobre você</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: isMobile ? 22 : 26, fontWeight: T.weight.extrabold, marginBottom: 4, ...displayStyle }}><TrendingUp size={20} color={C.orange} /> Insights</div>
+          <div style={{ fontSize: T.text.md, color: C.muted }}>Padrões, energia e revisões — o que seus dados dizem sobre você</div>
         </div>
         <button
           onClick={() => setPage('hoje')}
           style={{
-            background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 10,
-            padding: isMobile ? '8px 12px' : '9px 14px', fontSize: 12, fontWeight: 700,
+            background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.md,
+            padding: isMobile ? '8px 12px' : '9px 14px', fontSize: T.text.base, fontWeight: T.weight.bold,
             color: C.muted, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
           }}
         >
@@ -182,15 +183,15 @@ export function Insights({ setPage }: Props) {
 
       {/* Padrões detectados */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>🧩 Padrões detectados</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 12, ...displayStyle }}><Puzzle size={17} /> Padrões detectados</div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
           {insights.map((ins, i) => (
             <Card key={i} style={{ borderLeft: `3px solid ${TONE_COLOR[ins.tone]}` }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 22, flexShrink: 0 }}>{ins.icon}</span>
+                <span style={{ fontSize: T.text['5xl'], flexShrink: 0 }}>{ins.icon}</span>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{ins.title}</div>
-                  <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>{ins.detail}</div>
+                  <div style={{ fontWeight: T.weight.bold, fontSize: T.text.md, marginBottom: 4 }}>{ins.title}</div>
+                  <div style={{ fontSize: T.text.base, color: C.muted, lineHeight: 1.6 }}>{ins.detail}</div>
                 </div>
               </div>
             </Card>
@@ -202,16 +203,16 @@ export function Insights({ setPage }: Props) {
 
         {/* Energia x produtividade */}
         <Card>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>⚡ Energia x Produtividade</div>
-          <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 4, ...displayStyle }}><Zap size={17} /> Energia x Produtividade</div>
+          <div style={{ fontSize: T.text.base, color: C.muted, marginBottom: 16 }}>
             Quanto dos seus hábitos você completa em cada nível de energia
           </div>
           {hasEnergyData ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {energyRows.map(({ level, avg, count }) => (
                 <div key={level}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
-                    <span style={{ color: C.text, fontWeight: 600 }}>Energia {level}/5</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: T.text.base }}>
+                    <span style={{ color: C.text, fontWeight: T.weight.semibold }}>Energia {level}/5</span>
                     <span style={{ color: C.muted }}>
                       {avg !== null ? `${Math.round(avg * 100)}% · ${count} dia${count > 1 ? 's' : ''}` : '— sem dados'}
                     </span>
@@ -221,7 +222,7 @@ export function Insights({ setPage }: Props) {
               ))}
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: T.text.md, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
               Registre energia e hábitos por alguns dias para ver essa relação.
             </div>
           )}
@@ -230,13 +231,13 @@ export function Insights({ setPage }: Props) {
         {/* Revisão semanal */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>🗓️ Revisão semanal</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, ...displayStyle }}><CalendarDays size={17} /> Revisão semanal</div>
             <button
               onClick={handleGenerateReview}
               disabled={generating}
               style={{
-                background: generating ? C.card2 : C.green, border: 'none', borderRadius: 8,
-                padding: '6px 12px', fontSize: 11, fontWeight: 700,
+                background: generating ? C.card2 : C.green, border: 'none', borderRadius: T.radius.sm,
+                padding: '6px 12px', fontSize: T.text.sm, fontWeight: T.weight.bold,
                 color: generating ? C.muted : '#fff', cursor: generating ? 'default' : 'pointer',
                 flexShrink: 0,
               }}
@@ -244,12 +245,12 @@ export function Insights({ setPage }: Props) {
               {generating ? 'Gerando...' : '✨ Gerar desta semana'}
             </button>
           </div>
-          <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>
+          <div style={{ fontSize: T.text.base, color: C.muted, marginBottom: 14 }}>
             Resumo da semana com vitórias, deslizes e um ajuste para a próxima
           </div>
 
           {reviews.length === 0 ? (
-            <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: T.text.md, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
               {hasApiKey()
                 ? 'Ainda sem revisões. Clique em "Gerar desta semana" para começar.'
                 : 'Configure sua chave de API da Anthropic para gerar revisões semanais com IA.'}
@@ -257,33 +258,33 @@ export function Insights({ setPage }: Props) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {reviews.slice(0, 4).map(r => (
-                <div key={r.weekKey} style={{ background: C.card2, borderRadius: 10, padding: 14, border: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                <div key={r.weekKey} style={{ background: C.card2, borderRadius: T.radius.md, padding: 14, border: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: T.text.sm, color: C.muted, fontWeight: T.weight.bold, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 }}>
                     {formatWeekKey(r.weekKey)}
                   </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 10 }}>{r.summary}</div>
+                  <div style={{ fontSize: T.text.md, lineHeight: 1.6, marginBottom: 10 }}>{r.summary}</div>
 
                   {r.wins?.length > 0 && (
                     <div style={{ marginBottom: 8 }}>
                       {r.wins.map((w, i) => (
-                        <div key={i} style={{ fontSize: 12, color: C.green, marginBottom: 3 }}>✅ {w}</div>
+                        <div key={i} style={{ fontSize: T.text.base, color: C.green, marginBottom: 3 }}>✅ {w}</div>
                       ))}
                     </div>
                   )}
                   {r.slips?.length > 0 && (
                     <div style={{ marginBottom: 8 }}>
                       {r.slips.map((s, i) => (
-                        <div key={i} style={{ fontSize: 12, color: C.muted, marginBottom: 3 }}>💭 {s}</div>
+                        <div key={i} style={{ fontSize: T.text.base, color: C.muted, marginBottom: 3 }}>💭 {s}</div>
                       ))}
                     </div>
                   )}
                   {r.question && (
-                    <div style={{ fontSize: 12, fontStyle: 'italic', color: C.blue, marginTop: 8, marginBottom: r.adjustment ? 6 : 0 }}>
+                    <div style={{ fontSize: T.text.base, fontStyle: 'italic', color: C.blue, marginTop: 8, marginBottom: r.adjustment ? 6 : 0 }}>
                       💬 {r.question}
                     </div>
                   )}
                   {r.adjustment && (
-                    <div style={{ fontSize: 12, color: C.orange, marginTop: 6 }}>
+                    <div style={{ fontSize: T.text.base, color: C.orange, marginTop: 6 }}>
                       🔧 {r.adjustment}
                     </div>
                   )}

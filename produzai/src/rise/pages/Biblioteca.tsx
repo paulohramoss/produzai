@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react'
-import { C, type Page } from '../data'
+import { T, C, type Page, displayStyle } from '../data'
+import { BookOpen } from 'lucide-react'
 import { Card, Tag, Bar } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { getBooks, saveBooks, type Book } from '../../lib/db'
@@ -23,8 +24,8 @@ const DEFAULTS: Book[] = [
 const EMPTY: Omit<Book, 'id'> = { title: '', author: '', category: '', pages: 0, pagesRead: 0, status: 'quero', rating: 0 }
 
 const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
-  background: '#0C0C0C', border: `1px solid ${C.border2}`, borderRadius: 8,
-  padding: '8px 10px', color: C.text, fontSize: 13, outline: 'none', width: '100%', ...extra,
+  background: '#0C0C0C', border: `1px solid ${C.border2}`, borderRadius: T.radius.sm,
+  padding: '8px 10px', color: C.text, fontSize: T.text.md, outline: 'none', width: '100%', ...extra,
 })
 
 function loadLocal(): Book[] {
@@ -100,27 +101,27 @@ export function Biblioteca({ setPage: _s }: Props) {
   const done    = books.filter(b => b.status === 'concluido').length
 
   if (!loaded) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: 14 }}>Carregando...</div>
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: T.text.lg }}>Carregando...</div>
   }
 
   return (
     <>
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: 28, maxWidth: 440, width: '100%', position: 'relative' }}>
-            <button onClick={() => setModal(false)} style={{ position: 'absolute', top: 14, right: 16, background: 'transparent', border: 'none', color: C.muted, fontSize: 22, cursor: 'pointer' }}>×</button>
-            <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 18 }}>📚 Adicionar Livro</div>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], padding: 28, maxWidth: 440, width: '100%', position: 'relative' }}>
+            <button onClick={() => setModal(false)} style={{ position: 'absolute', top: 14, right: 16, background: 'transparent', border: 'none', color: C.muted, fontSize: T.text['5xl'], cursor: 'pointer' }}>×</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.extrabold, fontSize: 17, marginBottom: 18, ...displayStyle }}><BookOpen size={20} color={C.orange} /> Adicionar Livro</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <input style={inp()} placeholder="Título *" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
               <input style={inp()} placeholder="Autor" value={form.author} onChange={e => setForm(f => ({ ...f, author: e.target.value }))} />
               <input style={inp()} placeholder="Categoria (ex: Esporte, Ficção...)" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Total de páginas</div>
+                  <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 4 }}>Total de páginas</div>
                   <input type="number" style={inp()} placeholder="0" value={form.pages || ''} onChange={e => setForm(f => ({ ...f, pages: +e.target.value }))} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Status</div>
+                  <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 4 }}>Status</div>
                   <select style={inp()} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as Status }))}>
                     <option value="quero">🔖 Quero ler</option>
                     <option value="lendo">📖 Lendo</option>
@@ -129,7 +130,7 @@ export function Biblioteca({ setPage: _s }: Props) {
                   </select>
                 </div>
               </div>
-              <button onClick={add} disabled={!form.title.trim()} style={{ background: form.title.trim() ? C.purple : C.card2, border: 'none', borderRadius: 10, padding: '11px', fontSize: 14, fontWeight: 700, color: form.title.trim() ? '#fff' : C.muted, cursor: form.title.trim() ? 'pointer' : 'default', marginTop: 4 }}>
+              <button onClick={add} disabled={!form.title.trim()} style={{ background: form.title.trim() ? C.purple : C.card2, border: 'none', borderRadius: T.radius.md, padding: '11px', fontSize: T.text.lg, fontWeight: T.weight.bold, color: form.title.trim() ? '#fff' : C.muted, cursor: form.title.trim() ? 'pointer' : 'default', marginTop: 4 }}>
                 Adicionar →
               </button>
             </div>
@@ -141,10 +142,10 @@ export function Biblioteca({ setPage: _s }: Props) {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, marginBottom: 4 }}>📚 Biblioteca</div>
-            <div style={{ fontSize: 13, color: C.muted }}>{reading} lendo · {done} concluídos · {books.length} total</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: isMobile ? 22 : 26, fontWeight: T.weight.extrabold, marginBottom: 4, ...displayStyle }}><BookOpen size={20} color={C.orange} /> Biblioteca</div>
+            <div style={{ fontSize: T.text.md, color: C.muted }}>{reading} lendo · {done} concluídos · {books.length} total</div>
           </div>
-          <button onClick={() => setModal(true)} style={{ background: C.purple, border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer' }}>
+          <button onClick={() => setModal(true)} style={{ background: C.purple, border: 'none', borderRadius: T.radius.md, padding: '10px 18px', fontSize: T.text.md, fontWeight: T.weight.bold, color: '#fff', cursor: 'pointer' }}>
             + Adicionar Livro
           </button>
         </div>
@@ -152,7 +153,7 @@ export function Biblioteca({ setPage: _s }: Props) {
         {/* Status filter */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
           {(['todos', 'lendo', 'quero', 'pausado', 'concluido'] as const).map(s => (
-            <button key={s} onClick={() => setFilter(s)} style={{ background: filter === s ? C.purple : C.card2, border: `1px solid ${filter === s ? C.purple : C.border}`, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, color: filter === s ? '#fff' : C.muted, cursor: 'pointer' }}>
+            <button key={s} onClick={() => setFilter(s)} style={{ background: filter === s ? C.purple : C.card2, border: `1px solid ${filter === s ? C.purple : C.border}`, borderRadius: T.radius.sm, padding: '6px 12px', fontSize: T.text.base, fontWeight: T.weight.semibold, color: filter === s ? '#fff' : C.muted, cursor: 'pointer' }}>
               {s === 'todos' ? `Todos (${books.length})` : `${STATUS_LABEL[s]} (${books.filter(b => b.status === s).length})`}
             </button>
           ))}
@@ -162,8 +163,8 @@ export function Biblioteca({ setPage: _s }: Props) {
         {visible.length === 0 ? (
           <Card style={{ textAlign: 'center', padding: '40px', color: C.muted }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>Nenhum livro aqui</div>
-            <div style={{ fontSize: 13 }}>Adicione livros para acompanhar sua leitura</div>
+            <div style={{ fontWeight: T.weight.semibold, marginBottom: 6 }}>Nenhum livro aqui</div>
+            <div style={{ fontSize: T.text.md }}>Adicione livros para acompanhar sua leitura</div>
           </Card>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
@@ -173,10 +174,10 @@ export function Biblioteca({ setPage: _s }: Props) {
                 <Card key={b.id} style={{ borderLeft: `3px solid ${STATUS_COLOR[b.status]}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <div style={{ flex: 1, marginRight: 8 }}>
-                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{b.title}</div>
-                      <div style={{ fontSize: 12, color: C.muted }}>{b.author}</div>
+                      <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 2 }}>{b.title}</div>
+                      <div style={{ fontSize: T.text.base, color: C.muted }}>{b.author}</div>
                     </div>
-                    <button onClick={() => remove(b.id)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 14, padding: '0 2px', flexShrink: 0 }}>🗑</button>
+                    <button onClick={() => remove(b.id)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text.lg, padding: '0 2px', flexShrink: 0 }}>🗑</button>
                   </div>
 
                   <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -186,9 +187,9 @@ export function Biblioteca({ setPage: _s }: Props) {
 
                   {b.pages > 0 && (
                     <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.muted, marginBottom: 5 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: T.text.sm, color: C.muted, marginBottom: 5 }}>
                         <span>Progresso</span>
-                        <span style={{ color: STATUS_COLOR[b.status], fontWeight: 700 }}>{b.pagesRead}/{b.pages} páginas</span>
+                        <span style={{ color: STATUS_COLOR[b.status], fontWeight: T.weight.bold }}>{b.pagesRead}/{b.pages} páginas</span>
                       </div>
                       <Bar pct={pct} color={STATUS_COLOR[b.status]} h={5} />
                       {b.status === 'lendo' && (
@@ -204,7 +205,7 @@ export function Biblioteca({ setPage: _s }: Props) {
                   {b.status === 'concluido' && (
                     <div style={{ marginTop: 10, display: 'flex', gap: 4 }}>
                       {[1, 2, 3, 4, 5].map(s => (
-                        <span key={s} onClick={() => setRating(b.id, s)} style={{ cursor: 'pointer', fontSize: 16, opacity: b.rating >= s ? 1 : 0.3 }}>⭐</span>
+                        <span key={s} onClick={() => setRating(b.id, s)} style={{ cursor: 'pointer', fontSize: T.text['2xl'], opacity: b.rating >= s ? 1 : 0.3 }}>⭐</span>
                       ))}
                     </div>
                   )}

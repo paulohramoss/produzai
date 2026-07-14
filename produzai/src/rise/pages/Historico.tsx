@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react'
-import { C, type Page } from '../data'
+import { T, C, type Page, displayStyle } from '../data'
+import { History } from 'lucide-react'
 import { Card } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
@@ -96,7 +97,7 @@ export function Historico({ setPage: _s }: Props) {
 
   if (!user) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: T.text.lg }}>
         Faça login para ver seu histórico.
       </div>
     )
@@ -105,8 +106,8 @@ export function Historico({ setPage: _s }: Props) {
   return (
     <div>
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, marginBottom: 4 }}>🗓️ Histórico</div>
-        <div style={{ fontSize: 13, color: C.muted }}>Veja o que foi preenchido em cada dia e complete o que ficou faltando</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: isMobile ? 22 : 26, fontWeight: T.weight.extrabold, marginBottom: 4, ...displayStyle }}><History size={20} color={C.orange} /> Histórico</div>
+        <div style={{ fontSize: T.text.md, color: C.muted }}>Veja o que foi preenchido em cada dia e complete o que ficou faltando</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, alignItems: 'flex-start' }}>
@@ -114,15 +115,15 @@ export function Historico({ setPage: _s }: Props) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <button
               onClick={() => changeMonth(-1)}
-              style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8, width: 30, height: 30, color: C.text, cursor: 'pointer', fontSize: 14 }}
+              style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, width: 30, height: 30, color: C.text, cursor: 'pointer', fontSize: T.text.lg }}
             >
               ‹
             </button>
-            <div style={{ fontWeight: 700, fontSize: 15, textTransform: 'capitalize' }}>{monthLabel(viewMonth)}</div>
+            <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl, textTransform: 'capitalize' }}>{monthLabel(viewMonth)}</div>
             <button
               onClick={() => changeMonth(1)}
               disabled={isCurrentMonth}
-              style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8, width: 30, height: 30, color: isCurrentMonth ? C.muted : C.text, cursor: isCurrentMonth ? 'default' : 'pointer', fontSize: 14, opacity: isCurrentMonth ? 0.4 : 1 }}
+              style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, width: 30, height: 30, color: isCurrentMonth ? C.muted : C.text, cursor: isCurrentMonth ? 'default' : 'pointer', fontSize: T.text.lg, opacity: isCurrentMonth ? 0.4 : 1 }}
             >
               ›
             </button>
@@ -130,7 +131,7 @@ export function Historico({ setPage: _s }: Props) {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, marginBottom: 5 }}>
             {WEEKDAY_LABELS.map((w, i) => (
-              <div key={i} style={{ textAlign: 'center', fontSize: 10, color: C.muted, fontWeight: 700 }}>{w}</div>
+              <div key={i} style={{ textAlign: 'center', fontSize: T.text.xs, color: C.muted, fontWeight: T.weight.bold }}>{w}</div>
             ))}
           </div>
 
@@ -146,8 +147,8 @@ export function Historico({ setPage: _s }: Props) {
                   onClick={() => !isFuture && setSelectedDate(date)}
                   style={{
                     ...cellStyle(date, isFuture),
-                    height: 34, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: date === selectedDate ? 800 : 500,
+                    height: 34, borderRadius: T.radius.sm, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: T.text.base, fontWeight: date === selectedDate ? 800 : 500,
                     color: isFuture ? C.muted : C.text,
                     outline: date === selectedDate ? `2px solid ${C.text}44` : 'none',
                   }}
@@ -158,19 +159,19 @@ export function Historico({ setPage: _s }: Props) {
             })}
           </div>
 
-          <div style={{ display: 'flex', gap: 14, marginTop: 14, fontSize: 11, color: C.muted, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 14, marginTop: 14, fontSize: T.text.sm, color: C.muted, flexWrap: 'wrap' }}>
             <span><span style={{ display: 'inline-block', width: 9, height: 9, background: `${C.green}55`, border: `1px solid ${C.green}`, borderRadius: 2, marginRight: 5 }} />completo</span>
             <span><span style={{ display: 'inline-block', width: 9, height: 9, background: `${C.orange}55`, border: `1px solid ${C.orange}`, borderRadius: 2, marginRight: 5 }} />parcial</span>
             <span><span style={{ display: 'inline-block', width: 9, height: 9, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 2, marginRight: 5 }} />sem registro</span>
           </div>
 
-          {!loaded && <div style={{ textAlign: 'center', color: C.muted, fontSize: 12, marginTop: 14 }}>Carregando mês...</div>}
+          {!loaded && <div style={{ textAlign: 'center', color: C.muted, fontSize: T.text.base, marginTop: 14 }}>Carregando mês...</div>}
         </Card>
 
         <div>
           {selectedDate ? panel : (
             <Card>
-              <div style={{ textAlign: 'center', color: C.muted, fontSize: 13, padding: '20px 0' }}>
+              <div style={{ textAlign: 'center', color: C.muted, fontSize: T.text.md, padding: '20px 0' }}>
                 Selecione um dia no calendário para ver ou preencher.
               </div>
             </Card>

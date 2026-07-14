@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext, useRef } from 'react'
-import { C, type Page } from '../data'
+import { T, C, type Page, displayStyle } from '../data'
+import { Bell, Dumbbell, MessageSquare, Sun, Utensils, Zap } from 'lucide-react'
 import { Card, Bar } from '../primitives'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -90,14 +91,14 @@ export function Hoje({ setPage }: Props) {
       <div style={{ marginBottom: 22 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 13, color: C.muted, textTransform: 'capitalize' }}>{dateStr}</div>
-            <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800 }}>☀️ Hoje</div>
+            <div style={{ fontSize: T.text.md, color: C.muted, textTransform: 'capitalize' }}>{dateStr}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: isMobile ? 22 : 26, fontWeight: T.weight.extrabold, ...displayStyle }}><Sun size={20} color={C.orange} /> Hoje</div>
           </div>
           <button
             onClick={() => setOneThingOpen(true)}
             style={{
-              background: `${C.orange}18`, border: `1px solid ${C.orange}44`, borderRadius: 10,
-              padding: isMobile ? '8px 12px' : '9px 14px', fontSize: 12, fontWeight: 700,
+              background: `${C.orange}18`, border: `1px solid ${C.orange}44`, borderRadius: T.radius.md,
+              padding: isMobile ? '8px 12px' : '9px 14px', fontSize: T.text.base, fontWeight: T.weight.bold,
               color: C.orange, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
             }}
           >
@@ -105,19 +106,19 @@ export function Hoje({ setPage }: Props) {
           </button>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <div style={{ background: C.card2, borderRadius: 8, padding: '5px 11px', fontSize: 12 }}>
+          <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base }}>
             🎯 {doneFocus}/{totalFocus || 3} foco
           </div>
-          <div style={{ background: C.card2, borderRadius: 8, padding: '5px 11px', fontSize: 12 }}>
+          <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base }}>
             ✅ {doneHabits}/{habits.length} hábitos
           </div>
           {wd && (
-            <div style={{ background: C.card2, borderRadius: 8, padding: '5px 11px', fontSize: 12 }}>
+            <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base }}>
               🥗 {calEaten}/{wd.goals.cal} kcal
             </div>
           )}
           {score > 0 && (
-            <div style={{ background: `${C.orange}22`, borderRadius: 8, padding: '5px 11px', fontSize: 12, color: C.orange, fontWeight: 700 }}>
+            <div style={{ background: `${C.orange}22`, borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base, color: C.orange, fontWeight: T.weight.bold }}>
               ⚡ {score} pts
             </div>
           )}
@@ -128,10 +129,10 @@ export function Hoje({ setPage }: Props) {
       {missedYesterday.length > 0 && showMissed && (
         <Card style={{ marginBottom: 16, background: `${C.blue}0D`, border: `1px solid ${C.blue}33` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>💭 Ontem ficou pra depois</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, ...displayStyle }}><MessageSquare size={17} /> Ontem ficou pra depois</div>
             <button
               onClick={() => setShowMissed(false)}
-              style={{ background: 'none', border: 'none', color: C.muted, fontSize: 16, cursor: 'pointer', lineHeight: 1, padding: 0 }}
+              style={{ background: 'none', border: 'none', color: C.muted, fontSize: T.text['2xl'], cursor: 'pointer', lineHeight: 1, padding: 0 }}
             >
               ×
             </button>
@@ -139,12 +140,12 @@ export function Hoje({ setPage }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {missedYesterday.map(h => (
               <div key={h.id}>
-                <div style={{ fontSize: 13 }}>{h.icon} {h.label}</div>
-                {h.why && <div style={{ fontSize: 11, color: C.muted, marginTop: 2, paddingLeft: 22, lineHeight: 1.5 }}>{h.why}</div>}
+                <div style={{ fontSize: T.text.md }}>{h.icon} {h.label}</div>
+                {h.why && <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 2, paddingLeft: 22, lineHeight: 1.5 }}>{h.why}</div>}
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>
             Sem cobrança — só um lembrete do que importa pra você. Hoje é uma nova chance.
           </div>
         </Card>
@@ -167,10 +168,10 @@ export function Hoje({ setPage }: Props) {
           {/* Treino hoje */}
           <Card onClick={() => setPage('treino')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>🏋 Treino</div>
-              <span onClick={e => { e.stopPropagation(); setPage('treino') }} style={{ fontSize: 11, color: C.orange, cursor: 'pointer' }}>+ Registrar</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, ...displayStyle }}><Dumbbell size={17} /> Treino</div>
+              <span onClick={e => { e.stopPropagation(); setPage('treino') }} style={{ fontSize: T.text.sm, color: C.orange, cursor: 'pointer' }}>+ Registrar</span>
             </div>
-            <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '16px 0' }}>
+            <div style={{ fontSize: T.text.md, color: C.muted, textAlign: 'center', padding: '16px 0' }}>
               Clique para registrar seu treino de hoje
             </div>
           </Card>
@@ -178,10 +179,10 @@ export function Hoje({ setPage }: Props) {
           {/* Refeições */}
           <Card>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>🥗 Refeições</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, ...displayStyle }}><Utensils size={17} /> Refeições</div>
               {wd
-                ? <span style={{ fontSize: 12, color: C.muted }}>{doneMeals.length}/{meals.length} feitas</span>
-                : <span onClick={() => setPage('dieta')} style={{ fontSize: 11, color: C.orange, cursor: 'pointer' }}>+ Configurar</span>
+                ? <span style={{ fontSize: T.text.base, color: C.muted }}>{doneMeals.length}/{meals.length} feitas</span>
+                : <span onClick={() => setPage('dieta')} style={{ fontSize: T.text.sm, color: C.orange, cursor: 'pointer' }}>+ Configurar</span>
               }
             </div>
             {wd ? (
@@ -189,26 +190,26 @@ export function Hoje({ setPage }: Props) {
                 <>
                   <div style={{ marginBottom: 10 }}>
                     <Bar pct={wd.goals.cal > 0 ? Math.min(Math.round(calEaten / wd.goals.cal * 100), 100) : 0} color={C.green} h={4} />
-                    <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{calEaten} / {wd.goals.cal} kcal</div>
+                    <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 4 }}>{calEaten} / {wd.goals.cal} kcal</div>
                   </div>
                   {meals.slice(0, 5).map(m => (
                     <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
-                      <span style={{ fontSize: 10, color: C.muted, minWidth: 36 }}>{m.time}</span>
-                      <span style={{ flex: 1, fontSize: 12, color: m.done ? C.muted : C.text, textDecoration: m.done ? 'line-through' : 'none' }}>{m.name}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: m.done ? C.green : C.muted }}>{m.done ? '✓' : `${m.cal}kcal`}</span>
+                      <span style={{ fontSize: T.text.xs, color: C.muted, minWidth: 36 }}>{m.time}</span>
+                      <span style={{ flex: 1, fontSize: T.text.base, color: m.done ? C.muted : C.text, textDecoration: m.done ? 'line-through' : 'none' }}>{m.name}</span>
+                      <span style={{ fontSize: T.text.xs, fontWeight: T.weight.bold, color: m.done ? C.green : C.muted }}>{m.done ? '✓' : `${m.cal}kcal`}</span>
                     </div>
                   ))}
                   <div style={{ marginTop: 8, textAlign: 'right' }}>
-                    <span onClick={() => setPage('dieta')} style={{ fontSize: 11, color: C.green, cursor: 'pointer' }}>Ver dieta completa →</span>
+                    <span onClick={() => setPage('dieta')} style={{ fontSize: T.text.sm, color: C.green, cursor: 'pointer' }}>Ver dieta completa →</span>
                   </div>
                 </>
               ) : (
-                <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '12px 0' }}>
+                <div style={{ fontSize: T.text.md, color: C.muted, textAlign: 'center', padding: '12px 0' }}>
                   <span onClick={() => setPage('dieta')} style={{ color: C.green, cursor: 'pointer' }}>Adicionar refeições →</span>
                 </div>
               )
             ) : (
-              <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '16px 0' }}>Configure sua dieta para ver as refeições</div>
+              <div style={{ fontSize: T.text.md, color: C.muted, textAlign: 'center', padding: '16px 0' }}>Configure sua dieta para ver as refeições</div>
             )}
           </Card>
 
@@ -217,8 +218,8 @@ export function Hoje({ setPage }: Props) {
             <Card style={{ background: `${C.orange}0D`, border: `1px solid ${C.orange}33` }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>⚡ Score do dia</div>
-                  <div style={{ fontSize: 12, color: C.muted }}>Hábitos 60% · Foco 40%</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 4, ...displayStyle }}><Zap size={17} /> Score do dia</div>
+                  <div style={{ fontSize: T.text.base, color: C.muted }}>Hábitos 60% · Foco 40%</div>
                 </div>
                 <div style={{ fontSize: 38, fontWeight: 900, color: C.orange }}>{score}</div>
               </div>
@@ -232,7 +233,7 @@ export function Hoje({ setPage }: Props) {
           {notificationsSupported() && (
             <Card style={{ border: `1px solid ${notifPrefs.enabled ? C.blue + '44' : C.border}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: notifPrefs.enabled ? 12 : 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>🔔 Lembrete diário</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, ...displayStyle }}><Bell size={17} /> Lembrete diário</div>
                 <button
                   onClick={async () => {
                     if (!notifPrefs.enabled) {
@@ -248,7 +249,7 @@ export function Hoje({ setPage }: Props) {
                   style={{
                     background: notifPrefs.enabled ? C.blue : C.card2,
                     border: `1px solid ${notifPrefs.enabled ? C.blue : C.border2}`,
-                    borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700,
+                    borderRadius: T.radius.xs, padding: '4px 10px', fontSize: T.text.sm, fontWeight: T.weight.bold,
                     color: notifPrefs.enabled ? '#fff' : C.muted, cursor: 'pointer',
                   }}
                 >
@@ -257,7 +258,7 @@ export function Hoje({ setPage }: Props) {
               </div>
               {notifPrefs.enabled && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 12, color: C.muted }}>Horário:</span>
+                  <span style={{ fontSize: T.text.base, color: C.muted }}>Horário:</span>
                   <input
                     type="time"
                     value={`${String(notifPrefs.hour).padStart(2, '0')}:${String(notifPrefs.minute).padStart(2, '0')}`}
@@ -268,7 +269,7 @@ export function Hoje({ setPage }: Props) {
                       savePrefs(next)
                       applyPrefs(next)
                     }}
-                    style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 6, padding: '5px 8px', color: C.text, fontSize: 13, outline: 'none', colorScheme: 'dark' }}
+                    style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '5px 8px', color: C.text, fontSize: T.text.md, outline: 'none', colorScheme: 'dark' }}
                   />
                 </div>
               )}

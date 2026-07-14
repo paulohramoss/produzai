@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react'
-import { C, type Page } from '../data'
+import { T, C, type Page, displayStyle } from '../data'
+import { Target } from 'lucide-react'
 import { Card, Tag, Bar } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { getProjects, saveProjects, type Project } from '../../lib/db'
@@ -26,8 +27,8 @@ const DEFAULTS: Project[] = [
 const EMPTY: Omit<Project, 'id'> = { name: '', description: '', category: 'pessoal', progress: 0, priority: 'media', dueDate: '' }
 
 const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
-  background: '#0C0C0C', border: `1px solid ${C.border2}`, borderRadius: 8,
-  padding: '8px 10px', color: C.text, fontSize: 13, outline: 'none', width: '100%', ...extra,
+  background: '#0C0C0C', border: `1px solid ${C.border2}`, borderRadius: T.radius.sm,
+  padding: '8px 10px', color: C.text, fontSize: T.text.md, outline: 'none', width: '100%', ...extra,
 })
 
 function loadLocal(): Project[] {
@@ -89,29 +90,29 @@ export function Projetos({ setPage: _s }: Props) {
   const done    = projects.filter(p => p.progress >= 100).length
 
   if (!loaded) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: 14 }}>Carregando...</div>
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: T.text.lg }}>Carregando...</div>
   }
 
   return (
     <>
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: 32, maxWidth: 460, width: '100%', position: 'relative' }}>
-            <button onClick={() => setModal(false)} style={{ position: 'absolute', top: 14, right: 16, background: 'transparent', border: 'none', color: C.muted, fontSize: 22, cursor: 'pointer' }}>×</button>
-            <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 20 }}>🎯 Novo Projeto</div>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], padding: 32, maxWidth: 460, width: '100%', position: 'relative' }}>
+            <button onClick={() => setModal(false)} style={{ position: 'absolute', top: 14, right: 16, background: 'transparent', border: 'none', color: C.muted, fontSize: T.text['5xl'], cursor: 'pointer' }}>×</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.extrabold, fontSize: 17, marginBottom: 20, ...displayStyle }}><Target size={20} color={C.orange} /> Novo Projeto</div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Nome *</div>
+                <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 4 }}>Nome *</div>
                 <input style={inp()} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome do projeto" />
               </div>
               <div>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Descrição</div>
+                <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 4 }}>Descrição</div>
                 <input style={inp()} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Descreva brevemente..." />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Categoria</div>
+                  <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 4 }}>Categoria</div>
                   <select style={inp()} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as Project['category'] }))}>
                     <option value="saude">🏃 Saúde</option>
                     <option value="trabalho">💼 Trabalho</option>
@@ -120,7 +121,7 @@ export function Projetos({ setPage: _s }: Props) {
                   </select>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Prioridade</div>
+                  <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 4 }}>Prioridade</div>
                   <select style={inp()} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as Project['priority'] }))}>
                     <option value="alta">🔴 Alta</option>
                     <option value="media">🟡 Média</option>
@@ -129,13 +130,13 @@ export function Projetos({ setPage: _s }: Props) {
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Progresso inicial (%)</div>
+                <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 4 }}>Progresso inicial (%)</div>
                 <input type="number" min={0} max={100} style={inp()} value={form.progress} onChange={e => setForm(f => ({ ...f, progress: Math.min(100, Math.max(0, +e.target.value)) }))} />
               </div>
               <button
                 onClick={addProject}
                 disabled={!form.name.trim()}
-                style={{ marginTop: 4, background: form.name.trim() ? C.orange : C.card2, border: 'none', borderRadius: 10, padding: '12px', fontSize: 14, fontWeight: 700, color: form.name.trim() ? '#fff' : C.muted, cursor: form.name.trim() ? 'pointer' : 'default' }}>
+                style={{ marginTop: 4, background: form.name.trim() ? C.orange : C.card2, border: 'none', borderRadius: T.radius.md, padding: '12px', fontSize: T.text.lg, fontWeight: T.weight.bold, color: form.name.trim() ? '#fff' : C.muted, cursor: form.name.trim() ? 'pointer' : 'default' }}>
                 Criar Projeto →
               </button>
             </div>
@@ -147,10 +148,10 @@ export function Projetos({ setPage: _s }: Props) {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, marginBottom: 4 }}>🎯 Projetos</div>
-            <div style={{ fontSize: 13, color: C.muted }}>{done}/{projects.length} concluídos</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: isMobile ? 22 : 26, fontWeight: T.weight.extrabold, marginBottom: 4, ...displayStyle }}><Target size={20} color={C.orange} /> Projetos</div>
+            <div style={{ fontSize: T.text.md, color: C.muted }}>{done}/{projects.length} concluídos</div>
           </div>
-          <button onClick={() => setModal(true)} style={{ background: C.orange, border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer' }}>
+          <button onClick={() => setModal(true)} style={{ background: C.orange, border: 'none', borderRadius: T.radius.md, padding: '10px 18px', fontSize: T.text.md, fontWeight: T.weight.bold, color: '#fff', cursor: 'pointer' }}>
             + Novo Projeto
           </button>
         </div>
@@ -158,7 +159,7 @@ export function Projetos({ setPage: _s }: Props) {
         {/* Filter tabs */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
           {['todos', 'saude', 'trabalho', 'pessoal', 'aprendizado'].map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? C.orange : C.card2, border: `1px solid ${filter === f ? C.orange : C.border}`, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, color: filter === f ? '#fff' : C.muted, cursor: 'pointer' }}>
+            <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? C.orange : C.card2, border: `1px solid ${filter === f ? C.orange : C.border}`, borderRadius: T.radius.sm, padding: '6px 12px', fontSize: T.text.base, fontWeight: T.weight.semibold, color: filter === f ? '#fff' : C.muted, cursor: 'pointer' }}>
               {f === 'todos' ? 'Todos' : CAT_LABEL[f]}
             </button>
           ))}
@@ -168,8 +169,8 @@ export function Projetos({ setPage: _s }: Props) {
         {visible.length === 0 ? (
           <Card style={{ textAlign: 'center', padding: '40px 20px', color: C.muted }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🎯</div>
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>Nenhum projeto ainda</div>
-            <div style={{ fontSize: 13 }}>Clique em "+ Novo Projeto" para começar</div>
+            <div style={{ fontWeight: T.weight.semibold, marginBottom: 6 }}>Nenhum projeto ainda</div>
+            <div style={{ fontSize: T.text.md }}>Clique em "+ Novo Projeto" para começar</div>
           </Card>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
@@ -177,10 +178,10 @@ export function Projetos({ setPage: _s }: Props) {
               <Card key={p.id} style={{ borderTop: `2px solid ${CAT_COLOR[p.category]}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div style={{ flex: 1, marginRight: 8 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{p.name}</div>
-                    {p.description && <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{p.description}</div>}
+                    <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 4 }}>{p.name}</div>
+                    {p.description && <div style={{ fontSize: T.text.base, color: C.muted, lineHeight: 1.5 }}>{p.description}</div>}
                   </div>
-                  <button onClick={() => remove(p.id)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '0 2px', flexShrink: 0 }}>🗑</button>
+                  <button onClick={() => remove(p.id)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text['2xl'], padding: '0 2px', flexShrink: 0 }}>🗑</button>
                 </div>
 
                 <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -190,8 +191,8 @@ export function Projetos({ setPage: _s }: Props) {
                 </div>
 
                 <div style={{ marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, color: C.muted }}>Progresso</span>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: p.progress >= 100 ? C.green : CAT_COLOR[p.category] }}>{p.progress}%</span>
+                  <span style={{ fontSize: T.text.sm, color: C.muted }}>Progresso</span>
+                  <span style={{ fontSize: T.text.md, fontWeight: T.weight.extrabold, color: p.progress >= 100 ? C.green : CAT_COLOR[p.category] }}>{p.progress}%</span>
                 </div>
                 <Bar pct={p.progress} color={p.progress >= 100 ? C.green : CAT_COLOR[p.category]} h={6} />
 

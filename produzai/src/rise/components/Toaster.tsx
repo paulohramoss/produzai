@@ -1,5 +1,5 @@
 import { useToastStore } from '../../lib/toast'
-import { C } from '../data'
+import { T, C } from '../data'
 
 const TYPE_COLOR = { success: C.green, error: C.red, info: C.blue }
 const TYPE_ICON  = { success: '✓', error: '✕', info: 'i' }
@@ -26,7 +26,7 @@ export function Toaster() {
             background: '#1E1E1E',
             border: `1px solid ${TYPE_COLOR[t.type]}44`,
             borderLeft: `4px solid ${TYPE_COLOR[t.type]}`,
-            borderRadius: 12,
+            borderRadius: T.radius.lg,
             padding: '13px 18px',
             display: 'flex',
             alignItems: 'center',
@@ -42,11 +42,11 @@ export function Toaster() {
             background: TYPE_COLOR[t.type] + '22',
             border: `1.5px solid ${TYPE_COLOR[t.type]}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 900, color: TYPE_COLOR[t.type], flexShrink: 0,
+            fontSize: T.text.base, fontWeight: 900, color: TYPE_COLOR[t.type], flexShrink: 0,
           }}>
             {TYPE_ICON[t.type]}
           </span>
-          <span style={{ fontSize: 13, color: '#F0F0F0', lineHeight: 1.5, flex: 1 }}>
+          <span style={{ fontSize: T.text.md, color: '#F0F0F0', lineHeight: 1.5, flex: 1 }}>
             {t.message}
           </span>
         </div>

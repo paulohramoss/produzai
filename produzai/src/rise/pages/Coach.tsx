@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useContext } from 'react'
 import { Bot, Paperclip, ArrowUp, Download, MessageSquare } from 'lucide-react'
-import { C, type Page } from '../data'
+import { T, C, type Page, displayStyle } from '../data'
 import { Card, Ring } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
 import { useWebDietStore } from '../../store/useWebDietStore'
@@ -157,13 +157,13 @@ export function Coach({ setPage }: Props) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <Bot size={22} style={{ color: C.orange }} />
-            <span style={{ fontSize: 22, fontWeight: 800 }}>Coach</span>
+            <span style={{ fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, ...displayStyle }}>Coach</span>
           </div>
-          <div style={{ fontSize: 13, color: C.muted }}>Assistente pessoal de performance</div>
+          <div style={{ fontSize: T.text.md, color: C.muted }}>Assistente pessoal de performance</div>
         </div>
         <button
           onClick={() => setShowExport(s => !s)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '8px 14px', color: C.muted, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, padding: '8px 14px', color: C.muted, fontSize: T.text.base, fontWeight: T.weight.bold, cursor: 'pointer' }}
         >
           <Download size={13} />
           Exportar dados
@@ -173,7 +173,7 @@ export function Coach({ setPage }: Props) {
       {/* Export panel */}
       {showExport && (
         <Card style={{ marginBottom: 20, border: `1px solid ${C.blue}44` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, marginBottom: 12, color: C.blue }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 12, color: C.blue }}>
             <Download size={14} />
             Exportar dados (CSV)
           </div>
@@ -183,12 +183,12 @@ export function Coach({ setPage }: Props) {
               { label: 'Treinos',    action: () => workouts.length > 0 ? handleExport('workouts') : toast.error('Nenhum treino'), color: C.card2, text: C.text },
               { label: 'Dieta',      action: () => wd ? handleExport('diet') : toast.error('Configure a dieta'), color: C.card2, text: C.text },
             ].map((b, i) => (
-              <button key={i} onClick={b.action} style={{ background: b.color, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '8px 16px', color: b.text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <button key={i} onClick={b.action} style={{ background: b.color, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, padding: '8px 16px', color: b.text, fontSize: T.text.base, fontWeight: T.weight.semibold, cursor: 'pointer' }}>
                 {b.label}
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 10 }}>Abre no Excel, Google Sheets ou qualquer planilha.</div>
+          <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 10 }}>Abre no Excel, Google Sheets ou qualquer planilha.</div>
         </Card>
       )}
 
@@ -197,8 +197,8 @@ export function Coach({ setPage }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
           <Ring pct={perf} size={80} stroke={7} color={perf >= 70 ? C.green : perf >= 40 ? C.orange : C.red} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Performance Score</div>
-            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
+            <div style={{ fontSize: T.text['2xl'], fontWeight: T.weight.extrabold, marginBottom: 4 }}>Performance Score</div>
+            <div style={{ fontSize: T.text.base, color: C.muted, lineHeight: 1.5 }}>
               {perf === 0 ? 'Registre treinos e configure a dieta para calcular.'
                 : perf >= 80 ? '🔥 Semana excelente! No limite do potencial.'
                 : perf >= 60 ? '💪 Boa semana. Pequenos ajustes vão otimizar mais.'
@@ -206,10 +206,10 @@ export function Coach({ setPage }: Props) {
                 : '🎯 Comece devagar — consistência é tudo.'}
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
-              <span onClick={() => setPage('treino')} style={{ fontSize: 11, color: C.orange, cursor: 'pointer' }}>
+              <span onClick={() => setPage('treino')} style={{ fontSize: T.text.sm, color: C.orange, cursor: 'pointer' }}>
                 {weekWorkouts.length > 0 ? `${weekWorkouts.length} treinos esta semana` : '+ Registrar treino'}
               </span>
-              <span onClick={() => setPage('dieta')} style={{ fontSize: 11, color: C.green, cursor: 'pointer' }}>
+              <span onClick={() => setPage('dieta')} style={{ fontSize: T.text.sm, color: C.green, cursor: 'pointer' }}>
                 {wd ? `${calPct}% da meta calórica` : '+ Configurar dieta'}
               </span>
             </div>
@@ -222,16 +222,16 @@ export function Coach({ setPage }: Props) {
         {/* Chat header */}
         <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 15 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl }}>
               <MessageSquare size={16} style={{ color: C.muted }} />
               Conversa com o Coach
             </div>
-            <div style={{ fontSize: 11, color: C.green, marginTop: 2 }}>● Disponível</div>
+            <div style={{ fontSize: T.text.sm, color: C.green, marginTop: 2 }}>● Disponível</div>
           </div>
           {messages.length > 0 && (
             <button
               onClick={() => { clearCoach(); setStreamText('') }}
-              style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: 6, padding: '4px 10px', fontSize: 11, color: C.muted, cursor: 'pointer' }}
+              style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '4px 10px', fontSize: T.text.sm, color: C.muted, cursor: 'pointer' }}
             >
               Nova conversa
             </button>
@@ -244,7 +244,7 @@ export function Coach({ setPage }: Props) {
           {/* Empty state — suggestions */}
           {messages.length === 0 && !streaming && (
             <div>
-              <div style={{ fontSize: 13, color: C.muted, marginBottom: 14, textAlign: 'center' }}>
+              <div style={{ fontSize: T.text.md, color: C.muted, marginBottom: 14, textAlign: 'center' }}>
                 Olá! Pergunte qualquer coisa sobre treino, dieta ou performance.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
@@ -253,7 +253,7 @@ export function Coach({ setPage }: Props) {
                     key={i}
                     onClick={() => send(s.text)}
                     style={{
-                      background: C.card2, border: `1px solid ${C.border}`, borderRadius: 10,
+                      background: C.card2, border: `1px solid ${C.border}`, borderRadius: T.radius.md,
                       padding: '10px 14px', textAlign: 'left', cursor: 'pointer',
                       transition: 'border-color .12s',
                     }}
@@ -261,11 +261,11 @@ export function Coach({ setPage }: Props) {
                     onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
                   >
                     <span style={{ marginRight: 8 }}>{s.icon}</span>
-                    <span style={{ fontSize: 12, color: C.text }}>{s.text}</span>
+                    <span style={{ fontSize: T.text.base, color: C.text }}>{s.text}</span>
                   </button>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 14, textAlign: 'center' }}>
+              <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 14, textAlign: 'center' }}>
                 Anexe um PDF ou foto do seu treino para receber uma análise do coach.
               </div>
             </div>
@@ -281,7 +281,7 @@ export function Coach({ setPage }: Props) {
                   borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                   background: msg.role === 'user' ? C.orange : C.card2,
                   color: msg.role === 'user' ? '#fff' : C.text,
-                  fontSize: 13,
+                  fontSize: T.text.md,
                   lineHeight: 1.65,
                   whiteSpace: 'pre-wrap',
                 }}
@@ -292,12 +292,12 @@ export function Coach({ setPage }: Props) {
                       <img
                         src={`data:${msg.attachment.mediaType};base64,${msg.attachment.data}`}
                         alt={msg.attachment.name}
-                        style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 10, display: 'block' }}
+                        style={{ maxWidth: '100%', maxHeight: 200, borderRadius: T.radius.md, display: 'block' }}
                       />
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,.15)', borderRadius: 8, padding: '6px 10px' }}>
-                        <span style={{ fontSize: 14 }}>📄</span>
-                        <span style={{ fontSize: 12 }}>{msg.attachment.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,.15)', borderRadius: T.radius.sm, padding: '6px 10px' }}>
+                        <span style={{ fontSize: T.text.lg }}>📄</span>
+                        <span style={{ fontSize: T.text.base }}>{msg.attachment.name}</span>
                       </div>
                     )}
                   </div>
@@ -310,7 +310,7 @@ export function Coach({ setPage }: Props) {
           {/* Streaming bubble */}
           {streaming && (
             <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-              <div style={{ maxWidth: '82%', padding: '10px 14px', borderRadius: '18px 18px 18px 4px', background: C.card2, fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', color: C.text }}>
+              <div style={{ maxWidth: '82%', padding: '10px 14px', borderRadius: '18px 18px 18px 4px', background: C.card2, fontSize: T.text.md, lineHeight: 1.65, whiteSpace: 'pre-wrap', color: C.text }}>
                 {streamText || <span style={{ color: C.muted }}>Pensando...</span>}
                 {streamText && <span style={{ opacity: 0.5 }}>▌</span>}
               </div>
@@ -324,22 +324,22 @@ export function Coach({ setPage }: Props) {
         <div style={{ padding: '12px 16px', borderTop: `1px solid ${C.border}` }}>
           {/* Attachment preview */}
           {attachment && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: '6px 10px', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.md, padding: '6px 10px', marginBottom: 8 }}>
               {attachment.mediaType.startsWith('image/') ? (
                 <img
                   src={`data:${attachment.mediaType};base64,${attachment.data}`}
                   alt={attachment.name}
-                  style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
+                  style={{ width: 32, height: 32, borderRadius: T.radius.xs, objectFit: 'cover', flexShrink: 0 }}
                 />
               ) : (
-                <span style={{ fontSize: 18 }}>📄</span>
+                <span style={{ fontSize: T.text['3xl'] }}>📄</span>
               )}
-              <span style={{ fontSize: 12, color: C.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: T.text.base, color: C.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {attachment.name}
               </span>
               <button
                 onClick={() => setAttachment(null)}
-                style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
+                style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text['2xl'], padding: '0 2px', lineHeight: 1 }}
               >
                 ×
               </button>
@@ -354,7 +354,7 @@ export function Coach({ setPage }: Props) {
               style={{
                 background: attachment ? `${C.blue}22` : C.card2,
                 border: `1px solid ${attachment ? C.blue : C.border2}`,
-                borderRadius: 12,
+                borderRadius: T.radius.lg,
                 width: 42,
                 height: 42,
                 display: 'flex',
@@ -379,10 +379,10 @@ export function Coach({ setPage }: Props) {
                 flex: 1,
                 background: C.card2,
                 border: `1px solid ${C.border2}`,
-                borderRadius: 12,
+                borderRadius: T.radius.lg,
                 padding: '10px 14px',
                 color: C.text,
-                fontSize: 13,
+                fontSize: T.text.md,
                 outline: 'none',
                 resize: 'none',
                 fontFamily: 'inherit',
@@ -402,7 +402,7 @@ export function Coach({ setPage }: Props) {
               style={{
                 background: canSend ? C.orange : C.border2,
                 border: 'none',
-                borderRadius: 12,
+                borderRadius: T.radius.lg,
                 width: 42,
                 height: 42,
                 display: 'flex',

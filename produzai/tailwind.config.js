@@ -1,4 +1,14 @@
 /** @type {import('tailwindcss').Config} */
+
+/* ── The Rise Plan — Tailwind tokens ──────────────────────────────────────────
+   MIRROR of the single source of truth. Keep these three files in sync:
+     • src/index.css        → CSS custom properties (:root)  ← canonical for CSS
+     • src/rise/data.ts (C) → JS color object                ← canonical for inline styles
+     • this file            → Tailwind utilities
+
+   Palette is BLACK + ORANGE (athlete/Strava energy). There is intentionally
+   no indigo/violet here anymore — that was legacy drift.
+   ─────────────────────────────────────────────────────────────────────────── */
 export default {
   content: [
     "./index.html",
@@ -7,31 +17,71 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Brand — orange ramp centered on #F97316 (brand-500 = C.orange)
         brand: {
-          50:  '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
+          DEFAULT: '#F97316',
+          50:  '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdba74',
+          400: '#fb923c',
+          500: '#f97316',
+          600: '#ea580c',
+          700: '#c2410c',
+          800: '#9a3412',
+          900: '#7c2d12',
         },
+        // Surfaces — near-black stack (mirrors --rise-* / C.*)
         surface: {
-          DEFAULT: '#0d0d1a',
-          card:    '#13131f',
-          raised:  '#1a1a2e',
-          border:  '#2a2a42',
-          hover:   '#22223a',
+          DEFAULT: '#0C0C0C', // --rise-bg      / C.bg
+          card:    '#141414', // --rise-card    / C.card
+          raised:  '#1C1C1C', // --rise-card-2  / C.card2
+          elevated:'#222222', // --rise-card-3  / C.card3
+          border:  '#252525', // --rise-border  / C.border
+          border2: '#2E2E2E', // --rise-border-2/ C.border2
+          hover:   '#1C1C1C',
         },
+        // Semantic (mirrors C.*)
+        success: '#22C55E',
+        info:    '#60A5FA',
+        accent:  '#A78BFA',
+        pink:    '#F472B6',
+        danger:  '#EF4444',
+        strava:  '#FC4C02',
+      },
+      // Type scale — mirrors T.text in data.ts (px = real values in use)
+      fontSize: {
+        '2xs':  ['9px',  { lineHeight: '1.3' }],
+        xs:     ['10px', { lineHeight: '1.3' }],
+        sm:     ['11px', { lineHeight: '1.4' }],
+        base:   ['12px', { lineHeight: '1.45' }],
+        md:     ['13px', { lineHeight: '1.45' }],
+        lg:     ['14px', { lineHeight: '1.5' }],
+        xl:     ['15px', { lineHeight: '1.5' }],
+        '2xl':  ['16px', { lineHeight: '1.4' }],
+        '3xl':  ['18px', { lineHeight: '1.35' }],
+        '4xl':  ['20px', { lineHeight: '1.3' }],
+        '5xl':  ['22px', { lineHeight: '1.25' }],
+        '6xl':  ['26px', { lineHeight: '1.2' }],
+        '7xl':  ['32px', { lineHeight: '1.15' }],
+      },
+      // Radius scale — mirrors T.radius in data.ts
+      borderRadius: {
+        '2xs': '4px',
+        xs:    '6px',
+        sm:    '8px',
+        md:    '10px',
+        lg:    '12px',
+        xl:    '14px',
+        '2xl': '16px',
+        '3xl': '18px',
+        '4xl': '20px',
       },
       fontFamily: {
-        sans: ['"Open Sans"', 'system-ui', 'sans-serif'],
+        sans:    ['"Open Sans"', 'system-ui', 'sans-serif'],
+        display: ['"Archivo"', '"Open Sans"', 'system-ui', 'sans-serif'],
       },
     },
   },
   plugins: [],
 }
-

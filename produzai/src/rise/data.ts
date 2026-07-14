@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import {
   LayoutDashboard, Sun, Dumbbell, Utensils, CalendarDays,
   Target, Brain, BookOpen, TrendingUp, Bot, Images, History,
@@ -26,6 +27,39 @@ export const C = {
   pink:    '#F472B6',
   red:     '#EF4444',
   running: '#FC4C02',
+}
+
+// ── Scale tokens ─────────────────────────────────────────────────────────────
+// Spacing / radius / type scale. Single source of truth for non-color design
+// values; mirrored by the fontSize + borderRadius scales in tailwind.config.js.
+// The scale intentionally covers every size in real use so inline styles can be
+// tokenized WITHOUT changing pixels. Use: fontSize: T.text.md, borderRadius: T.radius.xl.
+export const T = {
+  space:  { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, '2xl': 24, '3xl': 32 },
+  radius: {
+    '2xs': 4, xs: 6, sm: 8, md: 10, lg: 12, xl: 14, '2xl': 16, '3xl': 18, '4xl': 20,
+    pill: 999,
+  },
+  text: {
+    '2xs': 9, xs: 10, sm: 11, base: 12, md: 13, lg: 14, xl: 15, '2xl': 16,
+    '3xl': 18, '4xl': 20, '5xl': 22, '6xl': 26, '7xl': 32,
+  },
+  weight: { regular: 400, medium: 500, semibold: 600, bold: 700, extrabold: 800 },
+} as const
+
+// ── Typography ───────────────────────────────────────────────────────────────
+// Archivo is the display face (titles + signature numbers); Open Sans the body.
+// The display look comes from the EXPANDED width axis (wdth 112) — spread
+// `displayStyle` onto a heading/number and keep your own fontSize/weight/color.
+export const F = {
+  display: '"Archivo", "Open Sans", system-ui, sans-serif',
+  body:    '"Open Sans", system-ui, sans-serif',
+} as const
+
+export const displayStyle: CSSProperties = {
+  fontFamily: F.display,
+  fontVariationSettings: '"wdth" 112',
+  letterSpacing: '-0.015em',
 }
 
 export type Page =

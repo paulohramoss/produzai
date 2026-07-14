@@ -1,4 +1,4 @@
-import { C } from './data'
+import { C, T } from './data'
 
 export const Card = ({ children, style, onClick }: {
   children: React.ReactNode
@@ -10,21 +10,29 @@ export const Card = ({ children, style, onClick }: {
     role={onClick ? 'button' : undefined}
     tabIndex={onClick ? 0 : undefined}
     onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
-    style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, cursor: onClick ? "pointer" : undefined, ...style }}
+    style={{
+      background: `linear-gradient(180deg, #181818 0%, ${C.card} 58%)`,
+      border: `1px solid ${C.border}`,
+      borderRadius: T.radius.xl,
+      padding: T.space.xl,
+      boxShadow: '0 1px 0 rgba(255,255,255,.04) inset, 0 2px 6px rgba(0,0,0,.28), 0 12px 28px -16px rgba(0,0,0,.55)',
+      cursor: onClick ? "pointer" : undefined,
+      ...style,
+    }}
   >
     {children}
   </div>
 )
 
 export const Tag = ({ label, color, small }: { label: string; color: string; small?: boolean }) => (
-  <span style={{ fontSize: small ? 9 : 10, color, background: color + "22", borderRadius: 4, padding: small ? "1px 6px" : "2px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>
+  <span style={{ fontSize: small ? T.text['2xs'] : T.text.xs, color, background: color + "22", borderRadius: T.radius['2xs'], padding: small ? "1px 6px" : "2px 8px", fontWeight: T.weight.semibold, whiteSpace: "nowrap" }}>
     {label}
   </span>
 )
 
 export const Bar = ({ pct, color, h = 5 }: { pct: number; color: string; h?: number }) => (
-  <div style={{ background: C.border, borderRadius: 4, height: h, flex: 1 }}>
-    <div style={{ width: `${Math.min(pct, 100)}%`, height: "100%", background: color, borderRadius: 4, transition: "width .5s" }} />
+  <div style={{ background: C.border, borderRadius: T.radius['2xs'], height: h, flex: 1 }}>
+    <div style={{ width: `${Math.min(pct, 100)}%`, height: "100%", background: color, borderRadius: T.radius['2xs'], transition: "width .5s" }} />
   </div>
 )
 
