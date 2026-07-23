@@ -1,11 +1,16 @@
-import { useState, useContext } from 'react'
+import { useState, useContext, useMemo } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Dumbbell } from 'lucide-react'
-import { Card, Tag, Bar } from '../primitives'
+import { Dumbbell, TrendingUp, Trophy } from 'lucide-react'
+import {
+  ResponsiveContainer, AreaChart, Area, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts'
+import { Card, Tag, Bar, ChartTooltip } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 import { WORKOUT_TEMPLATES } from '../data/templates'
+import { getWeekBuckets, aggregateWorkoutsByWeek, buildPaceTrend, computeRecords, formatPace } from '../../lib/performance'
 
 interface Props {
   setPage: (page: Page) => void
@@ -122,6 +127,11 @@ export function Treino({ setPage: _setPage }: Props) {
   })
   const monthKm = Math.round(monthWorkouts.reduce((s, w) => s + w.dist, 0) * 10) / 10
 
+  const weeklyVolume = useMemo(() => aggregateWorkoutsByWeek(workouts, getWeekBuckets(8)), [workouts])
+  const paceTrend = useMemo(() => buildPaceTrend(workouts, 12), [workouts])
+  const records = useMemo(() => computeRecords(workouts), [workouts])
+  const hasVolumeData = weeklyVolume.some(w => w.km > 0)
+
   function openModal() {
     setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', cal: '', hr: '' })
     setShowTemplates(false)
@@ -219,6 +229,80 @@ export function Treino({ setPage: _setPage }: Props) {
           </Card>
         ))}
       </div>
+
+      {/* Evolução de performance */}
+      {(hasVolumeData || paceTrend.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          {hasVolumeData && (
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 4, ...displayStyle }}>
+                <TrendingUp size={17} color={C.running} /> Volume semanal
+              </div>
+              <div style={{ fontSize: T.text.base, color: C.muted, marginBottom: 12 }}>Km percorridos por semana — últimas 8 semanas</div>
+              <div style={{ width: '100%', height: 180 }}>
+                <ResponsiveContainer>
+                  <AreaChart data={weeklyVolume} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="kmGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={C.running} stopOpacity={0.45} />
+                        <stop offset="95%" stopColor={C.running} stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke={C.border} vertical={false} />
+                    <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} />
+                    <YAxis tick={{ fill: C.muted, fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Area type="monotone" dataKey="km" name="km" stroke={C.running} strokeWidth={2} fill="url(#kmGradient)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+
+          {paceTrend.length >= 2 && (
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 4, ...displayStyle }}>
+                <TrendingUp size={17} color={C.blue} /> Evolução do ritmo
+              </div>
+              <div style={{ fontSize: T.text.base, color: C.muted, marginBottom: 12 }}>Pace (min/km) nas últimas corridas — quanto menor, melhor</div>
+              <div style={{ width: '100%', height: 180 }}>
+                <ResponsiveContainer>
+                  <LineChart data={paceTrend} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
+                    <CartesianGrid stroke={C.border} vertical={false} />
+                    <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} />
+                    <YAxis tick={{ fill: C.muted, fontSize: 11 }} axisLine={false} tickLine={false} width={30} reversed />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Line type="monotone" dataKey="pace" name="min/km" stroke={C.blue} strokeWidth={2} dot={{ r: 3, fill: C.blue }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Recordes pessoais */}
+      {(records.bestPace || records.longestDist || records.longestDuration || records.mostCal) && (
+        <Card style={{ marginBottom: 16, borderTop: `2px solid ${C.orange}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 14, ...displayStyle }}>
+            <Trophy size={17} color={C.orange} /> Recordes pessoais
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 12 }}>
+            {[
+              records.bestPace && { l: 'Melhor pace (corrida)', v: `${formatPace(records.bestPace.value)}/km`, sub: records.bestPace.workout.name, c: C.blue },
+              records.longestDist && { l: 'Maior distância', v: `${records.longestDist.value}km`, sub: records.longestDist.workout.name, c: C.running },
+              records.longestDuration && { l: 'Treino mais longo', v: formatDuration(records.longestDuration.value), sub: records.longestDuration.workout.name, c: C.purple },
+              records.mostCal && { l: 'Mais calorias', v: `${records.mostCal.value} kcal`, sub: records.mostCal.workout.name, c: C.red },
+            ].filter((x): x is { l: string; v: string; sub: string; c: string } => Boolean(x)).map((r, i) => (
+              <div key={i} style={{ background: C.card2, borderRadius: T.radius.md, padding: '12px 14px', border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: T.text.xs, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>{r.l}</div>
+                <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold, color: r.c, ...displayStyle }}>{r.v}</div>
+                <div style={{ fontSize: T.text.sm, color: C.muted2, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.sub}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: 16 }}>
         {/* Activities */}

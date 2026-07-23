@@ -1,7 +1,11 @@
-import { useState, useEffect, useContext } from 'react'
+import { useState, useEffect, useContext, useMemo } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { CalendarDays, Puzzle, TrendingUp, Zap } from 'lucide-react'
-import { Card, Bar } from '../primitives'
+import { Activity, CalendarDays, Puzzle, TrendingUp, Zap } from 'lucide-react'
+import {
+  ResponsiveContainer, ComposedChart, Bar as RBar, Line,
+  BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+} from 'recharts'
+import { Card, Bar, ChartTooltip } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useHabitsStore, type HabitDef } from '../../store/useHabitsStore'
 import { useWorkoutStore, type ManualWorkout } from '../../store/useWorkoutStore'
@@ -10,13 +14,14 @@ import {
   type DailyData, type MentalEntry, type WeeklyReview,
 } from '../../lib/db'
 import { analyzePatterns, type PatternInsight } from '../../lib/patterns'
+import { getWeekBuckets, aggregateWellbeingByWeek, compareTrainingVsRestDays } from '../../lib/performance'
 import { hasApiKey, generateWeeklyReview } from '../../lib/anthropic'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 
 interface Props { setPage: (p: Page) => void }
 
-const HISTORY_DAYS = 35
+const HISTORY_DAYS = 56
 
 const TONE_COLOR: Record<PatternInsight['tone'], string> = {
   positive: C.green,
@@ -118,6 +123,22 @@ export function Insights({ setPage }: Props) {
 
   const insights = analyzePatterns({ dailyHistory, mentalHistory, habitDefs, workouts })
 
+  const weeklyWellbeing = useMemo(
+    () => aggregateWellbeingByWeek(dailyHistory, mentalHistory, workouts, getWeekBuckets(8)),
+    [dailyHistory, mentalHistory, workouts],
+  )
+  const hasWellbeingData = weeklyWellbeing.some(w => w.workouts > 0 || w.avgMood !== null || w.avgEnergy !== null)
+
+  const trainingComparison = useMemo(
+    () => compareTrainingVsRestDays(mentalHistory, workouts),
+    [mentalHistory, workouts],
+  )
+  const trainingComparisonData = [
+    { label: 'Dias com treino', humor: trainingComparison.trainMood, energia: trainingComparison.trainEnergy, days: trainingComparison.trainDays },
+    { label: 'Dias sem treino', humor: trainingComparison.restMood, energia: trainingComparison.restEnergy, days: trainingComparison.restDays },
+  ]
+  const hasTrainingComparisonData = trainingComparison.trainDays > 0 && trainingComparison.restDays > 0
+
   // Energia x produtividade — taxa média de hábitos concluídos por nível de energia
   const energyBuckets: Record<number, number[]> = {}
   for (const d of Object.keys(dailyHistory)) {
@@ -198,6 +219,61 @@ export function Insights({ setPage }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Treino x Bem-estar */}
+      {(hasWellbeingData || hasTrainingComparisonData) && (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          {hasWellbeingData && (
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 4, ...displayStyle }}>
+                <Activity size={17} color={C.running} /> Performance x Bem-estar
+              </div>
+              <div style={{ fontSize: T.text.base, color: C.muted, marginBottom: 12 }}>
+                Treinos por semana (barras) e humor/energia médios (linhas) — últimas 8 semanas
+              </div>
+              <div style={{ width: '100%', height: 220 }}>
+                <ResponsiveContainer>
+                  <ComposedChart data={weeklyWellbeing} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
+                    <CartesianGrid stroke={C.border} vertical={false} />
+                    <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} />
+                    <YAxis yAxisId="left" tick={{ fill: C.muted, fontSize: 11 }} axisLine={false} tickLine={false} width={26} allowDecimals={false} />
+                    <YAxis yAxisId="right" orientation="right" domain={[0, 5]} tick={{ fill: C.muted, fontSize: 11 }} axisLine={false} tickLine={false} width={26} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: C.muted }} />
+                    <RBar yAxisId="left" dataKey="workouts" name="treinos" fill={`${C.running}88`} radius={[3, 3, 0, 0]} />
+                    <Line yAxisId="right" type="monotone" dataKey="avgMood" name="humor" stroke={C.blue} strokeWidth={2} dot={{ r: 3, fill: C.blue }} connectNulls />
+                    <Line yAxisId="right" type="monotone" dataKey="avgEnergy" name="energia" stroke={C.orange} strokeWidth={2} dot={{ r: 3, fill: C.orange }} connectNulls />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+
+          {hasTrainingComparisonData && (
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 4, ...displayStyle }}>
+                <Zap size={17} color={C.orange} /> Treino x Descanso
+              </div>
+              <div style={{ fontSize: T.text.base, color: C.muted, marginBottom: 12 }}>
+                Humor e energia médios em dias com treino registrado vs. dias sem treino
+              </div>
+              <div style={{ width: '100%', height: 220 }}>
+                <ResponsiveContainer>
+                  <BarChart data={trainingComparisonData} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
+                    <CartesianGrid stroke={C.border} vertical={false} />
+                    <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} />
+                    <YAxis domain={[0, 5]} tick={{ fill: C.muted, fontSize: 11 }} axisLine={false} tickLine={false} width={26} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: C.muted }} />
+                    <RBar dataKey="humor" name="humor" fill={C.blue} radius={[3, 3, 0, 0]} />
+                    <RBar dataKey="energia" name="energia" fill={C.orange} radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
 
