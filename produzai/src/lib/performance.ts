@@ -4,6 +4,34 @@ import type { DailyData, MentalEntry } from './db'
 /** Pace só faz sentido comparar dentro do mesmo tipo de atividade — corrida é o caso canônico. */
 const RUNNING_TYPE = 'Corrida'
 
+/** "Hoje", "Ontem" ou "Seg 21 jul" a partir de uma data "YYYY-MM-DD". */
+export function friendlyDate(raw: string): string {
+  const [y, m, d] = raw.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (date.toDateString() === today.toDateString()) return 'Hoje'
+  if (date.toDateString() === yesterday.toDateString()) return 'Ontem'
+  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+  return `${days[date.getDay()]} ${date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`
+}
+
+export function calcPace(durationMin: number, distKm: number): string {
+  if (distKm <= 0) return '—'
+  const minPerKm = durationMin / distKm
+  const m = Math.floor(minPerKm)
+  const s = Math.round((minPerKm - m) * 60)
+  return `${m}'${String(s).padStart(2, '0')}"`
+}
+
+export function formatDuration(durationMin: number): string {
+  const h = Math.floor(durationMin / 60)
+  const m = durationMin % 60
+  if (h > 0) return `${h}h${String(m).padStart(2, '0')}`
+  return `${m}min`
+}
+
 export interface WeekBucket {
   start: Date
   end: Date

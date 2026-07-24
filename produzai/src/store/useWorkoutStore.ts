@@ -15,11 +15,15 @@ export interface ManualWorkout {
   cal: number
   hr: number
   elev: number
+  source?: 'manual' | 'strava'
+  stravaId?: number
 }
 
 interface WorkoutState {
   workouts: ManualWorkout[]
   add:    (w: Omit<ManualWorkout, 'id'>) => void
+  /** Mescla atividades importadas (ex: Strava), ignorando as que já foram importadas (por stravaId). Retorna quantas foram adicionadas. */
+  addMany: (items: Omit<ManualWorkout, 'id'>[]) => number
   remove: (id: string) => void
   setAll: (workouts: ManualWorkout[]) => void
 }
@@ -32,6 +36,17 @@ export const useWorkoutStore = create<WorkoutState>()(
         const next = [{ ...w, id: Math.random().toString(36).slice(2) }, ...get().workouts]
         set({ workouts: next })
         saveWorkouts(next)
+      },
+      addMany: items => {
+        const existing = get().workouts
+        const knownStravaIds = new Set(existing.filter(w => w.stravaId != null).map(w => w.stravaId))
+        const toAdd = items.filter(w => w.stravaId == null || !knownStravaIds.has(w.stravaId))
+        if (toAdd.length === 0) return 0
+        const withIds = toAdd.map(w => ({ ...w, id: Math.random().toString(36).slice(2) }))
+        const next = [...withIds, ...existing].sort((a, b) => b.rawDate.localeCompare(a.rawDate))
+        set({ workouts: next })
+        saveWorkouts(next)
+        return toAdd.length
       },
       remove: id => {
         const next = get().workouts.filter(w => w.id !== id)

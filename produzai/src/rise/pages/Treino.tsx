@@ -1,6 +1,6 @@
-import { useState, useContext, useMemo } from 'react'
+import { useState, useContext, useMemo, useEffect } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Dumbbell, TrendingUp, Trophy } from 'lucide-react'
+import { Dumbbell, TrendingUp, Trophy, RefreshCw } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -10,7 +10,11 @@ import { useWorkoutStore } from '../../store/useWorkoutStore'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 import { WORKOUT_TEMPLATES } from '../data/templates'
-import { getWeekBuckets, aggregateWorkoutsByWeek, buildPaceTrend, computeRecords, formatPace } from '../../lib/performance'
+import {
+  getWeekBuckets, aggregateWorkoutsByWeek, buildPaceTrend, computeRecords, formatPace,
+  friendlyDate, calcPace, formatDuration,
+} from '../../lib/performance'
+import { getStravaStatus, fetchStravaActivities, stravaActivityToWorkout } from '../../lib/strava'
 
 interface Props {
   setPage: (page: Page) => void
@@ -40,33 +44,6 @@ function typeColor(type: string): string {
   }
 }
 
-function friendlyDate(raw: string): string {
-  const [y, m, d] = raw.split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(today.getDate() - 1)
-  if (date.toDateString() === today.toDateString()) return 'Hoje'
-  if (date.toDateString() === yesterday.toDateString()) return 'Ontem'
-  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-  return `${days[date.getDay()]} ${date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`
-}
-
-function calcPace(durationMin: number, distKm: number): string {
-  if (distKm <= 0) return '—'
-  const minPerKm = durationMin / distKm
-  const m = Math.floor(minPerKm)
-  const s = Math.round((minPerKm - m) * 60)
-  return `${m}'${String(s).padStart(2, '0')}"`
-}
-
-function formatDuration(durationMin: number): string {
-  const h = Math.floor(durationMin / 60)
-  const m = durationMin % 60
-  if (h > 0) return `${h}h${String(m).padStart(2, '0')}`
-  return `${m}min`
-}
-
 const inputStyle: React.CSSProperties = {
   width: '100%',
   background: C.card2,
@@ -89,8 +66,29 @@ const labelStyle: React.CSSProperties = {
 }
 
 export function Treino({ setPage: _setPage }: Props) {
-  const { workouts, add, remove } = useWorkoutStore()
+  const { workouts, add, addMany, remove } = useWorkoutStore()
   const { isMobile } = useContext(LayoutContext)
+
+  const [stravaConnected, setStravaConnected] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+
+  useEffect(() => {
+    getStravaStatus().then(s => setStravaConnected(s.connected))
+  }, [])
+
+  async function handleSyncStrava() {
+    setSyncing(true)
+    try {
+      const activities = await fetchStravaActivities(1, 50)
+      const added = addMany(activities.map(stravaActivityToWorkout))
+      if (added > 0) toast.success(`🏃 ${added} atividade${added > 1 ? 's' : ''} importada${added > 1 ? 's' : ''} do Strava`)
+      else toast.info('Nenhuma atividade nova para importar')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao sincronizar com o Strava')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const [showModal, setShowModal] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
@@ -186,12 +184,29 @@ export function Treino({ setPage: _setPage }: Props) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, marginBottom: 4, ...displayStyle }}><Dumbbell size={20} color={C.orange} /> Treino</div>
           <div style={{ fontSize: T.text.md, color: C.muted }}>Performance física — força + cardio</div>
         </div>
-        <button
-          onClick={openModal}
-          style={{ background: C.purple, border: 'none', borderRadius: T.radius.sm, padding: '8px 16px', color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer' }}
-        >
-          + Registrar treino
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {stravaConnected && (
+            <button
+              onClick={handleSyncStrava}
+              disabled={syncing}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                background: C.card2, border: `1px solid ${C.running}66`, borderRadius: T.radius.sm,
+                padding: '8px 16px', color: C.running, fontSize: T.text.md, fontWeight: T.weight.bold,
+                cursor: syncing ? 'default' : 'pointer',
+              }}
+            >
+              <RefreshCw size={14} className={syncing ? 'spin' : undefined} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar Strava'}
+            </button>
+          )}
+          <button
+            onClick={openModal}
+            style={{ background: C.purple, border: 'none', borderRadius: T.radius.sm, padding: '8px 16px', color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer' }}
+          >
+            + Registrar treino
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -309,7 +324,6 @@ export function Treino({ setPage: _setPage }: Props) {
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl }}>Atividades recentes</div>
-            {workouts.length > 0 && <Tag label="Manual" color={C.purple} />}
           </div>
 
           {workouts.length > 0 ? (
@@ -321,6 +335,7 @@ export function Treino({ setPage: _setPage }: Props) {
                     <div style={{ fontSize: T.text.sm, color: C.muted }}>{a.date}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                    {a.source === 'strava' && <Tag label="Strava" color={C.running} small />}
                     <Tag label={a.type} color={typeColor(a.type)} />
                     <button
                       onClick={() => handleRemove(a.id)}
