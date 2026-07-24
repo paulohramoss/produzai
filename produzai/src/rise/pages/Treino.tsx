@@ -15,6 +15,7 @@ import {
   friendlyDate, calcPace, formatDuration,
 } from '../../lib/performance'
 import { getStravaStatus, fetchStravaActivities, stravaActivityToWorkout } from '../../lib/strava'
+import { EFFORT_LEVELS, estimateCalories, type EffortLevel } from '../../lib/calories'
 
 interface Props {
   setPage: (page: Page) => void
@@ -98,7 +99,7 @@ export function Treino({ setPage: _setPage }: Props) {
     date: new Date().toISOString().split('T')[0],
     durationMin: '',
     dist: '',
-    cal: '',
+    effort: null as EffortLevel | null,
     hr: '',
   })
 
@@ -131,7 +132,7 @@ export function Treino({ setPage: _setPage }: Props) {
   const hasVolumeData = weeklyVolume.some(w => w.km > 0)
 
   function openModal() {
-    setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', cal: '', hr: '' })
+    setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', effort: null, hr: '' })
     setShowTemplates(false)
     setShowModal(true)
   }
@@ -143,7 +144,7 @@ export function Treino({ setPage: _setPage }: Props) {
       name: t.name,
       durationMin: String(t.durationMin),
       dist: t.dist > 0 ? String(t.dist) : '',
-      cal: t.cal > 0 ? String(t.cal) : '',
+      effort: t.effort,
     }))
     setShowTemplates(false)
     toast.info(`📋 Template "${t.name}" aplicado`)
@@ -151,7 +152,7 @@ export function Treino({ setPage: _setPage }: Props) {
 
   function handleSubmit() {
     const durationMin = parseInt(form.durationMin)
-    if (!durationMin || durationMin <= 0) return
+    if (!durationMin || durationMin <= 0 || !form.effort) return
     const distKm = parseFloat(form.dist) || 0
     const name = form.name.trim() || DEFAULT_NAMES[form.type] || 'Atividade'
     add({
@@ -162,9 +163,11 @@ export function Treino({ setPage: _setPage }: Props) {
       dist: distKm,
       pace: calcPace(durationMin, distKm),
       time: formatDuration(durationMin),
-      cal: parseInt(form.cal) || 0,
+      cal: estimateCalories(form.type, durationMin, form.effort),
       hr: parseInt(form.hr) || 0,
       elev: 0,
+      effort: form.effort,
+      source: 'manual',
     })
     setShowModal(false)
     toast.success(`🏋 ${name} registrado com sucesso!`)
@@ -437,7 +440,7 @@ export function Treino({ setPage: _setPage }: Props) {
                     >
                       <div>
                         <div style={{ fontSize: T.text.md, fontWeight: T.weight.semibold }}>{t.name}</div>
-                        <div style={{ fontSize: T.text.xs, color: C.muted }}>{t.label} · {t.durationMin}min{t.cal > 0 ? ` · ~${t.cal}kcal` : ''}</div>
+                        <div style={{ fontSize: T.text.xs, color: C.muted }}>{t.label} · {t.durationMin}min · {EFFORT_LEVELS[t.effort - 1].label}</div>
                       </div>
                       <span style={{ fontSize: T.text.sm, color: C.purple, fontWeight: T.weight.bold, flexShrink: 0 }}>{t.type}</span>
                     </div>
@@ -498,24 +501,13 @@ export function Treino({ setPage: _setPage }: Props) {
                 />
               </div>
 
-              <div>
+              <div style={{ gridColumn: '1 / -1' }}>
                 <label style={labelStyle}>Distância (km)</label>
                 <input
                   type="number" min="0" step="0.1"
                   value={form.dist}
                   onChange={e => setForm(f => ({ ...f, dist: e.target.value }))}
                   placeholder="ex: 5.2"
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Calorias (kcal)</label>
-                <input
-                  type="number" min="0"
-                  value={form.cal}
-                  onChange={e => setForm(f => ({ ...f, cal: e.target.value }))}
-                  placeholder="ex: 350"
                   style={inputStyle}
                 />
               </div>
@@ -532,6 +524,27 @@ export function Treino({ setPage: _setPage }: Props) {
               </div>
             </div>
 
+            {/* Grau de esforço */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={labelStyle}>Grau de esforço *</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {EFFORT_LEVELS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setForm(f => ({ ...f, effort: value }))}
+                    style={{
+                      flex: 1, padding: '10px 4px', borderRadius: T.radius.sm, border: 'none', cursor: 'pointer',
+                      fontSize: T.text.sm, fontWeight: T.weight.semibold, textAlign: 'center',
+                      background: form.effort === value ? typeColor(form.type) : C.card2,
+                      color: form.effort === value ? '#fff' : C.muted,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Pace preview */}
             {form.durationMin && form.dist && parseFloat(form.dist) > 0 && (
               <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
@@ -539,13 +552,20 @@ export function Treino({ setPage: _setPage }: Props) {
               </div>
             )}
 
+            {/* Calorie preview */}
+            {form.durationMin && parseInt(form.durationMin) > 0 && form.effort && (
+              <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
+                Gasto calórico estimado: <strong style={{ color: C.text }}>{estimateCalories(form.type, parseInt(form.durationMin), form.effort)} kcal</strong>
+              </div>
+            )}
+
             <button
               onClick={handleSubmit}
-              disabled={!form.durationMin || parseInt(form.durationMin) <= 0}
+              disabled={!form.durationMin || parseInt(form.durationMin) <= 0 || !form.effort}
               style={{
                 width: '100%', padding: 12, borderRadius: T.radius.md, border: 'none',
-                cursor: form.durationMin && parseInt(form.durationMin) > 0 ? 'pointer' : 'not-allowed',
-                background: form.durationMin && parseInt(form.durationMin) > 0 ? typeColor(form.type) : C.border2,
+                cursor: form.durationMin && parseInt(form.durationMin) > 0 && form.effort ? 'pointer' : 'not-allowed',
+                background: form.durationMin && parseInt(form.durationMin) > 0 && form.effort ? typeColor(form.type) : C.border2,
                 color: '#fff', fontSize: T.text.xl, fontWeight: T.weight.bold,
               }}
             >

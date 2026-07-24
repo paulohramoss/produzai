@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { userStorage } from '../lib/userStorage'
 import { saveWorkouts } from '../lib/db'
+import type { EffortLevel } from '../lib/calories'
 
 export interface ManualWorkout {
   id: string
@@ -15,6 +16,7 @@ export interface ManualWorkout {
   cal: number
   hr: number
   elev: number
+  effort?: EffortLevel
   source?: 'manual' | 'strava'
   stravaId?: number
 }

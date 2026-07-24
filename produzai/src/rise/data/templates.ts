@@ -1,23 +1,25 @@
+import type { EffortLevel } from '../../lib/calories'
+
 export interface WorkoutTemplate {
   name: string
   type: string
   durationMin: number
   dist: number
-  cal: number
+  effort: EffortLevel
   label: string
 }
 
 export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
-  { name: 'Corrida leve 5km', type: 'Corrida', durationMin: 30, dist: 5, cal: 300, label: 'Ritmo suave, Z2' },
-  { name: 'Corrida intervalada', type: 'Corrida', durationMin: 40, dist: 8, cal: 480, label: '4×800m + recuperação' },
-  { name: 'Treino Push (Peito/Tri)', type: 'Academia', durationMin: 60, dist: 0, cal: 380, label: 'Supino, Crucifixo, Tríceps' },
-  { name: 'Treino Pull (Costas/Bí)', type: 'Academia', durationMin: 60, dist: 0, cal: 360, label: 'Puxada, Remada, Rosca' },
-  { name: 'Treino Legs (Pernas)', type: 'Academia', durationMin: 65, dist: 0, cal: 430, label: 'Squat, Leg press, Extensora' },
-  { name: 'Full Body', type: 'Academia', durationMin: 70, dist: 0, cal: 400, label: 'Corpo inteiro, 3x semana' },
-  { name: 'Pedal moderado', type: 'Ciclismo', durationMin: 45, dist: 20, cal: 400, label: 'Terreno plano' },
-  { name: 'Caminhada rápida', type: 'Caminhada', durationMin: 35, dist: 4, cal: 180, label: 'Passo acelerado' },
-  { name: 'Natação contínua', type: 'Natação', durationMin: 45, dist: 1.5, cal: 420, label: '1500m nado livre' },
-  { name: 'Futebol recreativo', type: 'Futebol', durationMin: 60, dist: 6, cal: 500, label: 'Jogo amistoso' },
+  { name: 'Corrida leve 5km', type: 'Corrida', durationMin: 30, dist: 5, effort: 2, label: 'Ritmo suave, Z2' },
+  { name: 'Corrida intervalada', type: 'Corrida', durationMin: 40, dist: 8, effort: 4, label: '4×800m + recuperação' },
+  { name: 'Treino Push (Peito/Tri)', type: 'Academia', durationMin: 60, dist: 0, effort: 3, label: 'Supino, Crucifixo, Tríceps' },
+  { name: 'Treino Pull (Costas/Bí)', type: 'Academia', durationMin: 60, dist: 0, effort: 3, label: 'Puxada, Remada, Rosca' },
+  { name: 'Treino Legs (Pernas)', type: 'Academia', durationMin: 65, dist: 0, effort: 4, label: 'Squat, Leg press, Extensora' },
+  { name: 'Full Body', type: 'Academia', durationMin: 70, dist: 0, effort: 3, label: 'Corpo inteiro, 3x semana' },
+  { name: 'Pedal moderado', type: 'Ciclismo', durationMin: 45, dist: 20, effort: 3, label: 'Terreno plano' },
+  { name: 'Caminhada rápida', type: 'Caminhada', durationMin: 35, dist: 4, effort: 2, label: 'Passo acelerado' },
+  { name: 'Natação contínua', type: 'Natação', durationMin: 45, dist: 1.5, effort: 3, label: '1500m nado livre' },
+  { name: 'Futebol recreativo', type: 'Futebol', durationMin: 60, dist: 6, effort: 3, label: 'Jogo amistoso' },
 ]
 
 export interface DietTemplate {
