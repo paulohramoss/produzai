@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext, useRef } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Brain, Flame, Lightbulb, NotebookPen, PenLine, Smile, TrendingUp, Zap } from 'lucide-react'
+import { Brain, Flame, Lightbulb, Moon, NotebookPen, PenLine, Smile, TrendingUp, Zap } from 'lucide-react'
 import { Card } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { getMental, saveMental, getMentalHistory, getDaily, type MentalEntry } from '../../lib/db'
@@ -160,6 +160,11 @@ export function Mental({ setPage: _s }: Props) {
     toast.info(`⚡ Energia ${energy}/5 registrada`)
   }
 
+  const setSleep = (sleepHours: number) => {
+    update({ sleepHours })
+    toast.success(`😴 Sono registrado: ${sleepHours}h`)
+  }
+
   const setGratitude = (i: number, val: string) => {
     const g: [string, string, string] = [...entry.gratitude] as [string, string, string]
     g[i] = val
@@ -213,6 +218,14 @@ export function Mental({ setPage: _s }: Props) {
 
   const hasMood   = entry.mood > 0
   const hasEnergy = entry.energy > 0
+  const hasSleep  = entry.sleepHours != null
+
+  function sleepFeedback(hours: number): string {
+    if (hours < 6) return 'Pouco sono — priorize descansar hoje'
+    if (hours < 7) return 'Um pouco abaixo do ideal'
+    if (hours <= 9) return 'Faixa ideal 💤'
+    return 'Sono bem longo'
+  }
   const weekAvg   = Math.round(history.filter(h => h.mood > 0).reduce((s, h) => s + h.mood, 0) / Math.max(history.filter(h => h.mood > 0).length, 1))
   const streak    = history.slice().reverse().findIndex(h => h.mood === 0)
   const streakDays = streak === -1 ? 7 : streak
@@ -317,6 +330,27 @@ export function Mental({ setPage: _s }: Props) {
             {hasEnergy && (
               <div style={{ marginTop: 10, fontSize: T.text.base, color: C.muted, textAlign: 'center' }}>
                 Energia: {entry.energy}/5 — {entry.energy <= 2 ? 'Descanse mais' : entry.energy <= 3 ? 'Razoável' : entry.energy <= 4 ? 'Boa energia' : 'No limite máximo! 🔥'}
+              </div>
+            )}
+          </Card>
+
+          {/* Sleep */}
+          <Card>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 14, ...displayStyle }}><Moon size={17} /> Horas de sono</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[5, 6, 7, 8, 9, 10].map(h => (
+                <div
+                  key={h}
+                  onClick={() => setSleep(h)}
+                  style={{ flex: 1, padding: '10px 4px', textAlign: 'center', borderRadius: T.radius.md, cursor: 'pointer', background: entry.sleepHours === h ? `${C.blue}33` : C.card2, border: `2px solid ${entry.sleepHours === h ? C.blue : C.border}`, fontSize: T.text.md, fontWeight: T.weight.extrabold, color: entry.sleepHours === h ? C.blue : C.muted, transition: 'all .12s' }}
+                >
+                  {h}h
+                </div>
+              ))}
+            </div>
+            {hasSleep && (
+              <div style={{ marginTop: 10, fontSize: T.text.base, color: C.muted, textAlign: 'center' }}>
+                Sono: {entry.sleepHours}h — {sleepFeedback(entry.sleepHours!)}
               </div>
             )}
           </Card>

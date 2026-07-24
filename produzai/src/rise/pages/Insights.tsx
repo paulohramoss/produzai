@@ -1,20 +1,22 @@
 import { useState, useEffect, useContext, useMemo } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Activity, CalendarDays, Puzzle, TrendingUp, Zap } from 'lucide-react'
+import { Activity, CalendarDays, MirrorRectangular, Puzzle, TrendingUp, Zap } from 'lucide-react'
 import {
-  ResponsiveContainer, ComposedChart, Bar as RBar, Line,
+  ResponsiveContainer, ComposedChart, Bar as RBar, Line, Cell,
   BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts'
 import { Card, Bar, ChartTooltip } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useHabitsStore, type HabitDef } from '../../store/useHabitsStore'
 import { useWorkoutStore, type ManualWorkout } from '../../store/useWorkoutStore'
+import { useWebDietStore } from '../../store/useWebDietStore'
 import {
   getDailyHistory, getMentalHistory, getWeeklyReviews, saveWeeklyReview,
   type DailyData, type MentalEntry, type WeeklyReview,
 } from '../../lib/db'
 import { analyzePatterns, type PatternInsight } from '../../lib/patterns'
 import { getWeekBuckets, aggregateWellbeingByWeek, compareTrainingVsRestDays } from '../../lib/performance'
+import { buildWeekPerformance, diagnoseWeek, findStrongestFactor } from '../../lib/performanceScore'
 import { hasApiKey, generateWeeklyReview } from '../../lib/anthropic'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
@@ -96,6 +98,7 @@ export function Insights({ setPage }: Props) {
   const user = useAuthStore(s => s.user)
   const habitDefs = useHabitsStore(s => s.defs)
   const workouts = useWorkoutStore(s => s.workouts)
+  const dietCompliance = useWebDietStore(s => s.compliance)
   const { isMobile } = useContext(LayoutContext)
 
   const [loaded, setLoaded] = useState(false)
@@ -122,6 +125,14 @@ export function Insights({ setPage }: Props) {
   }, [user])
 
   const insights = analyzePatterns({ dailyHistory, mentalHistory, habitDefs, workouts })
+
+  const weekPerformance = useMemo(
+    () => buildWeekPerformance(lastDates(7), mentalHistory, dietCompliance, workouts),
+    [mentalHistory, dietCompliance, workouts],
+  )
+  const weekDiagnosis = useMemo(() => diagnoseWeek(weekPerformance), [weekPerformance])
+  const strongestFactor = useMemo(() => findStrongestFactor(weekPerformance), [weekPerformance])
+  const hasPerformanceData = weekPerformance.some(d => d.score !== null)
 
   const weeklyWellbeing = useMemo(
     () => aggregateWellbeingByWeek(dailyHistory, mentalHistory, workouts, getWeekBuckets(8)),
@@ -201,6 +212,69 @@ export function Insights({ setPage }: Props) {
           ☀️ Hoje →
         </button>
       </div>
+
+      {/* Espelho de performance */}
+      <Card style={{ marginBottom: 16, borderTop: `2px solid ${C.orange}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 4, ...displayStyle }}>
+          <MirrorRectangular size={17} color={C.orange} /> Espelho de performance
+        </div>
+        <div style={{ fontSize: T.text.base, color: C.muted, marginBottom: 16 }}>
+          Como sono, dieta e treino se refletiram na sua semana — últimos 7 dias
+        </div>
+
+        {hasPerformanceData ? (
+          <>
+            <div style={{ width: '100%', height: 180, marginBottom: 16 }}>
+              <ResponsiveContainer>
+                <BarChart
+                  data={weekPerformance.map(d => ({
+                    label: d.weekday.slice(0, 3),
+                    score: d.score,
+                    isBest: weekDiagnosis.best?.date === d.date,
+                    isWorst: weekDiagnosis.worst?.date === d.date,
+                  }))}
+                  margin={{ top: 6, right: 6, left: -18, bottom: 0 }}
+                >
+                  <CartesianGrid stroke={C.border} vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fill: C.muted, fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <RBar dataKey="score" name="performance" radius={[4, 4, 0, 0]}>
+                    {weekPerformance.map((d, i) => (
+                      <Cell
+                        key={i}
+                        fill={weekDiagnosis.best?.date === d.date ? C.green : weekDiagnosis.worst?.date === d.date ? C.red : C.blue}
+                      />
+                    ))}
+                  </RBar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {weekDiagnosis.best && (
+                <div style={{ background: `${C.green}11`, border: `1px solid ${C.green}33`, borderRadius: T.radius.md, padding: '10px 14px', fontSize: T.text.base, color: C.text, lineHeight: 1.6 }}>
+                  🏆 {weekDiagnosis.bestText}
+                </div>
+              )}
+              {weekDiagnosis.worst && (
+                <div style={{ background: `${C.red}11`, border: `1px solid ${C.red}33`, borderRadius: T.radius.md, padding: '10px 14px', fontSize: T.text.base, color: C.text, lineHeight: 1.6 }}>
+                  ⚠️ {weekDiagnosis.worstText}
+                </div>
+              )}
+              {strongestFactor && (
+                <div style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: T.radius.md, padding: '10px 14px', fontSize: T.text.base, color: C.muted, lineHeight: 1.6 }}>
+                  🔍 O fator que mais acompanhou sua performance essa semana foi <strong style={{ color: C.text }}>{strongestFactor.text}</strong> ({strongestFactor.corr > 0 ? 'correlação positiva' : 'correlação inversa'}, {Math.round(Math.abs(strongestFactor.corr) * 100)}%).
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: T.text.md, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
+            Registre sono (na página Mental), dieta e treinos por alguns dias para ver seu espelho de performance.
+          </div>
+        )}
+      </Card>
 
       {/* Padrões detectados */}
       <div style={{ marginBottom: 16 }}>
