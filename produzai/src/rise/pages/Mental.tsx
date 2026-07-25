@@ -99,7 +99,6 @@ export function Mental({ setPage: _s }: Props) {
       setLoaded(true)
     }
     load()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, today])
 
   // Reflexão diária assistida: gera (uma vez por dia) uma pergunta
