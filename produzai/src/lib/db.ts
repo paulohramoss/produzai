@@ -142,6 +142,7 @@ export interface MentalEntry {
   note: string
   reflectionQuestion?: string
   reflectionAnswer?: string
+  sleepHours?: number
 }
 
 export async function getMental(date: string): Promise<MentalEntry | null> {

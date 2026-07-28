@@ -98,6 +98,12 @@
 }
 .fade-in { animation: fade-in 0.3s ease forwards; }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.spin { animation: spin 0.9s linear infinite; }
+
 @layer components {
   .card { @apply bg-surface-card rounded-xl border border-surface-border; }
   .card-raised { @apply bg-surface-raised rounded-xl border border-surface-border; }
