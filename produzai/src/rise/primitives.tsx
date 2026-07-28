@@ -1,3 +1,4 @@
+import type { TooltipContentProps } from 'recharts'
 import { C, T } from './data'
 
 export const Card = ({ children, style, onClick }: {
@@ -54,3 +55,25 @@ export const Ring = ({ pct, size = 80, stroke = 7, color = C.orange }: { pct: nu
 export const Dot = ({ color }: { color: string }) => (
   <div style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
 )
+
+type ChartTooltipProps = Partial<Pick<TooltipContentProps<number, string>, 'active' | 'payload' | 'label'>>
+
+export const ChartTooltip = ({ active, payload, label }: ChartTooltipProps) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{
+      background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm,
+      padding: '8px 12px', boxShadow: '0 4px 16px rgba(0,0,0,.4)',
+    }}>
+      {label !== undefined && (
+        <div style={{ fontSize: T.text.xs, color: C.muted, fontWeight: T.weight.bold, marginBottom: 4 }}>{label}</div>
+      )}
+      {payload.map((p, i) => (
+        <div key={i} style={{ display: 'flex', gap: 14, justifyContent: 'space-between', fontSize: T.text.sm }}>
+          <span style={{ color: C.muted }}>{p.name}</span>
+          <span style={{ fontWeight: T.weight.bold, color: (p.color as string) ?? C.text }}>{p.value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}

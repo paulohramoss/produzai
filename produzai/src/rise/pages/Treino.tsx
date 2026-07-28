@@ -1,11 +1,21 @@
-import { useState, useContext } from 'react'
+import { useState, useContext, useMemo, useEffect } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Dumbbell } from 'lucide-react'
-import { Card, Tag, Bar } from '../primitives'
+import { Dumbbell, TrendingUp, Trophy, RefreshCw } from 'lucide-react'
+import {
+  ResponsiveContainer, AreaChart, Area, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts'
+import { Card, Tag, Bar, ChartTooltip } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 import { WORKOUT_TEMPLATES } from '../data/templates'
+import {
+  getWeekBuckets, aggregateWorkoutsByWeek, buildPaceTrend, computeRecords, formatPace,
+  friendlyDate, calcPace, formatDuration,
+} from '../../lib/performance'
+import { getStravaStatus, fetchStravaActivities, stravaActivityToWorkout } from '../../lib/strava'
+import { EFFORT_LEVELS, estimateCalories, type EffortLevel } from '../../lib/calories'
 
 interface Props {
   setPage: (page: Page) => void
@@ -35,33 +45,6 @@ function typeColor(type: string): string {
   }
 }
 
-function friendlyDate(raw: string): string {
-  const [y, m, d] = raw.split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(today.getDate() - 1)
-  if (date.toDateString() === today.toDateString()) return 'Hoje'
-  if (date.toDateString() === yesterday.toDateString()) return 'Ontem'
-  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-  return `${days[date.getDay()]} ${date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`
-}
-
-function calcPace(durationMin: number, distKm: number): string {
-  if (distKm <= 0) return '—'
-  const minPerKm = durationMin / distKm
-  const m = Math.floor(minPerKm)
-  const s = Math.round((minPerKm - m) * 60)
-  return `${m}'${String(s).padStart(2, '0')}"`
-}
-
-function formatDuration(durationMin: number): string {
-  const h = Math.floor(durationMin / 60)
-  const m = durationMin % 60
-  if (h > 0) return `${h}h${String(m).padStart(2, '0')}`
-  return `${m}min`
-}
-
 const inputStyle: React.CSSProperties = {
   width: '100%',
   background: C.card2,
@@ -84,8 +67,29 @@ const labelStyle: React.CSSProperties = {
 }
 
 export function Treino({ setPage: _setPage }: Props) {
-  const { workouts, add, remove } = useWorkoutStore()
+  const { workouts, add, addMany, remove } = useWorkoutStore()
   const { isMobile } = useContext(LayoutContext)
+
+  const [stravaConnected, setStravaConnected] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+
+  useEffect(() => {
+    getStravaStatus().then(s => setStravaConnected(s.connected))
+  }, [])
+
+  async function handleSyncStrava() {
+    setSyncing(true)
+    try {
+      const activities = await fetchStravaActivities(1, 50)
+      const added = addMany(activities.map(stravaActivityToWorkout))
+      if (added > 0) toast.success(`🏃 ${added} atividade${added > 1 ? 's' : ''} importada${added > 1 ? 's' : ''} do Strava`)
+      else toast.info('Nenhuma atividade nova para importar')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao sincronizar com o Strava')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const [showModal, setShowModal] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
@@ -95,7 +99,7 @@ export function Treino({ setPage: _setPage }: Props) {
     date: new Date().toISOString().split('T')[0],
     durationMin: '',
     dist: '',
-    cal: '',
+    effort: null as EffortLevel | null,
     hr: '',
   })
 
@@ -122,8 +126,13 @@ export function Treino({ setPage: _setPage }: Props) {
   })
   const monthKm = Math.round(monthWorkouts.reduce((s, w) => s + w.dist, 0) * 10) / 10
 
+  const weeklyVolume = useMemo(() => aggregateWorkoutsByWeek(workouts, getWeekBuckets(8)), [workouts])
+  const paceTrend = useMemo(() => buildPaceTrend(workouts, 12), [workouts])
+  const records = useMemo(() => computeRecords(workouts), [workouts])
+  const hasVolumeData = weeklyVolume.some(w => w.km > 0)
+
   function openModal() {
-    setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', cal: '', hr: '' })
+    setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', effort: null, hr: '' })
     setShowTemplates(false)
     setShowModal(true)
   }
@@ -135,7 +144,7 @@ export function Treino({ setPage: _setPage }: Props) {
       name: t.name,
       durationMin: String(t.durationMin),
       dist: t.dist > 0 ? String(t.dist) : '',
-      cal: t.cal > 0 ? String(t.cal) : '',
+      effort: t.effort,
     }))
     setShowTemplates(false)
     toast.info(`📋 Template "${t.name}" aplicado`)
@@ -143,7 +152,7 @@ export function Treino({ setPage: _setPage }: Props) {
 
   function handleSubmit() {
     const durationMin = parseInt(form.durationMin)
-    if (!durationMin || durationMin <= 0) return
+    if (!durationMin || durationMin <= 0 || !form.effort) return
     const distKm = parseFloat(form.dist) || 0
     const name = form.name.trim() || DEFAULT_NAMES[form.type] || 'Atividade'
     add({
@@ -154,9 +163,11 @@ export function Treino({ setPage: _setPage }: Props) {
       dist: distKm,
       pace: calcPace(durationMin, distKm),
       time: formatDuration(durationMin),
-      cal: parseInt(form.cal) || 0,
+      cal: estimateCalories(form.type, durationMin, form.effort),
       hr: parseInt(form.hr) || 0,
       elev: 0,
+      effort: form.effort,
+      source: 'manual',
     })
     setShowModal(false)
     toast.success(`🏋 ${name} registrado com sucesso!`)
@@ -176,12 +187,29 @@ export function Treino({ setPage: _setPage }: Props) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, marginBottom: 4, ...displayStyle }}><Dumbbell size={20} color={C.orange} /> Treino</div>
           <div style={{ fontSize: T.text.md, color: C.muted }}>Performance física — força + cardio</div>
         </div>
-        <button
-          onClick={openModal}
-          style={{ background: C.purple, border: 'none', borderRadius: T.radius.sm, padding: '8px 16px', color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer' }}
-        >
-          + Registrar treino
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {stravaConnected && (
+            <button
+              onClick={handleSyncStrava}
+              disabled={syncing}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                background: C.card2, border: `1px solid ${C.running}66`, borderRadius: T.radius.sm,
+                padding: '8px 16px', color: C.running, fontSize: T.text.md, fontWeight: T.weight.bold,
+                cursor: syncing ? 'default' : 'pointer',
+              }}
+            >
+              <RefreshCw size={14} className={syncing ? 'spin' : undefined} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar Strava'}
+            </button>
+          )}
+          <button
+            onClick={openModal}
+            style={{ background: C.purple, border: 'none', borderRadius: T.radius.sm, padding: '8px 16px', color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer' }}
+          >
+            + Registrar treino
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -220,12 +248,85 @@ export function Treino({ setPage: _setPage }: Props) {
         ))}
       </div>
 
+      {/* Evolução de performance */}
+      {(hasVolumeData || paceTrend.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          {hasVolumeData && (
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 4, ...displayStyle }}>
+                <TrendingUp size={17} color={C.running} /> Volume semanal
+              </div>
+              <div style={{ fontSize: T.text.base, color: C.muted, marginBottom: 12 }}>Km percorridos por semana — últimas 8 semanas</div>
+              <div style={{ width: '100%', height: 180 }}>
+                <ResponsiveContainer>
+                  <AreaChart data={weeklyVolume} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="kmGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={C.running} stopOpacity={0.45} />
+                        <stop offset="95%" stopColor={C.running} stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke={C.border} vertical={false} />
+                    <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} />
+                    <YAxis tick={{ fill: C.muted, fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Area type="monotone" dataKey="km" name="km" stroke={C.running} strokeWidth={2} fill="url(#kmGradient)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+
+          {paceTrend.length >= 2 && (
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 4, ...displayStyle }}>
+                <TrendingUp size={17} color={C.blue} /> Evolução do ritmo
+              </div>
+              <div style={{ fontSize: T.text.base, color: C.muted, marginBottom: 12 }}>Pace (min/km) nas últimas corridas — quanto menor, melhor</div>
+              <div style={{ width: '100%', height: 180 }}>
+                <ResponsiveContainer>
+                  <LineChart data={paceTrend} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
+                    <CartesianGrid stroke={C.border} vertical={false} />
+                    <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} />
+                    <YAxis tick={{ fill: C.muted, fontSize: 11 }} axisLine={false} tickLine={false} width={30} reversed />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Line type="monotone" dataKey="pace" name="min/km" stroke={C.blue} strokeWidth={2} dot={{ r: 3, fill: C.blue }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Recordes pessoais */}
+      {(records.bestPace || records.longestDist || records.longestDuration || records.mostCal) && (
+        <Card style={{ marginBottom: 16, borderTop: `2px solid ${C.orange}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 14, ...displayStyle }}>
+            <Trophy size={17} color={C.orange} /> Recordes pessoais
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 12 }}>
+            {[
+              records.bestPace && { l: 'Melhor pace (corrida)', v: `${formatPace(records.bestPace.value)}/km`, sub: records.bestPace.workout.name, c: C.blue },
+              records.longestDist && { l: 'Maior distância', v: `${records.longestDist.value}km`, sub: records.longestDist.workout.name, c: C.running },
+              records.longestDuration && { l: 'Treino mais longo', v: formatDuration(records.longestDuration.value), sub: records.longestDuration.workout.name, c: C.purple },
+              records.mostCal && { l: 'Mais calorias', v: `${records.mostCal.value} kcal`, sub: records.mostCal.workout.name, c: C.red },
+            ].filter((x): x is { l: string; v: string; sub: string; c: string } => Boolean(x)).map((r, i) => (
+              <div key={i} style={{ background: C.card2, borderRadius: T.radius.md, padding: '12px 14px', border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: T.text.xs, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>{r.l}</div>
+                <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold, color: r.c, ...displayStyle }}>{r.v}</div>
+                <div style={{ fontSize: T.text.sm, color: C.muted2, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.sub}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: 16 }}>
         {/* Activities */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl }}>Atividades recentes</div>
-            {workouts.length > 0 && <Tag label="Manual" color={C.purple} />}
           </div>
 
           {workouts.length > 0 ? (
@@ -237,6 +338,7 @@ export function Treino({ setPage: _setPage }: Props) {
                     <div style={{ fontSize: T.text.sm, color: C.muted }}>{a.date}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                    {a.source === 'strava' && <Tag label="Strava" color={C.running} small />}
                     <Tag label={a.type} color={typeColor(a.type)} />
                     <button
                       onClick={() => handleRemove(a.id)}
@@ -338,7 +440,7 @@ export function Treino({ setPage: _setPage }: Props) {
                     >
                       <div>
                         <div style={{ fontSize: T.text.md, fontWeight: T.weight.semibold }}>{t.name}</div>
-                        <div style={{ fontSize: T.text.xs, color: C.muted }}>{t.label} · {t.durationMin}min{t.cal > 0 ? ` · ~${t.cal}kcal` : ''}</div>
+                        <div style={{ fontSize: T.text.xs, color: C.muted }}>{t.label} · {t.durationMin}min · {EFFORT_LEVELS[t.effort - 1].label}</div>
                       </div>
                       <span style={{ fontSize: T.text.sm, color: C.purple, fontWeight: T.weight.bold, flexShrink: 0 }}>{t.type}</span>
                     </div>
@@ -399,24 +501,13 @@ export function Treino({ setPage: _setPage }: Props) {
                 />
               </div>
 
-              <div>
+              <div style={{ gridColumn: '1 / -1' }}>
                 <label style={labelStyle}>Distância (km)</label>
                 <input
                   type="number" min="0" step="0.1"
                   value={form.dist}
                   onChange={e => setForm(f => ({ ...f, dist: e.target.value }))}
                   placeholder="ex: 5.2"
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Calorias (kcal)</label>
-                <input
-                  type="number" min="0"
-                  value={form.cal}
-                  onChange={e => setForm(f => ({ ...f, cal: e.target.value }))}
-                  placeholder="ex: 350"
                   style={inputStyle}
                 />
               </div>
@@ -433,6 +524,27 @@ export function Treino({ setPage: _setPage }: Props) {
               </div>
             </div>
 
+            {/* Grau de esforço */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={labelStyle}>Grau de esforço *</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {EFFORT_LEVELS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setForm(f => ({ ...f, effort: value }))}
+                    style={{
+                      flex: 1, padding: '10px 4px', borderRadius: T.radius.sm, border: 'none', cursor: 'pointer',
+                      fontSize: T.text.sm, fontWeight: T.weight.semibold, textAlign: 'center',
+                      background: form.effort === value ? typeColor(form.type) : C.card2,
+                      color: form.effort === value ? '#fff' : C.muted,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Pace preview */}
             {form.durationMin && form.dist && parseFloat(form.dist) > 0 && (
               <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
@@ -440,13 +552,20 @@ export function Treino({ setPage: _setPage }: Props) {
               </div>
             )}
 
+            {/* Calorie preview */}
+            {form.durationMin && parseInt(form.durationMin) > 0 && form.effort && (
+              <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
+                Gasto calórico estimado: <strong style={{ color: C.text }}>{estimateCalories(form.type, parseInt(form.durationMin), form.effort)} kcal</strong>
+              </div>
+            )}
+
             <button
               onClick={handleSubmit}
-              disabled={!form.durationMin || parseInt(form.durationMin) <= 0}
+              disabled={!form.durationMin || parseInt(form.durationMin) <= 0 || !form.effort}
               style={{
                 width: '100%', padding: 12, borderRadius: T.radius.md, border: 'none',
-                cursor: form.durationMin && parseInt(form.durationMin) > 0 ? 'pointer' : 'not-allowed',
-                background: form.durationMin && parseInt(form.durationMin) > 0 ? typeColor(form.type) : C.border2,
+                cursor: form.durationMin && parseInt(form.durationMin) > 0 && form.effort ? 'pointer' : 'not-allowed',
+                background: form.durationMin && parseInt(form.durationMin) > 0 && form.effort ? typeColor(form.type) : C.border2,
                 color: '#fff', fontSize: T.text.xl, fontWeight: T.weight.bold,
               }}
             >

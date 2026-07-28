@@ -27,7 +27,7 @@ function completionRate(daily: DailyData): number | null {
   return done / daily.habits.length
 }
 
-function pearson(xs: number[], ys: number[]): number | null {
+export function pearson(xs: number[], ys: number[]): number | null {
   const n = xs.length
   if (n < 5) return null
   const meanX = xs.reduce((a, b) => a + b, 0) / n
