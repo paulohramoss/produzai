@@ -76,7 +76,7 @@ async function loadFirestoreData() {
 function clearStores() {
   useWorkoutStore.setState({ workouts: [] })
   useWebDietStore.setState({ data: null })
-  useCoachStore.setState({ messages: [] })
+  useCoachStore.setState({ conversations: [], activeId: null })
 }
 
 function firebaseErrorMsg(e: unknown): string {

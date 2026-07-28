@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useContext } from 'react'
-import { Bot, Paperclip, ArrowUp, Download, MessageSquare } from 'lucide-react'
+import { useState, useRef, useEffect, useContext, useMemo } from 'react'
+import { Bot, Paperclip, ArrowUp, Download, History, MessageSquare, Trash2 } from 'lucide-react'
 import { T, C, type Page, displayStyle } from '../data'
 import { Card, Ring } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
@@ -11,6 +11,16 @@ import { exportAllCSV, exportWorkoutsCSV, exportDietCSV } from '../../lib/export
 import { streamCoach, type ChatMessage, type ChatAttachment } from '../../lib/anthropic'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
+
+function formatConversationDate(ts: number): string {
+  const d = new Date(ts)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (d.toDateString() === today.toDateString()) return `Hoje, ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+  if (d.toDateString() === yesterday.toDateString()) return `Ontem, ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 
 interface Props { setPage: (p: Page) => void }
 
@@ -25,6 +35,7 @@ const SUGGESTIONS = [
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
 const ACCEPTED_ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const EMPTY_MESSAGES: ChatMessage[] = []
 
 export function Coach({ setPage }: Props) {
   const { isMobile } = useContext(LayoutContext)
@@ -33,11 +44,22 @@ export function Coach({ setPage }: Props) {
   const habitDefs = useHabitsStore(s => s.defs)
   const user      = useAuthStore(s => s.user)
 
-  const messages    = useCoachStore(s => s.messages)
-  const setMessages = useCoachStore(s => s.setMessages)
-  const clearCoach  = useCoachStore(s => s.clear)
+  const conversations       = useCoachStore(s => s.conversations)
+  const activeId            = useCoachStore(s => s.activeId)
+  const startNewConv        = useCoachStore(s => s.startNew)
+  const setActiveConv       = useCoachStore(s => s.setActive)
+  const setConvMessages     = useCoachStore(s => s.setMessages)
+  const removeConversation  = useCoachStore(s => s.removeConversation)
+
+  const activeConversation = conversations.find(c => c.id === activeId) ?? null
+  const messages = activeConversation?.messages ?? EMPTY_MESSAGES
+  const sortedConversations = useMemo(
+    () => [...conversations].sort((a, b) => b.updatedAt - a.updatedAt),
+    [conversations],
+  )
 
   const [showExport, setShowExport] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const [input, setInput]           = useState('')
   const [streaming, setStreaming]   = useState(false)
   const [streamText, setStreamText] = useState('')
@@ -72,14 +94,23 @@ export function Coach({ setPage }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamText])
 
+  // Reabre a conversa mais recente ao entrar na página, se nenhuma estiver ativa
+  useEffect(() => {
+    if (activeId === null && sortedConversations.length > 0) {
+      setActiveConv(sortedConversations[0].id)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ── Send ──────────────────────────────────────────────────────────────────
   async function send(text: string) {
     const trimmed = text.trim()
     if ((!trimmed && !attachment) || streaming) return
 
+    const convId = activeId ?? startNewConv()
     const userMsg: ChatMessage = { role: 'user', content: trimmed, attachment: attachment ?? undefined }
     const next = [...messages, userMsg]
-    setMessages(next)
+    setConvMessages(convId, next)
     setInput('')
     setAttachment(null)
     setStreaming(true)
@@ -91,7 +122,7 @@ export function Coach({ setPage }: Props) {
       { type: 'coach', workouts, weekWorkouts, wd, habitDefs, userName: user?.displayName || undefined },
       chunk => { full += chunk; setStreamText(full) },
       () => {
-        setMessages(m => [...m, { role: 'assistant', content: full }])
+        setConvMessages(convId, m => [...m, { role: 'assistant', content: full }])
         setStreamText('')
         setStreaming(false)
       },
@@ -100,6 +131,17 @@ export function Coach({ setPage }: Props) {
         setStreaming(false)
       },
     )
+  }
+
+  function handleStartNew() {
+    startNewConv()
+    setShowHistory(false)
+  }
+
+  function handleRemoveConversation(id: string) {
+    const wasActive = id === activeId
+    removeConversation(id)
+    if (wasActive) toast.info('🗑 Conversa removida')
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -228,14 +270,25 @@ export function Coach({ setPage }: Props) {
             </div>
             <div style={{ fontSize: T.text.sm, color: C.green, marginTop: 2 }}>● Disponível</div>
           </div>
-          {messages.length > 0 && (
-            <button
-              onClick={() => { clearCoach(); setStreamText('') }}
-              style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '4px 10px', fontSize: T.text.sm, color: C.muted, cursor: 'pointer' }}
-            >
-              Nova conversa
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {conversations.length > 0 && (
+              <button
+                onClick={() => setShowHistory(true)}
+                title="Ver conversas anteriores"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '4px 10px', fontSize: T.text.sm, color: C.muted, cursor: 'pointer' }}
+              >
+                <History size={13} /> Histórico
+              </button>
+            )}
+            {messages.length > 0 && (
+              <button
+                onClick={handleStartNew}
+                style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '4px 10px', fontSize: T.text.sm, color: C.muted, cursor: 'pointer' }}
+              >
+                Nova conversa
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Message area */}
@@ -418,6 +471,58 @@ export function Coach({ setPage }: Props) {
           </div>
         </div>
       </Card>
+
+      {/* Histórico de conversas */}
+      {showHistory && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowHistory(false) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 24, width: '100%', maxWidth: 460, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: T.text['2xl'], fontWeight: T.weight.extrabold }}>Conversas anteriores</div>
+              <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 22, lineHeight: 1 }}>×</button>
+            </div>
+
+            <button
+              onClick={handleStartNew}
+              style={{ width: '100%', background: C.orange, border: 'none', borderRadius: T.radius.md, padding: '10px', color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer', marginBottom: 14, flexShrink: 0 }}
+            >
+              + Nova conversa
+            </button>
+
+            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {sortedConversations.map(c => (
+                <div
+                  key={c.id}
+                  onClick={() => { setActiveConv(c.id); setShowHistory(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: T.radius.md, cursor: 'pointer',
+                    background: c.id === activeId ? `${C.orange}18` : C.card2,
+                    border: `1px solid ${c.id === activeId ? C.orange + '44' : C.border}`,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: T.text.md, fontWeight: T.weight.semibold, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {c.title}
+                    </div>
+                    <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 2 }}>
+                      {formatConversationDate(c.updatedAt)} · {c.messages.length} mensagens
+                    </div>
+                  </div>
+                  <button
+                    onClick={e => { e.stopPropagation(); handleRemoveConversation(c.id) }}
+                    title="Excluir conversa"
+                    style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: 4, flexShrink: 0 }}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
