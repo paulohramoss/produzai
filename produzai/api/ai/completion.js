@@ -4,6 +4,7 @@
 // ANTHROPIC_API_KEY — never exposed to the browser.
 
 import { verifyToken } from './_auth.js'
+import { rateLimit } from './_rateLimit.js'
 
 async function callClaude({ model, maxTokens, system, messages, apiKey }) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -225,6 +226,13 @@ export default async function handler(req, res) {
   const user = await verifyToken(req)
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  // Rate limit per user to guard against token-cost abuse.
+  const rl = rateLimit(`completion:${user.localId}`, { limit: 30, windowMs: 60_000 })
+  if (!rl.allowed) {
+    res.setHeader('Retry-After', String(rl.retryAfterSec))
+    return res.status(429).json({ error: 'Muitas requisições. Tente novamente em instantes.' })
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY

@@ -3,6 +3,7 @@
 // browser), and pipes the Anthropic streaming response back to the client.
 
 import { verifyToken } from './_auth.js'
+import { rateLimit } from './_rateLimit.js'
 import { buildSystemPrompt, onboardingSystemPrompt } from './_prompts.js'
 
 function toApiMessages(messages) {
@@ -44,6 +45,14 @@ export default async function handler(req, res) {
   const user = await verifyToken(req)
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  // Rate limit per user to guard against token-cost abuse. Streaming replies
+  // are heavier and longer than completions, so the window is a bit tighter.
+  const rl = rateLimit(`stream:${user.localId}`, { limit: 20, windowMs: 60_000 })
+  if (!rl.allowed) {
+    res.setHeader('Retry-After', String(rl.retryAfterSec))
+    return res.status(429).json({ error: 'Muitas requisições. Tente novamente em instantes.' })
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY

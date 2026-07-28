@@ -6,7 +6,23 @@
       "mcp__Vercel__list_projects",
       "mcp__Vercel__list_deployments",
       "mcp__Vercel__get_project",
-      "mcp__Vercel__get_deployment_build_logs"
+      "mcp__Vercel__get_deployment_build_logs",
+      "Bash(grep -iE '\\\\.\\(pdf|env|pem|key|p12|json\\)$|secret|credential')",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Read(//usr/local/bin/**)",
+      "Read(//home/ramoslenda/.nvm/versions/**)",
+      "Read(//home/ramoslenda/**)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(git config *)",
+      "Bash(git stash *)",
+      "Bash(git branch *)",
+      "Bash(export FILTER_BRANCH_SQUELCH_WARNING=1)",
+      "Bash(git filter-branch *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }

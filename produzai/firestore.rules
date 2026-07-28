@@ -32,10 +32,33 @@ service cloud.firestore {
       }
     }
 
-    // Leaderboard público (leitura para autenticados, escrita só para o próprio uid)
+    // Leaderboard público (leitura para autenticados, escrita só para o próprio uid).
+    // A escrita é validada: esquema fixo, tipos corretos, faixas de valores e
+    // uid/inviteCode amarrados à identidade — impede forjar entrada de outro
+    // usuário e limita valores absurdos. (Anti-cheat completo de xp exige
+    // cálculo server-side; aqui apenas restringimos o que pode ser gravado.)
+    function validLeaderboardEntry(userId) {
+      let d = request.resource.data;
+      return d.uid == userId
+        && d.keys().hasOnly(['uid', 'displayName', 'xp', 'streakDays',
+                             'weeklyWorkouts', 'weeklyXP', 'weekKey',
+                             'inviteCode', 'updatedAt'])
+        && d.displayName is string && d.displayName.size() <= 80
+        && d.xp is number && d.xp >= 0 && d.xp <= 100000000
+        && d.streakDays is number && d.streakDays >= 0 && d.streakDays <= 100000
+        && d.weeklyWorkouts is number && d.weeklyWorkouts >= 0 && d.weeklyWorkouts <= 1000
+        && d.weeklyXP is number && d.weeklyXP >= 0 && d.weeklyXP <= 100000000
+        && d.weekKey is string && d.weekKey.size() <= 12
+        && d.inviteCode == userId[0:6].upper()
+        && d.updatedAt is number;
+    }
+
     match /leaderboard/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null
+                            && request.auth.uid == userId
+                            && validLeaderboardEntry(userId);
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Tudo mais negado

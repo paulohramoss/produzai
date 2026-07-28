@@ -56,7 +56,6 @@ export function Projetos({ setPage: _s }: Props) {
       setLoaded(true)
     }
     load()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const persist = (next: Project[]) => {

@@ -9,9 +9,11 @@ export async function verifyToken(req) {
 
   const apiKey = process.env.FIREBASE_API_KEY
   if (!apiKey) {
-    // Dev fallback: if FIREBASE_API_KEY is not set, skip verification.
-    // Remove this branch before going to production with real users.
-    return { localId: 'dev', email: 'dev@local' }
+    // Fail closed: without FIREBASE_API_KEY we cannot verify the token, so we
+    // must reject the request rather than trust it. Set FIREBASE_API_KEY in the
+    // server environment (Vercel dashboard) for auth to work.
+    console.error('[auth] FIREBASE_API_KEY not set — rejecting request')
+    return null
   }
 
   try {
