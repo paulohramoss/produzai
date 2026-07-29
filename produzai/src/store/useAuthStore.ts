@@ -20,6 +20,7 @@ import { setUserStorageUid } from '../lib/userStorage'
 import {
   setDbUid, getProfile, getWorkouts, getDiet, getHydration,
   saveProfile, deleteAllUserData,
+  getCoachConversations, saveCoachConversations,
 } from '../lib/db'
 import { useWorkoutStore } from './useWorkoutStore'
 import { useWebDietStore } from './useWebDietStore'
@@ -70,10 +71,43 @@ async function loadFirestoreData() {
   }
 
   await useHabitsStore.getState().loadFromCloud()
-  useCoachStore.persist.rehydrate()
+  await loadCoachConversations()
 }
 
-function clearStores() {
+// Histórico do Coach: local e nuvem são unidos, nunca substituídos, para que
+// nenhuma conversa se perca — nem a que só existe neste aparelho, nem a que só
+// existe na nuvem (localStorage limpo, outro navegador, aba anônima).
+async function loadCoachConversations() {
+  await useCoachStore.persist.rehydrate()
+  const read = await getCoachConversations()
+  if (!read.ok) return   // falha de leitura: mantém o local intacto e não toca na nuvem
+
+  if (read.items === null) {
+    // Ainda não sincronizado neste usuário — sobe o que houver localmente.
+    const local = useCoachStore.getState().conversations
+    if (local.length > 0) saveCoachConversations(local)
+    return
+  }
+
+  useCoachStore.getState().mergeConversations(read.items)
+
+  // Devolve para a nuvem se o local tinha algo que ela não tinha.
+  const merged = useCoachStore.getState().conversations
+  const cloudUpdatedAt = new Map(read.items.map(c => [c.id, c.updatedAt]))
+  const needsPush = merged.length !== read.items.length
+    || merged.some(c => cloudUpdatedAt.get(c.id) !== c.updatedAt)
+  if (needsPush) saveCoachConversations(merged)
+}
+
+// Zera apenas o estado em memória ao sair.
+//
+// A ORDEM IMPORTA: o middleware `persist` do zustand grava em disco a cada
+// setState, então limpar os stores com o uid ainda ativo escrevia o estado
+// vazio por cima do histórico salvo do usuário — era assim que a conversa com o
+// Coach sumia. Soltando o uid antes, o userStorage ignora essas escritas.
+function clearSessionState() {
+  setUserStorageUid('')
+  setDbUid('')
   useWorkoutStore.setState({ workouts: [] })
   useWebDietStore.setState({ data: null })
   useCoachStore.setState({ conversations: [], activeId: null })
@@ -140,9 +174,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    clearStores()
-    setUserStorageUid('')
-    setDbUid('')
+    clearSessionState()
     await firebaseSignOut(auth)
   },
 
@@ -202,9 +234,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     await deleteUser(u)
 
     // Clear in-memory state (onAuthStateChanged will also fire and clean up)
-    clearStores()
-    setUserStorageUid('')
-    setDbUid('')
+    clearSessionState()
   },
 
   init: () => {
@@ -226,9 +256,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           consentAccepted: !!(profile?.consentAt),
         })
       } else {
-        clearStores()
-        setUserStorageUid('')
-        setDbUid('')
+        clearSessionState()
         set({ user: null, loading: false, initialized: true, onboardingDone: false, consentAccepted: false })
       }
     })
