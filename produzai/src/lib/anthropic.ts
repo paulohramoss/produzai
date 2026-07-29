@@ -135,6 +135,22 @@ async function callCompletion<T>(type: string, payload: unknown): Promise<T | nu
   }
 }
 
+// ── Workout parsing from spoken description ───────────────────────────────────
+
+export interface ParsedWorkout {
+  type: string
+  name: string
+  durationMin: number
+  dist: number
+  effort: 1 | 2 | 3 | 4 | 5
+  hr: number
+}
+
+export async function parseWorkoutFromSpeech(transcript: string): Promise<ParsedWorkout | null> {
+  if (!transcript.trim()) return null
+  return callCompletion('parse-workout', { transcript })
+}
+
 // ── Macros estimation ─────────────────────────────────────────────────────────
 
 export async function estimateMealMacros(
