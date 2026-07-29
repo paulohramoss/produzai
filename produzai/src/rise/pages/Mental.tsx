@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
 import { Brain, Flame, Lightbulb, Moon, NotebookPen, PenLine, Smile, TrendingUp, Zap } from 'lucide-react'
 import { Card } from '../primitives'
@@ -8,34 +8,9 @@ import { toast } from '../../lib/toast'
 import { userStorage } from '../../lib/userStorage'
 import { LayoutContext } from '../LayoutContext'
 import { hasApiKey, generateReflectionQuestion, fallbackReflectionQuestion } from '../../lib/anthropic'
+import { useSpeechToText } from '../../lib/useSpeechToText'
 
 interface Props { setPage: (p: Page) => void }
-
-// Web Speech API — disponível no Chrome/Edge via prefixo webkit
-interface SpeechRecognitionEventLike {
-  resultIndex: number
-  results: { [index: number]: { [index: number]: { transcript: string } }; length: number }
-}
-interface SpeechRecognitionLike {
-  lang: string
-  continuous: boolean
-  interimResults: boolean
-  onresult: ((e: SpeechRecognitionEventLike) => void) | null
-  onerror: (() => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-}
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
-interface WindowWithSpeechRecognition extends Window {
-  SpeechRecognition?: SpeechRecognitionConstructor
-  webkitSpeechRecognition?: SpeechRecognitionConstructor
-}
-
-const SpeechRecognitionCtor: SpeechRecognitionConstructor | null =
-  typeof window !== 'undefined'
-    ? ((window as WindowWithSpeechRecognition).SpeechRecognition ?? (window as WindowWithSpeechRecognition).webkitSpeechRecognition ?? null)
-    : null
 
 function dateSeed(dateKey: string): number {
   return Number(dateKey.replace(/-/g, ''))
@@ -72,8 +47,6 @@ export function Mental({ setPage: _s }: Props) {
   const [savedNote, setSavedNote] = useState(false)
   const [reflectionLoading, setReflectionLoading] = useState(false)
   const [savedReflection, setSavedReflection] = useState(false)
-  const [recording, setRecording] = useState(false)
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
   // Carrega entrada de hoje e histórico
   useEffect(() => {
@@ -184,36 +157,13 @@ export function Mental({ setPage: _s }: Props) {
     toast.success('🤔 Reflexão salva!')
   }
 
-  function toggleRecording() {
-    if (!SpeechRecognitionCtor) {
-      toast.error('Reconhecimento de voz não disponível neste navegador')
-      return
-    }
-    if (recording) {
-      recognitionRef.current?.stop()
-      return
-    }
-    const rec = new SpeechRecognitionCtor()
-    rec.lang = 'pt-BR'
-    rec.continuous = true
-    rec.interimResults = false
-    rec.onresult = (e: SpeechRecognitionEventLike) => {
-      let transcript = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) transcript += e.results[i][0].transcript
-      transcript = transcript.trim()
-      if (!transcript) return
-      setEntry(prev => {
-        const next = { ...prev, reflectionAnswer: prev.reflectionAnswer ? `${prev.reflectionAnswer} ${transcript}` : transcript }
-        persist(next)
-        return next
-      })
-    }
-    rec.onerror = () => setRecording(false)
-    rec.onend = () => setRecording(false)
-    rec.start()
-    recognitionRef.current = rec
-    setRecording(true)
-  }
+  const { recording, toggle: toggleRecording, supported: speechSupported } = useSpeechToText(transcript => {
+    setEntry(prev => {
+      const next = { ...prev, reflectionAnswer: prev.reflectionAnswer ? `${prev.reflectionAnswer} ${transcript}` : transcript }
+      persist(next)
+      return next
+    })
+  })
 
   const hasMood   = entry.mood > 0
   const hasEnergy = entry.energy > 0
@@ -258,7 +208,7 @@ export function Mental({ setPage: _s }: Props) {
                 rows={4}
                 style={{ ...inp, resize: 'none', lineHeight: 1.6, paddingRight: 44 } as React.CSSProperties}
               />
-              {SpeechRecognitionCtor && (
+              {speechSupported && (
                 <button
                   onClick={toggleRecording}
                   title={recording ? 'Parar gravação' : 'Gravar resposta por voz'}

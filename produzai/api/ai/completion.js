@@ -154,6 +154,47 @@ Regras:
   return extractJSON(text)
 }
 
+const WORKOUT_TYPES = ['Corrida', 'Caminhada', 'Academia', 'Ciclismo', 'Natação', 'Futebol', 'Outro']
+
+async function handleParseWorkout(payload, apiKey) {
+  const { transcript } = payload ?? {}
+  if (!transcript || !String(transcript).trim()) return null
+
+  const system = `Você extrai dados estruturados de uma descrição falada de treino em português brasileiro.
+
+Responda APENAS com JSON puro, sem markdown, sem crases, sem texto antes ou depois, no formato exato:
+{"type":"string","name":"string","durationMin":number,"dist":number,"effort":number,"hr":number}
+
+Regras:
+- "type": exatamente um destes valores: ${WORKOUT_TYPES.join(', ')} — escolha o mais próximo do que foi descrito
+- "name": nome curto para o treino (ex: "Corrida matinal", "Treino de pernas"); se não houver nome específico, gere um razoável a partir do tipo
+- "durationMin": duração em minutos (converta horas se falado em horas); se não mencionado, estime com base no tipo e na distância, ou use 30
+- "dist": distância em km (0 se não aplicável, ex: musculação)
+- "effort": grau de esforço percebido de 1 a 5 (1=leve, 2=moderado, 3=intenso, 4=muito intenso, 5=máximo); se não mencionado, use 3
+- "hr": frequência cardíaca média em bpm, 0 se não mencionado
+- NÃO use markdown, comece a resposta direto com {`
+
+  const text = await callClaude({
+    model: 'claude-haiku-4-5-20251001',
+    maxTokens: 256,
+    system,
+    messages: [{ role: 'user', content: transcript }],
+    apiKey,
+  })
+  if (!text) return null
+  const raw = extractJSON(text)
+  if (!raw) return null
+
+  return {
+    type: WORKOUT_TYPES.includes(raw.type) ? raw.type : 'Outro',
+    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Atividade',
+    durationMin: Math.max(1, Math.round(Number(raw.durationMin) || 30)),
+    dist: Math.max(0, Number(raw.dist) || 0),
+    effort: Math.min(5, Math.max(1, Math.round(Number(raw.effort) || 3))),
+    hr: Math.max(0, Math.round(Number(raw.hr) || 0)),
+  }
+}
+
 async function handleReflection(payload, apiKey) {
   const {
     habitsDone = 0,
@@ -248,6 +289,7 @@ export default async function handler(req, res) {
     if (type === 'macros')           result = await handleMacros(payload, apiKey)
     else if (type === 'pdf-diet')    result = await handlePdfDiet(payload, apiKey)
     else if (type === 'onboarding-plan') result = await handleOnboardingPlan(payload, apiKey)
+    else if (type === 'parse-workout') result = await handleParseWorkout(payload, apiKey)
     else if (type === 'reflection')  result = await handleReflection(payload, apiKey)
     else if (type === 'weekly-review') result = await handleWeeklyReview(payload, apiKey)
     else return res.status(400).json({ error: `Unknown type: ${type}` })
