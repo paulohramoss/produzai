@@ -60,6 +60,7 @@ export function Coach({ setPage }: Props) {
 
   const [showExport, setShowExport] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [input, setInput]           = useState('')
   const [streaming, setStreaming]   = useState(false)
   const [streamText, setStreamText] = useState('')
@@ -94,13 +95,14 @@ export function Coach({ setPage }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamText])
 
-  // Reabre a conversa mais recente ao entrar na página, se nenhuma estiver ativa
+  // Nunca deixa a página sem sessão aberta: se nenhuma conversa estiver ativa
+  // (entrada na página, ou histórico que acabou de chegar da nuvem), reabre a
+  // mais recente em vez de mostrar um chat vazio.
   useEffect(() => {
     if (activeId === null && sortedConversations.length > 0) {
       setActiveConv(sortedConversations[0].id)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [activeId, sortedConversations, setActiveConv])
 
   // ── Send ──────────────────────────────────────────────────────────────────
   async function send(text: string) {
@@ -135,13 +137,20 @@ export function Coach({ setPage }: Props) {
 
   function handleStartNew() {
     startNewConv()
+    setConfirmDeleteId(null)
     setShowHistory(false)
   }
 
+  // Exclusão em dois toques — o histórico do Coach só sai daqui por decisão
+  // explícita do usuário, nunca por um clique acidental no ícone da lixeira.
   function handleRemoveConversation(id: string) {
-    const wasActive = id === activeId
+    if (confirmDeleteId !== id) {
+      setConfirmDeleteId(id)
+      return
+    }
+    setConfirmDeleteId(null)
     removeConversation(id)
-    if (wasActive) toast.info('🗑 Conversa removida')
+    toast.info('🗑 Conversa removida')
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -273,7 +282,7 @@ export function Coach({ setPage }: Props) {
           <div style={{ display: 'flex', gap: 8 }}>
             {conversations.length > 0 && (
               <button
-                onClick={() => setShowHistory(true)}
+                onClick={() => { setConfirmDeleteId(null); setShowHistory(true) }}
                 title="Ver conversas anteriores"
                 style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '4px 10px', fontSize: T.text.sm, color: C.muted, cursor: 'pointer' }}
               >
@@ -510,13 +519,30 @@ export function Coach({ setPage }: Props) {
                       {formatConversationDate(c.updatedAt)} · {c.messages.length} mensagens
                     </div>
                   </div>
-                  <button
-                    onClick={e => { e.stopPropagation(); handleRemoveConversation(c.id) }}
-                    title="Excluir conversa"
-                    style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: 4, flexShrink: 0 }}
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                  {confirmDeleteId === c.id ? (
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleRemoveConversation(c.id) }}
+                        style={{ background: C.red, border: 'none', borderRadius: T.radius.xs, padding: '4px 10px', color: '#fff', fontSize: T.text.sm, fontWeight: T.weight.bold, cursor: 'pointer' }}
+                      >
+                        Excluir
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setConfirmDeleteId(null) }}
+                        style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '4px 10px', color: C.muted, fontSize: T.text.sm, cursor: 'pointer' }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={e => { e.stopPropagation(); handleRemoveConversation(c.id) }}
+                      title="Excluir conversa"
+                      style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: 4, flexShrink: 0 }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
