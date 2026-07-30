@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Mic, Square } from 'lucide-react'
 import { T, C } from './data'
 import { useWebDietStore, type WebDietGoals, type WebDietMeal } from '../store/useWebDietStore'
@@ -59,10 +59,14 @@ interface MealFormBlockProps {
 function MealFormBlock({ form, onChange, onAppendItems, onSubmit, onCancel, submitLabel, canSubmit }: MealFormBlockProps) {
   const [calcLoading, setCalcLoading] = useState(false)
   const { recording, toggle: toggleDictation, supported: speechSupported } = useSpeechToText(onAppendItems)
+  const lastCalculatedRef = useRef<string | null>(null)
+  const wasRecordingRef = useRef(false)
 
   async function handleCalc() {
-    const items = stringToItems(itemsToString(form.items))
+    const itemsText = itemsToString(form.items)
+    const items = stringToItems(itemsText)
     if (items.length === 0) return
+    lastCalculatedRef.current = itemsText
     setCalcLoading(true)
     const result = await estimateMealMacros(items)
     setCalcLoading(false)
@@ -78,6 +82,17 @@ function MealFormBlock({ form, onChange, onAppendItems, onSubmit, onCancel, subm
   }
 
   const hasItems = itemsToString(form.items).trim().length > 0
+
+  function calcIfChanged() {
+    if (hasItems && itemsToString(form.items) !== lastCalculatedRef.current) handleCalc()
+  }
+
+  // Ao terminar de ditar os alimentos por voz, calcula as calorias automaticamente.
+  useEffect(() => {
+    if (wasRecordingRef.current && !recording) calcIfChanged()
+    wasRecordingRef.current = recording
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording])
 
   return (
     <div style={{ background: C.card2, borderRadius: T.radius.lg, padding: 16, border: `1px solid ${C.border2}` }}>
@@ -110,6 +125,7 @@ function MealFormBlock({ form, onChange, onAppendItems, onSubmit, onCancel, subm
             placeholder="3 ovos mexidos, Aveia 60g, Banana"
             value={itemsToString(form.items)}
             onChange={e => onChange('items', e.target.value)}
+            onBlur={calcIfChanged}
             style={{ ...inputStyle, flex: 1 }}
           />
           {speechSupported && (
