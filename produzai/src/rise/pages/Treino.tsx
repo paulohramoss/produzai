@@ -1,6 +1,6 @@
 import { useState, useContext, useMemo, useEffect } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Dumbbell, TrendingUp, Trophy, RefreshCw } from 'lucide-react'
+import { Dumbbell, TrendingUp, Trophy, RefreshCw, Mic, Square } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -16,6 +16,8 @@ import {
 } from '../../lib/performance'
 import { getStravaStatus, fetchStravaActivities, stravaActivityToWorkout } from '../../lib/strava'
 import { EFFORT_LEVELS, estimateCalories, type EffortLevel } from '../../lib/calories'
+import { parseWorkoutFromSpeech } from '../../lib/anthropic'
+import { useSpeechToText } from '../../lib/useSpeechToText'
 
 interface Props {
   setPage: (page: Page) => void
@@ -131,9 +133,16 @@ export function Treino({ setPage: _setPage }: Props) {
   const records = useMemo(() => computeRecords(workouts), [workouts])
   const hasVolumeData = weeklyVolume.some(w => w.km > 0)
 
+  const [dictation, setDictation] = useState('')
+  const [parsingSpeech, setParsingSpeech] = useState(false)
+  const { recording, toggle: toggleDictation, supported: speechSupported } = useSpeechToText(transcript => {
+    setDictation(prev => (prev ? `${prev} ${transcript}` : transcript))
+  })
+
   function openModal() {
     setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', effort: null, hr: '' })
     setShowTemplates(false)
+    setDictation('')
     setShowModal(true)
   }
 
@@ -148,6 +157,27 @@ export function Treino({ setPage: _setPage }: Props) {
     }))
     setShowTemplates(false)
     toast.info(`📋 Template "${t.name}" aplicado`)
+  }
+
+  async function handleFillFromSpeech() {
+    if (!dictation.trim()) return
+    setParsingSpeech(true)
+    const parsed = await parseWorkoutFromSpeech(dictation)
+    setParsingSpeech(false)
+    if (!parsed) {
+      toast.error('Não consegui entender o treino. Tente descrever de novo ou preencha manualmente.')
+      return
+    }
+    setForm(f => ({
+      ...f,
+      type: parsed.type,
+      name: parsed.name,
+      durationMin: String(parsed.durationMin),
+      dist: parsed.dist > 0 ? String(parsed.dist) : '',
+      effort: parsed.effort,
+      hr: parsed.hr > 0 ? String(parsed.hr) : '',
+    }))
+    toast.success('🎤 Treino preenchido! Revise e salve.')
   }
 
   function handleSubmit() {
@@ -416,11 +446,51 @@ export function Treino({ setPage: _setPage }: Props) {
           onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 28, width: '100%', maxWidth: 480 }}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 28, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold }}>Registrar treino</div>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 24, lineHeight: 1 }}>×</button>
             </div>
+
+            {/* Ditado por voz */}
+            {speechSupported && (
+              <div style={{ marginBottom: 16, background: C.card2, borderRadius: T.radius.md, padding: 14, border: `1px solid ${C.border2}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <button
+                    onClick={toggleDictation}
+                    title={recording ? 'Parar gravação' : 'Descrever treino por voz'}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                      background: recording ? C.red : C.purple, border: 'none', color: '#fff', cursor: 'pointer',
+                    }}
+                  >
+                    {recording ? <Square size={14} /> : <Mic size={16} />}
+                  </button>
+                  <div style={{ fontSize: T.text.base, color: C.muted, flex: 1 }}>
+                    {recording ? '🔴 Ouvindo... descreva seu treino' : 'Ex: "corri 5 km em 30 minutos, esforço moderado"'}
+                  </div>
+                </div>
+                <textarea
+                  value={dictation}
+                  onChange={e => setDictation(e.target.value)}
+                  placeholder="A transcrição aparece aqui — ou digite/cole a descrição manualmente"
+                  rows={2}
+                  style={{ width: '100%', boxSizing: 'border-box', fontSize: T.text.base, color: C.text, background: C.card, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, padding: '8px 10px', marginBottom: 8, lineHeight: 1.5, resize: 'none', fontFamily: 'inherit', outline: 'none' }}
+                />
+                <button
+                  onClick={handleFillFromSpeech}
+                  disabled={!dictation.trim() || parsingSpeech || recording}
+                  style={{
+                    width: '100%', background: !dictation.trim() || parsingSpeech ? C.card2 : C.purple, border: 'none', borderRadius: T.radius.sm,
+                    padding: '8px', color: !dictation.trim() || parsingSpeech ? C.muted : '#fff', fontSize: T.text.base, fontWeight: T.weight.bold,
+                    cursor: !dictation.trim() || parsingSpeech || recording ? 'default' : 'pointer',
+                  }}
+                >
+                  {parsingSpeech ? '✨ Preenchendo...' : '✨ Preencher com IA'}
+                </button>
+              </div>
+            )}
 
             {/* Template picker */}
             <div style={{ marginBottom: 16 }}>
