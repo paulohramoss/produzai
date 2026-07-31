@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { Mic, Square } from 'lucide-react'
 import { T, C } from './data'
 import { useWebDietStore, type WebDietGoals, type WebDietMeal } from '../store/useWebDietStore'
 import { toast } from '../lib/toast'
 import { DIET_TEMPLATES } from './data/templates'
 import { estimateMealMacros } from '../lib/anthropic'
+import { useSpeechToText } from '../lib/useSpeechToText'
 
 interface Props {
   onClose: () => void
@@ -47,18 +49,24 @@ function stringToItems(s: string): string[] {
 interface MealFormBlockProps {
   form: MealForm
   onChange: (k: keyof MealForm, v: string) => void
+  onAppendItems: (transcript: string) => void
   onSubmit: () => void
   onCancel: () => void
   submitLabel: string
   canSubmit: boolean
 }
 
-function MealFormBlock({ form, onChange, onSubmit, onCancel, submitLabel, canSubmit }: MealFormBlockProps) {
+function MealFormBlock({ form, onChange, onAppendItems, onSubmit, onCancel, submitLabel, canSubmit }: MealFormBlockProps) {
   const [calcLoading, setCalcLoading] = useState(false)
+  const { recording, toggle: toggleDictation, supported: speechSupported } = useSpeechToText(onAppendItems)
+  const lastCalculatedRef = useRef<string | null>(null)
+  const wasRecordingRef = useRef(false)
 
   async function handleCalc() {
-    const items = stringToItems(itemsToString(form.items))
+    const itemsText = itemsToString(form.items)
+    const items = stringToItems(itemsText)
     if (items.length === 0) return
+    lastCalculatedRef.current = itemsText
     setCalcLoading(true)
     const result = await estimateMealMacros(items)
     setCalcLoading(false)
@@ -74,6 +82,17 @@ function MealFormBlock({ form, onChange, onSubmit, onCancel, submitLabel, canSub
   }
 
   const hasItems = itemsToString(form.items).trim().length > 0
+
+  function calcIfChanged() {
+    if (hasItems && itemsToString(form.items) !== lastCalculatedRef.current) handleCalc()
+  }
+
+  // Ao terminar de ditar os alimentos por voz, calcula as calorias automaticamente.
+  useEffect(() => {
+    if (wasRecordingRef.current && !recording) calcIfChanged()
+    wasRecordingRef.current = recording
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording])
 
   return (
     <div style={{ background: C.card2, borderRadius: T.radius.lg, padding: 16, border: `1px solid ${C.border2}` }}>
@@ -100,13 +119,29 @@ function MealFormBlock({ form, onChange, onSubmit, onCancel, submitLabel, canSub
             </button>
           )}
         </div>
-        <input
-          type="text"
-          placeholder="3 ovos mexidos, Aveia 60g, Banana"
-          value={itemsToString(form.items)}
-          onChange={e => onChange('items', e.target.value)}
-          style={inputStyle}
-        />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text"
+            placeholder="3 ovos mexidos, Aveia 60g, Banana"
+            value={itemsToString(form.items)}
+            onChange={e => onChange('items', e.target.value)}
+            onBlur={calcIfChanged}
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          {speechSupported && (
+            <button
+              onClick={toggleDictation}
+              title={recording ? 'Parar gravação' : 'Ditar alimentos por voz'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                background: recording ? C.red : C.green, border: 'none', color: '#fff', cursor: 'pointer',
+              }}
+            >
+              {recording ? <Square size={14} /> : <Mic size={16} />}
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
@@ -178,6 +213,14 @@ export function DietaModal({ onClose }: Props) {
     setAddForm(f => ({ ...f, [k]: v }))
   }
 
+  function appendAddItems(transcript: string) {
+    setAddForm(f => {
+      const current = itemsToString(f.items)
+      const items = (current ? `${current}, ${transcript}` : transcript) as unknown as string[]
+      return { ...f, items }
+    })
+  }
+
   function submitAdd() {
     if (!addForm.name.trim()) return
     const items = stringToItems(itemsToString(addForm.items))
@@ -195,6 +238,14 @@ export function DietaModal({ onClose }: Props) {
 
   function setEditField(k: keyof MealForm, v: string) {
     setEditForm(f => ({ ...f, [k]: v }))
+  }
+
+  function appendEditItems(transcript: string) {
+    setEditForm(f => {
+      const current = itemsToString(f.items)
+      const items = (current ? `${current}, ${transcript}` : transcript) as unknown as string[]
+      return { ...f, items }
+    })
   }
 
   function submitEdit() {
@@ -296,6 +347,7 @@ export function DietaModal({ onClose }: Props) {
                   <MealFormBlock
                     form={editForm}
                     onChange={setEditField}
+                    onAppendItems={appendEditItems}
                     onSubmit={submitEdit}
                     onCancel={() => setEditingId(null)}
                     submitLabel="Salvar alterações"
@@ -336,6 +388,7 @@ export function DietaModal({ onClose }: Props) {
               <MealFormBlock
                 form={addForm}
                 onChange={setAddField}
+                onAppendItems={appendAddItems}
                 onSubmit={submitAdd}
                 onCancel={() => { setAdding(false); setAddForm({ ...EMPTY_MEAL }) }}
                 submitLabel="Adicionar"
