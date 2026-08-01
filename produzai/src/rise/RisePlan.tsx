@@ -15,6 +15,7 @@ import { Galeria }      from "./pages/Galeria";
 import { Perfil }       from "./pages/Perfil";
 import { Insights }     from "./pages/Insights";
 import { Onboarding }   from "./pages/Onboarding";
+import { Avatar }       from "./primitives";
 import { ConsentModal } from "./components/ConsentModal";
 import { Toaster }      from "./components/Toaster";
 import { useAuthStore } from "../store/useAuthStore";
@@ -220,17 +221,7 @@ export function RisePlan() {
                   aria-label="Ir para perfil"
                   style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
                 >
-                  <div style={{
-                    width: 32, height: 32, borderRadius: "50%",
-                    background: C.orange, overflow: "hidden",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: T.text.md, fontWeight: T.weight.extrabold, color: "#000",
-                  }}>
-                    {photoURL
-                      ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      : avatarInitial
-                    }
-                  </div>
+                  <Avatar url={photoURL} initial={avatarInitial} />
                 </button>
                 <button
                   onClick={logout}
@@ -257,17 +248,7 @@ export function RisePlan() {
                     borderRadius: T.radius.sm, width: "100%", textAlign: "left",
                   }}
                 >
-                  <div style={{
-                    width: 32, height: 32, borderRadius: "50%",
-                    background: C.orange, overflow: "hidden",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: T.text.md, fontWeight: T.weight.extrabold, color: "#000", flexShrink: 0,
-                  }}>
-                    {photoURL
-                      ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      : avatarInitial
-                    }
-                  </div>
+                  <Avatar url={photoURL} initial={avatarInitial} />
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {displayName || user?.displayName || "Usuário"}
@@ -338,17 +319,7 @@ export function RisePlan() {
                 aria-label="Ir para perfil"
                 style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex" }}
               >
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  background: C.orange, overflow: "hidden",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: T.text.md, fontWeight: T.weight.extrabold, color: "#000",
-                }}>
-                  {photoURL
-                    ? <img src={photoURL} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : avatarInitial
-                  }
-                </div>
+                <Avatar url={photoURL} initial={avatarInitial} />
               </button>
             </div>
           )}

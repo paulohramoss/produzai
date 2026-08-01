@@ -8,7 +8,11 @@ import { useHabitsStore } from '../../store/useHabitsStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useCoachStore } from '../../store/useCoachStore'
 import { exportAllCSV, exportWorkoutsCSV, exportDietCSV } from '../../lib/exportData'
-import { streamCoach, type ChatMessage, type ChatAttachment } from '../../lib/anthropic'
+import {
+  streamCoach,
+  type ChatMessage, type ChatAttachment, type ChatToolUse, type ChatToolResult,
+} from '../../lib/anthropic'
+import { buildWorkout, type WorkoutDraft } from '../../lib/workouts'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 
@@ -25,11 +29,11 @@ function formatConversationDate(ts: number): string {
 interface Props { setPage: (p: Page) => void }
 
 const SUGGESTIONS = [
+  { icon: '🏃', text: 'Acabei de correr 5km em 30 minutos' },
   { icon: '📊', text: 'Como foi minha semana?' },
   { icon: '🥗', text: 'O que devo comer pré-treino?' },
   { icon: '💤', text: 'Como melhorar minha recuperação?' },
   { icon: '🏋', text: 'Me sugira um treino para hoje' },
-  { icon: '⚡', text: 'Como aumentar minha energia?' },
   { icon: '📅', text: 'Me dê um plano para essa semana' },
 ]
 
@@ -37,9 +41,18 @@ const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
 const ACCEPTED_ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const EMPTY_MESSAGES: ChatMessage[] = []
 
+// Teto de segurança para o ciclo pedir ferramenta → executar → comentar.
+// Na prática o Coach registra e comenta em uma volta só.
+const MAX_TOOL_ROUNDS = 3
+
+function isToolResultMessage(msg: ChatMessage): boolean {
+  return Boolean(msg.toolResults?.length) && !msg.content.trim()
+}
+
 export function Coach({ setPage }: Props) {
   const { isMobile } = useContext(LayoutContext)
   const workouts  = useWorkoutStore(s => s.workouts)
+  const addWorkout = useWorkoutStore(s => s.add)
   const wd        = useWebDietStore(s => s.data)
   const habitDefs = useHabitsStore(s => s.defs)
   const user      = useAuthStore(s => s.user)
@@ -104,7 +117,97 @@ export function Coach({ setPage }: Props) {
     }
   }, [activeId, sortedConversations, setActiveConv])
 
+  // ── Ferramentas do Coach ──────────────────────────────────────────────────
+  // O histórico de treinos vive no cliente, então quem executa a ferramenta
+  // somos nós — o servidor só declara o contrato dela.
+  function runTool(use: ChatToolUse): ChatToolResult {
+    if (use.name !== 'registrar_treino') {
+      return { id: use.id, content: `Ferramenta desconhecida: ${use.name}`, isError: true }
+    }
+    try {
+      const workout = buildWorkout(use.input as WorkoutDraft)
+      addWorkout(workout)
+      toast.success(`🏋 ${workout.name} registrado`)
+      return {
+        id: use.id,
+        content: JSON.stringify({
+          registrado: true,
+          tipo: workout.type,
+          nome: workout.name,
+          data: workout.rawDate,
+          duracao: workout.time,
+          distanciaKm: workout.dist,
+          pace: workout.pace,
+          calorias: workout.cal,
+        }),
+      }
+    } catch {
+      return { id: use.id, content: 'Não foi possível registrar o treino.', isError: true }
+    }
+  }
+
   // ── Send ──────────────────────────────────────────────────────────────────
+  async function runTurn(convId: string, history: ChatMessage[], round: number): Promise<void> {
+    setStreamText('')
+
+    let full = ''
+    let toolUses: ChatToolUse[] = []
+    let failed = false
+
+    // Contexto sempre do estado atual: um treino registrado na volta anterior
+    // precisa aparecer aqui para o Coach comentar em cima do número certo.
+    const current = useWorkoutStore.getState().workouts
+
+    await streamCoach(
+      history,
+      {
+        type: 'coach',
+        workouts: current,
+        weekWorkouts: current.filter(w => {
+          const [y, m, d] = w.rawDate.split('-').map(Number)
+          return new Date(y, m - 1, d) >= weekStart
+        }),
+        wd,
+        habitDefs,
+        userName: user?.displayName || undefined,
+      },
+      chunk => { full += chunk; setStreamText(full) },
+      uses => { toolUses = uses },
+      err => {
+        toast.error('Erro no Coach: ' + err)
+        failed = true
+      },
+    )
+
+    setStreamText('')
+    if (failed) {
+      setStreaming(false)
+      return
+    }
+
+    let next: ChatMessage[] = [
+      ...history,
+      { role: 'assistant', content: full, ...(toolUses.length > 0 ? { toolUses } : {}) },
+    ]
+    setConvMessages(convId, next)
+
+    if (toolUses.length === 0) {
+      setStreaming(false)
+      return
+    }
+
+    // Todo tool_use precisa de um tool_result, mesmo no teto de rodadas —
+    // um pedido sem resposta invalidaria as próximas mensagens da conversa.
+    next = [...next, { role: 'user', content: '', toolResults: toolUses.map(runTool) }]
+    setConvMessages(convId, next)
+
+    if (round >= MAX_TOOL_ROUNDS) {
+      setStreaming(false)
+      return
+    }
+    await runTurn(convId, next, round + 1)
+  }
+
   async function send(text: string) {
     const trimmed = text.trim()
     if ((!trimmed && !attachment) || streaming) return
@@ -116,23 +219,8 @@ export function Coach({ setPage }: Props) {
     setInput('')
     setAttachment(null)
     setStreaming(true)
-    setStreamText('')
 
-    let full = ''
-    await streamCoach(
-      next,
-      { type: 'coach', workouts, weekWorkouts, wd, habitDefs, userName: user?.displayName || undefined },
-      chunk => { full += chunk; setStreamText(full) },
-      () => {
-        setConvMessages(convId, m => [...m, { role: 'assistant', content: full }])
-        setStreamText('')
-        setStreaming(false)
-      },
-      err => {
-        toast.error('Erro no Coach: ' + err)
-        setStreaming(false)
-      },
-    )
+    await runTurn(convId, next, 1)
   }
 
   function handleStartNew() {
@@ -307,7 +395,8 @@ export function Coach({ setPage }: Props) {
           {messages.length === 0 && !streaming && (
             <div>
               <div style={{ fontSize: T.text.md, color: C.muted, marginBottom: 14, textAlign: 'center' }}>
-                Olá! Pergunte qualquer coisa sobre treino, dieta ou performance.
+                Olá! Conte o treino que você fez — eu registro e comento — ou pergunte
+                qualquer coisa sobre treino, dieta e performance.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
                 {SUGGESTIONS.map((s, i) => (
@@ -328,46 +417,88 @@ export function Coach({ setPage }: Props) {
                 ))}
               </div>
               <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 14, textAlign: 'center' }}>
-                Anexe um PDF ou foto do seu treino para receber uma análise do coach.
+                Anexe o print do seu relógio, da esteira ou do app de corrida — eu leio os
+                números, registro o treino e comento.
               </div>
             </div>
           )}
 
           {/* Messages */}
-          {messages.map((msg, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+          {messages.map((msg, i) => {
+            // O turno que devolve o resultado da ferramenta é protocolo, não conversa.
+            if (isToolResultMessage(msg)) return null
+            const registered = msg.toolUses?.filter(t => t.name === 'registrar_treino') ?? []
+            const hasBubble = Boolean(msg.content.trim() || msg.attachment)
+
+            return (
               <div
+                key={i}
                 style={{
-                  maxWidth: '82%',
-                  padding: '10px 14px',
-                  borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  background: msg.role === 'user' ? C.orange : C.card2,
-                  color: msg.role === 'user' ? '#fff' : C.text,
-                  fontSize: T.text.md,
-                  lineHeight: 1.65,
-                  whiteSpace: 'pre-wrap',
+                  display: 'flex', flexDirection: 'column', gap: 6,
+                  alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
                 }}
               >
-                {msg.attachment && (
-                  <div style={{ marginBottom: msg.content ? 8 : 0 }}>
-                    {msg.attachment.mediaType.startsWith('image/') && msg.attachment.data ? (
-                      <img
-                        src={`data:${msg.attachment.mediaType};base64,${msg.attachment.data}`}
-                        alt={msg.attachment.name}
-                        style={{ maxWidth: '100%', maxHeight: 200, borderRadius: T.radius.md, display: 'block' }}
-                      />
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,.15)', borderRadius: T.radius.sm, padding: '6px 10px' }}>
-                        <span style={{ fontSize: T.text.lg }}>📄</span>
-                        <span style={{ fontSize: T.text.base }}>{msg.attachment.name}</span>
+                {hasBubble && (
+                  <div
+                    style={{
+                      maxWidth: '82%',
+                      padding: '10px 14px',
+                      borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                      background: msg.role === 'user' ? C.orange : C.card2,
+                      color: msg.role === 'user' ? '#fff' : C.text,
+                      fontSize: T.text.md,
+                      lineHeight: 1.65,
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {msg.attachment && (
+                      <div style={{ marginBottom: msg.content ? 8 : 0 }}>
+                        {msg.attachment.mediaType.startsWith('image/') && msg.attachment.data ? (
+                          <img
+                            src={`data:${msg.attachment.mediaType};base64,${msg.attachment.data}`}
+                            alt={msg.attachment.name}
+                            style={{ maxWidth: '100%', maxHeight: 200, borderRadius: T.radius.md, display: 'block' }}
+                          />
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,.15)', borderRadius: T.radius.sm, padding: '6px 10px' }}>
+                            <span style={{ fontSize: T.text.lg }}>📄</span>
+                            <span style={{ fontSize: T.text.base }}>{msg.attachment.name}</span>
+                          </div>
+                        )}
                       </div>
                     )}
+                    {msg.content}
                   </div>
                 )}
-                {msg.content}
+
+                {registered.map(use => {
+                  const w = buildWorkout(use.input as WorkoutDraft)
+                  return (
+                    <div
+                      key={use.id}
+                      onClick={() => setPage('treino')}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                        background: `${C.purple}18`, border: `1px solid ${C.purple}55`,
+                        borderRadius: T.radius.md, padding: '8px 12px', maxWidth: '82%',
+                      }}
+                    >
+                      <span style={{ fontSize: T.text.xl }}>🏋</span>
+                      <div>
+                        <div style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.text }}>
+                          {w.name} · {w.date}
+                        </div>
+                        <div style={{ fontSize: T.text.sm, color: C.muted }}>
+                          {[w.time, w.dist > 0 ? `${w.dist} km` : null, `${w.cal} kcal`]
+                            .filter(Boolean).join(' · ')} — registrado no seu treino
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {/* Streaming bubble */}
           {streaming && (

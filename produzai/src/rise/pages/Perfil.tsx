@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { toast } from '../../lib/toast'
 import { T, C, type Page, displayStyle } from '../data'
 import { User } from 'lucide-react'
-import { Card } from '../primitives'
+import { Card, Avatar } from '../primitives'
 import { LayoutContext } from '../LayoutContext'
 import { PolicyOverlay } from '../components/ConsentModal'
 import { getStravaStatus, goToStravaConnect, disconnectStrava, type StravaStatus } from '../../lib/strava'
@@ -186,17 +186,15 @@ export function Perfil({ setPage }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20, flexWrap: 'wrap' }}>
           {/* Avatar */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            <div style={{
-              width: 80, height: 80, borderRadius: '50%', overflow: 'hidden',
-              background: C.card2, border: `2px solid ${C.border}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {avatarURL ? (
-                <img src={avatarURL} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: 28, fontWeight: T.weight.extrabold, color: C.orange }}>{initials}</span>
-              )}
-            </div>
+            <Avatar
+              url={avatarURL}
+              initial={initials}
+              size={80}
+              fontSize={28}
+              background={C.card2}
+              color={C.orange}
+              border={`2px solid ${C.border}`}
+            />
             <button
               onClick={() => fileRef.current?.click()}
               disabled={photoUploading}

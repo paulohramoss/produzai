@@ -1,5 +1,47 @@
+import { useState } from 'react'
 import type { TooltipContentProps } from 'recharts'
 import { C, T } from './data'
+
+/**
+ * Foto do usuário com fallback para a inicial do nome.
+ * A URL pode falhar por motivos fora do nosso controle (foto do Google
+ * bloqueada pelo navegador, arquivo removido do Storage, link expirado) —
+ * nesses casos cai na inicial em vez de mostrar imagem quebrada.
+ */
+export const Avatar = ({
+  url, initial, size = 32, fontSize = T.text.md,
+  background = C.orange, color = '#000', border,
+}: {
+  url: string | null
+  initial: string
+  size?: number
+  fontSize?: number | string
+  background?: string
+  color?: string
+  border?: string
+}) => {
+  // Guarda qual URL falhou, não um booleano: assim uma foto nova é tentada
+  // de novo automaticamente, sem precisar resetar nada.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+      background, border,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize, fontWeight: T.weight.extrabold, color,
+    }}>
+      {url && url !== failedUrl ? (
+        <img
+          src={url}
+          alt=""
+          onError={() => setFailedUrl(url)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      ) : initial}
+    </div>
+  )
+}
 
 export const Card = ({ children, style, onClick }: {
   children: React.ReactNode
