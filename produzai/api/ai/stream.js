@@ -6,8 +6,81 @@ import { verifyToken } from './_auth.js'
 import { rateLimit } from './_rateLimit.js'
 import { buildSystemPrompt, onboardingSystemPrompt } from './_prompts.js'
 
+const WORKOUT_TYPES = ['Corrida', 'Caminhada', 'Academia', 'Ciclismo', 'Natação', 'Futebol', 'Outro']
+
+// Ferramenta do Coach: quando o usuário conta que treinou, o registro acontece
+// no próprio chat. A execução é do cliente (o histórico de treinos vive no
+// navegador/Firestore do usuário) — aqui só declaramos o contrato.
+const COACH_TOOLS = [
+  {
+    name: 'registrar_treino',
+    description:
+      'Registra um treino que o usuário disse ter feito. Use SEMPRE que ele relatar uma atividade concluída ' +
+      '(ex: "corri 8km em 45min", "fiz perna hoje", "joguei bola 1 hora"), mesmo sem todos os dados — estime o que faltar. ' +
+      'Não use para treinos futuros, planos ou sugestões, nem para atividades que ele apenas cogitou fazer.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        type: {
+          type: 'string',
+          enum: WORKOUT_TYPES,
+          description: 'Tipo da atividade, o mais próximo do que foi relatado',
+        },
+        name: {
+          type: 'string',
+          description: 'Nome curto do treino (ex: "Corrida matinal", "Treino de pernas")',
+        },
+        durationMin: {
+          type: 'integer',
+          description: 'Duração em minutos. Se não informada, estime pelo tipo e distância',
+        },
+        dist: {
+          type: 'number',
+          description: 'Distância em km. Use 0 quando não se aplica (ex: musculação)',
+        },
+        effort: {
+          type: 'integer',
+          description: 'Esforço percebido: 1=leve, 2=moderado, 3=intenso, 4=muito intenso, 5=máximo. Use 2 se não der para saber',
+        },
+        hr: {
+          type: 'integer',
+          description: 'Frequência cardíaca média em bpm. Use 0 se não mencionada',
+        },
+        date: {
+          type: 'string',
+          description: 'Data do treino em YYYY-MM-DD. Omita para hoje; use a data correta se ele disser "ontem", "sábado" etc.',
+        },
+      },
+      required: ['type', 'name', 'durationMin'],
+    },
+  },
+]
+
 function toApiMessages(messages) {
   return messages.map(m => {
+    // Resultado das ferramentas executadas no cliente — volta como turno de usuário.
+    if (Array.isArray(m.toolResults) && m.toolResults.length > 0) {
+      return {
+        role: 'user',
+        content: m.toolResults.map(r => ({
+          type: 'tool_result',
+          tool_use_id: r.id,
+          content: String(r.content ?? ''),
+          ...(r.isError ? { is_error: true } : {}),
+        })),
+      }
+    }
+
+    // Turno do assistente que pediu ferramentas: o texto (se houver) vem antes dos blocos tool_use.
+    if (Array.isArray(m.toolUses) && m.toolUses.length > 0) {
+      const blocks = []
+      if (m.content?.trim()) blocks.push({ type: 'text', text: m.content.trim() })
+      for (const t of m.toolUses) {
+        blocks.push({ type: 'tool_use', id: t.id, name: t.name, input: t.input ?? {} })
+      }
+      return { role: m.role, content: blocks }
+    }
+
     if (!m.attachment?.data) {
       return {
         role: m.role,
@@ -65,10 +138,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'messages array required' })
   }
 
-  const systemPrompt =
-    context?.type === 'onboarding'
-      ? onboardingSystemPrompt(context.userName)
-      : buildSystemPrompt(context)
+  const isOnboarding = context?.type === 'onboarding'
+  const systemPrompt = isOnboarding
+    ? onboardingSystemPrompt(context.userName)
+    : buildSystemPrompt(context)
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
   res.setHeader('Cache-Control', 'no-cache, no-transform')
@@ -89,6 +162,8 @@ export default async function handler(req, res) {
         max_tokens: 8192,
         stream: true,
         system: systemPrompt,
+        // O onboarding é só conversa — registrar treino só faz sentido no Coach.
+        ...(isOnboarding ? {} : { tools: COACH_TOOLS }),
         messages: toApiMessages(messages),
       }),
     })

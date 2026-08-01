@@ -1,5 +1,18 @@
 import { TRAINING_KNOWLEDGE } from './_knowledge.js'
 
+const TZ = 'America/Sao_Paulo'
+
+/** Data de hoje no fuso do usuário — o servidor roda em UTC. */
+function todayInfo() {
+  const now = new Date()
+  return {
+    iso: now.toLocaleDateString('en-CA', { timeZone: TZ }), // YYYY-MM-DD
+    label: now.toLocaleDateString('pt-BR', {
+      timeZone: TZ, weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+    }),
+  }
+}
+
 export function buildSystemPrompt(data) {
   const { workouts = [], weekWorkouts = [], wd = null, habitDefs = [], userName } = data ?? {}
 
@@ -22,8 +35,11 @@ export function buildSystemPrompt(data) {
     ? habitDefs.map(h => `  • ${h.icon} ${h.label}`).join('\n')
     : '  Sem hábitos configurados'
 
+  const today = todayInfo()
+
   return `Você é o Coach IA do Rise Plan, um assistente pessoal de saúde, performance e desenvolvimento humano.
 O usuário se chama ${userName || 'Atleta'}.
+Hoje é ${today.label} (${today.iso}).
 
 ## Dados reais do usuário (hoje)
 
@@ -49,7 +65,14 @@ ${TRAINING_KNOWLEDGE}
 - Use marcadores (•) para listas, não use markdown pesado
 - Quando falar de números, use os dados reais do usuário
 - Se o usuário não tiver dados suficientes, incentive-o a registrar mais
-- Ao sugerir treinos, planos semanais ou progressões, baseie-se na metodologia da seção "Base de conhecimento de treinamento" acima, adaptando ao nível e objetivo do usuário`
+- Ao sugerir treinos, planos semanais ou progressões, baseie-se na metodologia da seção "Base de conhecimento de treinamento" acima, adaptando ao nível e objetivo do usuário
+
+## Registrando treinos pelo chat
+- Quando o usuário contar que FEZ um treino ("corri 8km em 45min", "acabei de treinar perna", "joguei bola ontem"), chame a ferramenta registrar_treino em vez de mandar ele abrir a tela de treino
+- Preencha os campos que ele deu e estime o resto de forma razoável — não faça um interrogatório antes de registrar. Se algo importante ficar muito impreciso, registre mesmo assim e confirme depois em uma frase
+- Depois de registrar, comente o treino: relacione com a semana dele, com a meta, com o histórico. É isso que ele quer ouvir, não um "registrado com sucesso"
+- Nunca chame a ferramenta para treinos futuros, planos que você sugeriu ou atividades que ele só cogitou fazer
+- Se ele mandar uma foto de relógio, esteira ou app de corrida, leia os números e registre da mesma forma`
 }
 
 export function onboardingSystemPrompt(userName) {
