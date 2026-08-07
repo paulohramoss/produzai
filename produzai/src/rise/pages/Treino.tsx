@@ -1,6 +1,6 @@
-import { useState, useContext, useMemo, useEffect } from 'react'
+import { useState, useContext, useMemo, useEffect, useRef } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Dumbbell, TrendingUp, Trophy, RefreshCw } from 'lucide-react'
+import { Dumbbell, TrendingUp, Trophy, RefreshCw, Mic, Square, Camera } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -13,37 +13,27 @@ import { LayoutContext } from '../LayoutContext'
 import { WORKOUT_TEMPLATES } from '../data/templates'
 import {
   getWeekBuckets, aggregateWorkoutsByWeek, buildPaceTrend, computeRecords, formatPace,
-  friendlyDate, calcPace, formatDuration,
+  calcPace, formatDuration,
 } from '../../lib/performance'
 import { getStravaStatus, fetchStravaActivities, stravaActivityToWorkout } from '../../lib/strava'
-import { EFFORT_LEVELS, estimateCalories, REFERENCE_WEIGHT_KG, type EffortLevel } from '../../lib/calories'
-import { todayKey } from '../../lib/date'
+import { EFFORT_LEVELS, estimateCalories, type EffortLevel } from '../../lib/calories'
 
 interface Props {
   setPage: (page: Page) => void
 }
 
-const ACTIVITY_TYPES = ['Corrida', 'Caminhada', 'Academia', 'Ciclismo', 'Natação', 'Futebol', 'Outro']
-
-const DEFAULT_NAMES: Record<string, string> = {
-  Corrida: 'Corrida matinal',
-  Caminhada: 'Caminhada',
-  Academia: 'Treino na academia',
-  Ciclismo: 'Pedal',
-  Natação: 'Natação',
-  Futebol: 'Futebol',
-  Outro: 'Atividade',
-}
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024
+const ACCEPTED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 function typeColor(type: string): string {
   switch (type) {
-    case 'Corrida':   return C.running
+    case 'Corrida': return C.running
     case 'Caminhada': return C.green
-    case 'Academia':  return C.purple
-    case 'Ciclismo':  return C.orange
-    case 'Natação':   return C.blue
-    case 'Futebol':   return C.green
-    default:          return C.muted2
+    case 'Academia': return C.purple
+    case 'Ciclismo': return C.orange
+    case 'Natação': return C.blue
+    case 'Futebol': return C.green
+    default: return C.muted2
   }
 }
 
@@ -96,13 +86,15 @@ export function Treino({ setPage }: Props) {
 
   const [showModal, setShowModal] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
+  // Detalhes opcionais ficam recolhidos: o registro pede tipo + duração e deriva o resto.
+  const [showMore, setShowMore] = useState(false)
   const [form, setForm] = useState({
     type: 'Corrida',
     name: '',
-    date: todayKey(),
+    date: new Date().toISOString().split('T')[0],
     durationMin: '',
     dist: '',
-    effort: null as EffortLevel | null,
+    effort: DEFAULT_EFFORT as EffortLevel,
     hr: '',
   })
 
@@ -118,8 +110,8 @@ export function Treino({ setPage }: Props) {
     const [y, m, d] = w.rawDate.split('-').map(Number)
     return new Date(y, m - 1, d) >= weekStart
   })
-  const weekKm    = Math.round(weekWorkouts.reduce((s, w) => s + w.dist, 0) * 10) / 10
-  const weekCal   = weekWorkouts.reduce((s, w) => s + w.cal, 0)
+  const weekKm = Math.round(weekWorkouts.reduce((s, w) => s + w.dist, 0) * 10) / 10
+  const weekCal = weekWorkouts.reduce((s, w) => s + w.cal, 0)
   const weekCount = weekWorkouts.length
 
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
@@ -134,9 +126,20 @@ export function Treino({ setPage }: Props) {
   const records = useMemo(() => computeRecords(workouts), [workouts])
   const hasVolumeData = weeklyVolume.some(w => w.km > 0)
 
+  const [dictation, setDictation] = useState('')
+  const [parsing, setParsing] = useState(false)
+  const [photo, setPhoto] = useState<{ name: string; mediaType: string; data: string } | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const { recording, toggle: toggleDictation, supported: speechSupported } = useSpeechToText(transcript => {
+    setDictation(prev => (prev ? `${prev} ${transcript}` : transcript))
+  })
+
   function openModal() {
-    setForm({ type: 'Corrida', name: '', date: todayKey(), durationMin: '', dist: '', effort: null, hr: '' })
+    setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', effort: null, hr: '' })
     setShowTemplates(false)
+    setShowMore(false)
+    setDictation('')
+    setPhoto(null)
     setShowModal(true)
   }
 
@@ -153,12 +156,58 @@ export function Treino({ setPage }: Props) {
     toast.info(`📋 Template "${t.name}" aplicado`)
   }
 
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
+      toast.error('Envie uma imagem (JPG, PNG, WEBP ou GIF).')
+      return
+    }
+    if (file.size > MAX_PHOTO_SIZE) {
+      toast.error('Imagem muito grande. Máximo 5MB.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      setPhoto({ name: file.name, mediaType: file.type, data: result.split(',')[1] })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Voz, texto e foto caem no mesmo extrator — a foto tem prioridade quando existe.
+  async function handleFillFromAI() {
+    if (!dictation.trim() && !photo) return
+    setParsing(true)
+    const parsed = photo
+      ? await parseWorkoutFromImage({ mediaType: photo.mediaType, data: photo.data }, dictation)
+      : await parseWorkoutFromSpeech(dictation)
+    setParsing(false)
+    if (!parsed) {
+      toast.error(
+        photo
+          ? 'Não consegui ler os dados dessa imagem. Tente outra foto ou preencha manualmente.'
+          : 'Não consegui entender o treino. Tente descrever de novo ou preencha manualmente.',
+      )
+      return
+    }
+    setForm(f => ({
+      ...f,
+      type: parsed.type,
+      name: parsed.name,
+      durationMin: String(parsed.durationMin),
+      dist: parsed.dist > 0 ? String(parsed.dist) : '',
+      effort: parsed.effort,
+      hr: parsed.hr > 0 ? String(parsed.hr) : '',
+    }))
+    toast.success(photo ? '📷 Treino lido da foto! Revise e salve.' : '🎤 Treino preenchido! Revise e salve.')
+  }
+
   function handleSubmit() {
     const durationMin = parseInt(form.durationMin)
-    if (!durationMin || durationMin <= 0 || !form.effort) return
-    const distKm = parseFloat(form.dist) || 0
-    const name = form.name.trim() || DEFAULT_NAMES[form.type] || 'Atividade'
-    add({
+    if (!durationMin || durationMin <= 0) return
+    const workout = buildWorkout({
       type: form.type,
       name,
       rawDate: form.date,
@@ -166,14 +215,15 @@ export function Treino({ setPage }: Props) {
       dist: distKm,
       pace: calcPace(durationMin, distKm),
       time: formatDuration(durationMin),
-      cal: estimateCalories(form.type, durationMin, form.effort, weightKg),
+      cal: estimateCalories(form.type, durationMin, form.effort),
       hr: parseInt(form.hr) || 0,
       elev: 0,
       effort: form.effort,
-      source: 'manual',
+      hr: form.hr,
     })
+    add(workout)
     setShowModal(false)
-    toast.success(`🏋 ${name} registrado com sucesso!`)
+    toast.success(`🏋 ${workout.name} registrado com sucesso!`)
   }
 
   function handleRemove(id: string) {
@@ -352,11 +402,11 @@ export function Treino({ setPage }: Props) {
                 </div>
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                   {[
-                    { l: 'dist',  v: a.dist > 0 ? `${a.dist}km` : '—', c: typeColor(a.type) },
-                    { l: 'pace',  v: a.pace,                             c: C.text },
-                    { l: 'tempo', v: a.time,                             c: C.text },
-                    { l: 'kcal',  v: a.cal > 0 ? String(a.cal) : '—',  c: C.red },
-                    { l: 'bpm',   v: a.hr > 0  ? String(a.hr)  : '—',  c: C.pink },
+                    { l: 'dist', v: a.dist > 0 ? `${a.dist}km` : '—', c: typeColor(a.type) },
+                    { l: 'pace', v: a.pace, c: C.text },
+                    { l: 'tempo', v: a.time, c: C.text },
+                    { l: 'kcal', v: a.cal > 0 ? String(a.cal) : '—', c: C.red },
+                    { l: 'bpm', v: a.hr > 0 ? String(a.hr) : '—', c: C.pink },
                   ].map((s, j) => (
                     <div key={j} style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: T.text.lg, fontWeight: T.weight.extrabold, color: s.c }}>{s.v}</div>
@@ -387,9 +437,9 @@ export function Treino({ setPage }: Props) {
               <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 12 }}>Resumo semanal</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
-                  { l: 'Atividades', v: String(weekCount),      c: C.text },
-                  { l: 'Distância',  v: `${weekKm} km`,         c: C.running },
-                  { l: 'Calorias',   v: `${weekCal} kcal`,      c: C.red },
+                  { l: 'Atividades', v: String(weekCount), c: C.text },
+                  { l: 'Distância', v: `${weekKm} km`, c: C.running },
+                  { l: 'Calorias', v: `${weekCal} kcal`, c: C.red },
                 ].map((r, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: T.text.md, color: C.muted }}>{r.l}</span>
@@ -419,10 +469,96 @@ export function Treino({ setPage }: Props) {
           onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 28, width: '100%', maxWidth: 480 }}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 28, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold }}>Registrar treino</div>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 24, lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Registro rápido: voz, foto ou texto livre */}
+            <div style={{ marginBottom: 16, background: C.card2, borderRadius: T.radius.md, padding: 14, border: `1px solid ${C.border2}` }}>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                style={{ display: 'none' }}
+                onChange={handlePhotoSelect}
+              />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                {speechSupported && (
+                  <button
+                    onClick={toggleDictation}
+                    title={recording ? 'Parar gravação' : 'Descrever treino por voz'}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                      background: recording ? C.red : C.purple, border: 'none', color: '#fff', cursor: 'pointer',
+                    }}
+                  >
+                    {recording ? <Square size={14} /> : <Mic size={16} />}
+                  </button>
+                )}
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  title="Foto do relógio, da esteira ou do app"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                    background: photo ? C.blue : C.card, border: `1px solid ${photo ? C.blue : C.border2}`,
+                    color: photo ? '#fff' : C.muted, cursor: 'pointer',
+                  }}
+                >
+                  <Camera size={16} />
+                </button>
+                <div style={{ fontSize: T.text.base, color: C.muted, flex: 1 }}>
+                  {recording
+                    ? '🔴 Ouvindo... descreva seu treino'
+                    : 'Fale, digite ou mande o print do relógio — ex: "corri 5 km em 30 min"'}
+                </div>
+              </div>
+
+              {photo && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.card, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, padding: '6px 10px', marginBottom: 8 }}>
+                  <img
+                    src={`data:${photo.mediaType};base64,${photo.data}`}
+                    alt={photo.name}
+                    style={{ width: 34, height: 34, borderRadius: T.radius.xs, objectFit: 'cover', flexShrink: 0 }}
+                  />
+                  <span style={{ fontSize: T.text.base, color: C.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {photo.name}
+                  </span>
+                  <button
+                    onClick={() => setPhoto(null)}
+                    style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text['2xl'], padding: '0 2px', lineHeight: 1 }}
+                  >×</button>
+                </div>
+              )}
+
+              <textarea
+                value={dictation}
+                onChange={e => setDictation(e.target.value)}
+                placeholder={photo ? 'Quer complementar a foto? (opcional)' : 'Descreva o treino aqui — ou use o microfone'}
+                rows={2}
+                style={{ width: '100%', boxSizing: 'border-box', fontSize: T.text.base, color: C.text, background: C.card, border: `1px solid ${C.border2}`, borderRadius: T.radius.sm, padding: '8px 10px', marginBottom: 8, lineHeight: 1.5, resize: 'none', fontFamily: 'inherit', outline: 'none' }}
+              />
+
+              {(() => {
+                const canFill = Boolean(dictation.trim() || photo) && !parsing && !recording
+                return (
+                  <button
+                    onClick={handleFillFromAI}
+                    disabled={!canFill}
+                    style={{
+                      width: '100%', background: canFill ? C.purple : C.card, border: 'none', borderRadius: T.radius.sm,
+                      padding: '8px', color: canFill ? '#fff' : C.muted, fontSize: T.text.base, fontWeight: T.weight.bold,
+                      cursor: canFill ? 'pointer' : 'default',
+                    }}
+                  >
+                    {parsing ? '✨ Lendo...' : '✨ Preencher com IA'}
+                  </button>
+                )
+              })()}
             </div>
 
             {/* Template picker */}
@@ -470,122 +606,138 @@ export function Treino({ setPage }: Props) {
               </div>
             </div>
 
-            {/* Fields */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>Nome (opcional)</label>
-                <input
-                  value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder={DEFAULT_NAMES[form.type]}
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Data</label>
-                <input
-                  type="date"
-                  value={form.date}
-                  max={todayKey()}
-                  onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                  style={{ ...inputStyle, colorScheme: 'dark' }}
-                />
-              </div>
-
+            {/* Essencial: duração e, em cardio, distância. O resto é derivado. */}
+            <div style={{ display: 'grid', gridTemplateColumns: usesDistance(form.type) ? '1fr 1fr' : '1fr', gap: 14, marginBottom: 12 }}>
               <div>
                 <label style={labelStyle}>Duração (min) *</label>
                 <input
-                  type="number" min="1" max="999"
+                  type="number" min="1" max="600"
                   value={form.durationMin}
                   onChange={e => setForm(f => ({ ...f, durationMin: e.target.value }))}
                   placeholder="ex: 45"
                   style={inputStyle}
                 />
+                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  {[30, 45, 60, 90].map(min => (
+                    <button
+                      key={min}
+                      onClick={() => setForm(f => ({ ...f, durationMin: String(min) }))}
+                      style={{
+                        flex: 1, padding: '5px 0', borderRadius: T.radius.xs, cursor: 'pointer',
+                        fontSize: T.text.sm, fontWeight: T.weight.semibold,
+                        background: form.durationMin === String(min) ? typeColor(form.type) : C.card2,
+                        color: form.durationMin === String(min) ? '#fff' : C.muted,
+                        border: `1px solid ${C.border}`,
+                      }}
+                    >{min}min</button>
+                  ))}
+                </div>
               </div>
 
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>Distância (km)</label>
-                <input
-                  type="number" min="0" step="0.1"
-                  value={form.dist}
-                  onChange={e => setForm(f => ({ ...f, dist: e.target.value }))}
-                  placeholder="ex: 5.2"
-                  style={inputStyle}
-                />
-              </div>
-
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>FC média (bpm)</label>
-                <input
-                  type="number" min="0" max="250"
-                  value={form.hr}
-                  onChange={e => setForm(f => ({ ...f, hr: e.target.value }))}
-                  placeholder="ex: 145"
-                  style={inputStyle}
-                />
-              </div>
+              {usesDistance(form.type) && (
+                <div>
+                  <label style={labelStyle}>Distância (km)</label>
+                  <input
+                    type="number" min="0" step="0.1"
+                    value={form.dist}
+                    onChange={e => setForm(f => ({ ...f, dist: e.target.value }))}
+                    placeholder="ex: 5.2"
+                    style={inputStyle}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Grau de esforço */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={labelStyle}>Grau de esforço *</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {EFFORT_LEVELS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    onClick={() => setForm(f => ({ ...f, effort: value }))}
-                    style={{
-                      flex: 1, padding: '10px 4px', borderRadius: T.radius.sm, border: 'none', cursor: 'pointer',
-                      fontSize: T.text.sm, fontWeight: T.weight.semibold, textAlign: 'center',
-                      background: form.effort === value ? typeColor(form.type) : C.card2,
-                      color: form.effort === value ? '#fff' : C.muted,
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Detalhes opcionais */}
+            <div style={{ marginBottom: 14 }}>
+              <button
+                onClick={() => setShowMore(s => !s)}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: T.text.base, color: C.muted, fontWeight: T.weight.semibold }}
+              >
+                {showMore ? '− Menos opções' : '+ Nome, data, esforço e FC'}
+              </button>
 
-            {/* Pace preview */}
-            {form.durationMin && form.dist && parseFloat(form.dist) > 0 && (
-              <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
-                Ritmo estimado: <strong style={{ color: C.text }}>{calcPace(parseInt(form.durationMin), parseFloat(form.dist))} /km</strong>
-              </div>
-            )}
-
-            {/* Calorie preview */}
-            {form.durationMin && parseInt(form.durationMin) > 0 && form.effort && (
-              <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
-                Gasto calórico estimado: <strong style={{ color: C.text }}>{estimateCalories(form.type, parseInt(form.durationMin), form.effort, weightKg)} kcal</strong>
-                {weightKg == null && (
-                  <div style={{ fontSize: T.text.sm, color: C.orange, marginTop: 6, lineHeight: 1.5 }}>
-                    Calculado com peso de referência de {REFERENCE_WEIGHT_KG}kg.{' '}
-                    <span
-                      onClick={() => setPage('perfil')}
-                      style={{ textDecoration: 'underline', cursor: 'pointer' }}
-                    >
-                      Informe seu peso no Perfil
-                    </span>{' '}
-                    para uma estimativa real.
+              {showMore && (
+                <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={labelStyle}>Nome</label>
+                    <input
+                      value={form.name}
+                      onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                      placeholder={DEFAULT_NAMES[form.type]}
+                      style={inputStyle}
+                    />
                   </div>
-                )}
+
+                  <div>
+                    <label style={labelStyle}>Data</label>
+                    <input
+                      type="date"
+                      value={form.date}
+                      max={new Date().toISOString().split('T')[0]}
+                      onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                      style={{ ...inputStyle, colorScheme: 'dark' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>FC média (bpm)</label>
+                    <input
+                      type="number" min="0" max="250"
+                      value={form.hr}
+                      onChange={e => setForm(f => ({ ...f, hr: e.target.value }))}
+                      placeholder="ex: 145"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={labelStyle}>Grau de esforço</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {EFFORT_LEVELS.map(({ value, label }) => (
+                        <button
+                          key={value}
+                          onClick={() => setForm(f => ({ ...f, effort: value }))}
+                          style={{
+                            flex: 1, padding: '10px 4px', borderRadius: T.radius.sm, border: 'none', cursor: 'pointer',
+                            fontSize: T.text.sm, fontWeight: T.weight.semibold, textAlign: 'center',
+                            background: form.effort === value ? typeColor(form.type) : C.card2,
+                            color: form.effort === value ? '#fff' : C.muted,
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Prévia do que será salvo */}
+            {parseInt(form.durationMin) > 0 && (
+              <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
+                Gasto calórico estimado: <strong style={{ color: C.text }}>{estimateCalories(form.type, parseInt(form.durationMin), form.effort)} kcal</strong>
               </div>
             )}
 
-            <button
-              onClick={handleSubmit}
-              disabled={!form.durationMin || parseInt(form.durationMin) <= 0 || !form.effort}
-              style={{
-                width: '100%', padding: 12, borderRadius: T.radius.md, border: 'none',
-                cursor: form.durationMin && parseInt(form.durationMin) > 0 && form.effort ? 'pointer' : 'not-allowed',
-                background: form.durationMin && parseInt(form.durationMin) > 0 && form.effort ? typeColor(form.type) : C.border2,
-                color: '#fff', fontSize: T.text.xl, fontWeight: T.weight.bold,
-              }}
-            >
-              Salvar treino
-            </button>
+            {(() => {
+              const canSave = parseInt(form.durationMin) > 0
+              return (
+                <button
+                  onClick={handleSubmit}
+                  disabled={!canSave}
+                  style={{
+                    width: '100%', padding: 12, borderRadius: T.radius.md, border: 'none',
+                    cursor: canSave ? 'pointer' : 'not-allowed',
+                    background: canSave ? typeColor(form.type) : C.border2,
+                    color: '#fff', fontSize: T.text.xl, fontWeight: T.weight.bold,
+                  }}
+                >
+                  Salvar treino
+                </button>
+              )
+            })()}
           </div>
         </div>
       )}

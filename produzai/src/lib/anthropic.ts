@@ -2,6 +2,7 @@
 // The Anthropic API key and proprietary coaching knowledge live server-side only.
 
 import { auth } from './firebase'
+import { readCoachStream, type ChatToolUse } from './coachStream'
 import type { ManualWorkout } from '../store/useWorkoutStore'
 import type { WebDietData } from '../store/useWebDietStore'
 import type { HabitDef } from '../store/useHabitsStore'
@@ -17,10 +18,22 @@ export interface ChatAttachment {
   data: string // base64, no "data:" prefix
 }
 
+export type { ChatToolUse } from './coachStream'
+
+export interface ChatToolResult {
+  id: string
+  content: string
+  isError?: boolean
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   attachment?: ChatAttachment
+  /** Presente no turno do assistente que pediu ferramentas. */
+  toolUses?: ChatToolUse[]
+  /** Presente no turno de usuário que devolve o resultado delas. */
+  toolResults?: ChatToolResult[]
 }
 
 export interface CoachContext {
@@ -57,7 +70,7 @@ export async function streamCoach(
   messages: ChatMessage[],
   context: StreamContext,
   onChunk: (text: string) => void,
-  onDone: () => void,
+  onDone: (toolUses: ChatToolUse[]) => void,
   onError: (err: string) => void,
 ): Promise<void> {
   try {
@@ -81,34 +94,10 @@ export async function streamCoach(
       return
     }
 
-    const reader = res.body!.getReader()
-    const dec = new TextDecoder()
+    const toolUses = await readCoachStream(res.body!, onChunk, onError)
+    if (toolUses === null) return // erro já reportado
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      for (const line of dec.decode(value, { stream: true }).split('\n')) {
-        if (!line.startsWith('data: ')) continue
-        const raw = line.slice(6).trim()
-        if (!raw || raw === '[DONE]') continue
-        try {
-          const ev = JSON.parse(raw) as {
-            type: string
-            delta?: { type: string; text: string }
-            error?: string
-          }
-          if (ev.type === 'error') {
-            onError(ev.error ?? 'Erro desconhecido')
-            return
-          }
-          if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
-            onChunk(ev.delta.text)
-          }
-        } catch { /* skip malformed SSE */ }
-      }
-    }
-
-    onDone()
+    onDone(toolUses)
   } catch (e) {
     onError((e as Error).message ?? 'Erro desconhecido')
   }
@@ -133,6 +122,31 @@ async function callCompletion<T>(type: string, payload: unknown): Promise<T | nu
   } catch {
     return null
   }
+}
+
+// ── Workout parsing from spoken description ───────────────────────────────────
+
+export interface ParsedWorkout {
+  type: string
+  name: string
+  durationMin: number
+  dist: number
+  effort: 1 | 2 | 3 | 4 | 5
+  hr: number
+}
+
+export async function parseWorkoutFromSpeech(transcript: string): Promise<ParsedWorkout | null> {
+  if (!transcript.trim()) return null
+  return callCompletion('parse-workout', { transcript })
+}
+
+/** Print do relógio, painel da esteira ou tela do app — mesmo extrator, entrada visual. */
+export async function parseWorkoutFromImage(
+  image: { mediaType: string; data: string },
+  transcript = '',
+): Promise<ParsedWorkout | null> {
+  if (!image.data) return null
+  return callCompletion('parse-workout', { image, transcript })
 }
 
 // ── Macros estimation ─────────────────────────────────────────────────────────

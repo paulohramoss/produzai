@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
 import { Brain, Flame, Lightbulb, Moon, NotebookPen, PenLine, Smile, TrendingUp, Zap } from 'lucide-react'
 import { Card } from '../primitives'
@@ -8,41 +8,14 @@ import { toast } from '../../lib/toast'
 import { userStorage } from '../../lib/userStorage'
 import { LayoutContext } from '../LayoutContext'
 import { hasApiKey, generateReflectionQuestion, fallbackReflectionQuestion } from '../../lib/anthropic'
-import { todayKey as localTodayKey, lastNDays } from '../../lib/date'
 
 interface Props { setPage: (p: Page) => void }
-
-// Web Speech API — disponível no Chrome/Edge via prefixo webkit
-interface SpeechRecognitionEventLike {
-  resultIndex: number
-  results: { [index: number]: { [index: number]: { transcript: string } }; length: number }
-}
-interface SpeechRecognitionLike {
-  lang: string
-  continuous: boolean
-  interimResults: boolean
-  onresult: ((e: SpeechRecognitionEventLike) => void) | null
-  onerror: (() => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-}
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
-interface WindowWithSpeechRecognition extends Window {
-  SpeechRecognition?: SpeechRecognitionConstructor
-  webkitSpeechRecognition?: SpeechRecognitionConstructor
-}
-
-const SpeechRecognitionCtor: SpeechRecognitionConstructor | null =
-  typeof window !== 'undefined'
-    ? ((window as WindowWithSpeechRecognition).SpeechRecognition ?? (window as WindowWithSpeechRecognition).webkitSpeechRecognition ?? null)
-    : null
 
 function dateSeed(dateKey: string): number {
   return Number(dateKey.replace(/-/g, ''))
 }
 
-const MOODS       = ['😞', '😕', '😐', '🙂', '😄']
+const MOODS = ['😞', '😕', '😐', '🙂', '😄']
 const MOOD_LABELS = ['Ruim', 'Regular', 'Ok', 'Bom', 'Ótimo']
 const MOOD_COLORS = [C.red, '#F97316', '#EAB308', C.green, '#22C55E']
 
@@ -67,14 +40,12 @@ export function Mental({ setPage: _s }: Props) {
   const { isMobile } = useContext(LayoutContext)
   const today = todayKey()
 
-  const [entry,   setEntry]   = useState<MentalEntry>({ ...EMPTY })
+  const [entry, setEntry] = useState<MentalEntry>({ ...EMPTY })
   const [history, setHistory] = useState<{ date: string; mood: number }[]>([])
-  const [loaded,  setLoaded]  = useState(false)
+  const [loaded, setLoaded] = useState(false)
   const [savedNote, setSavedNote] = useState(false)
   const [reflectionLoading, setReflectionLoading] = useState(false)
   const [savedReflection, setSavedReflection] = useState(false)
-  const [recording, setRecording] = useState(false)
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
   // Carrega entrada de hoje e histórico
   useEffect(() => {
@@ -107,10 +78,10 @@ export function Mental({ setPage: _s }: Props) {
       setReflectionLoading(true)
       const daily = user ? await getDaily(today) : null
       const habitsTotal = daily?.habits?.length ?? 0
-      const habitsDone  = daily?.habits?.filter(h => h.done).length ?? 0
-      const focusItems  = (daily?.focus ?? []).filter(f => f.text.trim())
-      const focusTotal  = focusItems.length
-      const focusDone   = focusItems.filter(f => f.done).length
+      const habitsDone = daily?.habits?.filter(h => h.done).length ?? 0
+      const focusItems = (daily?.focus ?? []).filter(f => f.text.trim())
+      const focusTotal = focusItems.length
+      const focusDone = focusItems.filter(f => f.done).length
 
       let question: string | null = null
       if (hasApiKey()) {
@@ -129,7 +100,7 @@ export function Mental({ setPage: _s }: Props) {
     }
     gen()
     return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded])
 
   const persist = (next: MentalEntry) => {
@@ -181,40 +152,17 @@ export function Mental({ setPage: _s }: Props) {
     toast.success('🤔 Reflexão salva!')
   }
 
-  function toggleRecording() {
-    if (!SpeechRecognitionCtor) {
-      toast.error('Reconhecimento de voz não disponível neste navegador')
-      return
-    }
-    if (recording) {
-      recognitionRef.current?.stop()
-      return
-    }
-    const rec = new SpeechRecognitionCtor()
-    rec.lang = 'pt-BR'
-    rec.continuous = true
-    rec.interimResults = false
-    rec.onresult = (e: SpeechRecognitionEventLike) => {
-      let transcript = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) transcript += e.results[i][0].transcript
-      transcript = transcript.trim()
-      if (!transcript) return
-      setEntry(prev => {
-        const next = { ...prev, reflectionAnswer: prev.reflectionAnswer ? `${prev.reflectionAnswer} ${transcript}` : transcript }
-        persist(next)
-        return next
-      })
-    }
-    rec.onerror = () => setRecording(false)
-    rec.onend = () => setRecording(false)
-    rec.start()
-    recognitionRef.current = rec
-    setRecording(true)
-  }
+  const { recording, toggle: toggleRecording, supported: speechSupported } = useSpeechToText(transcript => {
+    setEntry(prev => {
+      const next = { ...prev, reflectionAnswer: prev.reflectionAnswer ? `${prev.reflectionAnswer} ${transcript}` : transcript }
+      persist(next)
+      return next
+    })
+  })
 
-  const hasMood   = entry.mood > 0
+  const hasMood = entry.mood > 0
   const hasEnergy = entry.energy > 0
-  const hasSleep  = entry.sleepHours != null
+  const hasSleep = entry.sleepHours != null
 
   function sleepFeedback(hours: number): string {
     if (hours < 6) return 'Pouco sono — priorize descansar hoje'
@@ -222,8 +170,8 @@ export function Mental({ setPage: _s }: Props) {
     if (hours <= 9) return 'Faixa ideal 💤'
     return 'Sono bem longo'
   }
-  const weekAvg   = Math.round(history.filter(h => h.mood > 0).reduce((s, h) => s + h.mood, 0) / Math.max(history.filter(h => h.mood > 0).length, 1))
-  const streak    = history.slice().reverse().findIndex(h => h.mood === 0)
+  const weekAvg = Math.round(history.filter(h => h.mood > 0).reduce((s, h) => s + h.mood, 0) / Math.max(history.filter(h => h.mood > 0).length, 1))
+  const streak = history.slice().reverse().findIndex(h => h.mood === 0)
   const streakDays = streak === -1 ? 7 : streak
 
   if (!loaded) {
@@ -255,7 +203,7 @@ export function Mental({ setPage: _s }: Props) {
                 rows={4}
                 style={{ ...inp, resize: 'none', lineHeight: 1.6, paddingRight: 44 } as React.CSSProperties}
               />
-              {SpeechRecognitionCtor && (
+              {speechSupported && (
                 <button
                   onClick={toggleRecording}
                   title={recording ? 'Parar gravação' : 'Gravar resposta por voz'}
@@ -400,10 +348,10 @@ export function Mental({ setPage: _s }: Props) {
             <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', marginBottom: 12 }}>
               {history.map((h, i) => {
                 const isToday = i === 6
-                const col     = h.mood > 0 ? MOOD_COLORS[h.mood - 1] : C.border
-                const ht      = h.mood > 0 ? h.mood * 14 + 10 : 8
-                const days    = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
-                const dow     = new Date(h.date + 'T12:00:00').getDay()
+                const col = h.mood > 0 ? MOOD_COLORS[h.mood - 1] : C.border
+                const ht = h.mood > 0 ? h.mood * 14 + 10 : 8
+                const days = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
+                const dow = new Date(h.date + 'T12:00:00').getDay()
                 return (
                   <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                     <div style={{ fontSize: T.text.base }}>{h.mood > 0 ? MOODS[h.mood - 1] : '—'}</div>

@@ -22,7 +22,22 @@
       "Bash(git filter-branch *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(node --experimental-strip-types test-stream.ts)",
+      "Bash(cp \"/tmp/claude-1000/-home-ramoslenda--rea-de-trabalho-projetos-produzai/9a16af0e-c462-4a35-927d-241742fa9e4d/scratchpad/test-stream.ts\" /tmp/t.ts)",
+      "Bash(sed -i \"s#'../../../../../home/ramoslenda/Área de trabalho/projetos/produzai/produzai/src/lib/\\\\\\(.*\\\\\\).ts'#'./src/lib/\\\\1.ts'#\" /tmp/t.ts)",
+      "Bash(cp /tmp/t.ts ./__test-stream.ts)",
+      "Bash(npx rolldown *)",
+      "Bash(node /tmp/tbuild/__test-stream.js)",
+      "Bash(rm -f __test-stream.ts /tmp/t.ts)",
+      "Bash(rm -rf /tmp/tbuild)",
+      "Bash(node --check api/ai/stream.js)",
+      "Bash(node --check api/ai/completion.js)",
+      "Bash(node --check api/ai/_prompts.js)",
+      "Bash(node -e \"import\\('./api/ai/_prompts.js'\\).then\\(m=>{const p=m.buildSystemPrompt\\({userName:'Paulo'}\\); console.log\\(p.split\\('\\\\n'\\).slice\\(0,3\\).join\\('\\\\n'\\)\\); console.log\\('---'\\); console.log\\(p.slice\\(-400\\)\\)}\\)\")",
+      "Bash(git check-ignore *)"
     ]
   }
 }
