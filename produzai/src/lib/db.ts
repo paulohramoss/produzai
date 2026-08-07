@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, deleteDoc, collection, getDocs, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from './firebase'
 import type { ManualWorkout } from '../store/useWorkoutStore'
 import type { WebDietData } from '../store/useWebDietStore'
@@ -24,6 +24,14 @@ function logDbError(fn: string, err: unknown) {
   console.error(`[db] ${fn}:`, err)
 }
 
+// Com o cache persistente ligado, a promise de uma escrita só resolve quando o
+// SERVIDOR confirma — offline ela fica pendente indefinidamente. O dado já está
+// salvo localmente e sobe sozinho quando a rede volta, então esperar por essa
+// promise só travaria a interface. Disparamos e registramos a falha, se houver.
+function fireWrite(p: Promise<unknown>, fn: string): void {
+  p.catch(e => logDbError(fn, e))
+}
+
 // ── Profile ──────────────────────────────────────────────────────────────────
 
 export interface UserProfile {
@@ -33,9 +41,19 @@ export interface UserProfile {
   goals?: string[]
   values?: string[]
   onboardingSummary?: string
-  /** Peso em kg — entra na fórmula MET do gasto calórico dos treinos. */
+  /** Peso atual em kg — entra na fórmula MET do gasto calórico e no TDEE. */
   weightKg?: number
+  /** Altura em cm. */
+  heightCm?: number
+  /** Data de nascimento "YYYY-MM-DD" — guardamos a data, não a idade, para não envelhecer errado. */
+  birthDate?: string
+  /** Sexo biológico — a fórmula de Mifflin-St Jeor usa constantes diferentes. */
+  sex?: 'masculino' | 'feminino'
+  /** Nível de atividade fora dos treinos registrados — multiplicador do TDEE. */
+  activityLevel?: ActivityLevel
 }
+
+export type ActivityLevel = 'sedentario' | 'leve' | 'moderado' | 'intenso' | 'atleta'
 
 export async function getProfile(): Promise<UserProfile | null> {
   if (!currentUid) return null
@@ -47,7 +65,36 @@ export async function getProfile(): Promise<UserProfile | null> {
 
 export async function saveProfile(data: Partial<UserProfile>) {
   if (!currentUid) return
-  try { await setDoc(dataRef('profile'), data, { merge: true }) } catch (e) { logDbError('saveProfile', e) }
+  fireWrite(setDoc(dataRef('profile'), data, { merge: true }), 'saveProfile')
+}
+
+// ── Weight log ───────────────────────────────────────────────────────────────
+// Uma pesagem por dia (a última do dia vence). Guardado num documento só, como
+// os demais: o volume é baixo (uma entrada por dia) e a leitura vira 1 read.
+
+export interface WeightEntry {
+  /** "YYYY-MM-DD" no fuso local. */
+  date: string
+  kg: number
+}
+
+/** Quantas pesagens mantemos — ~2 anos de registro diário. */
+const WEIGHT_LOG_MAX = 730
+
+export async function getWeightLog(): Promise<WeightEntry[]> {
+  if (!currentUid) return []
+  try {
+    const snap = await getDoc(dataRef('weightLog'))
+    return snap.exists() ? ((snap.data().items as WeightEntry[]) ?? []) : []
+  } catch (e) { logDbError('getWeightLog', e); return [] }
+}
+
+export async function saveWeightLog(entries: WeightEntry[]) {
+  if (!currentUid) return
+  const items = [...entries]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-WEIGHT_LOG_MAX)
+  fireWrite(setDoc(dataRef('weightLog'), { items }), 'saveWeightLog')
 }
 
 // ── Workouts ─────────────────────────────────────────────────────────────────
@@ -62,7 +109,7 @@ export async function getWorkouts(): Promise<ManualWorkout[] | null> {
 
 export async function saveWorkouts(workouts: ManualWorkout[]) {
   if (!currentUid) return
-  try { await setDoc(dataRef('workouts'), { items: workouts }) } catch (e) { logDbError('saveWorkouts', e) }
+  fireWrite(setDoc(dataRef('workouts'), { items: workouts }), 'saveWorkouts')
 }
 
 // ── Diet ─────────────────────────────────────────────────────────────────────
@@ -77,14 +124,36 @@ export async function getDiet(): Promise<WebDietData | null> {
 
 export async function saveDiet(data: WebDietData | null) {
   if (!currentUid || !data) return
-  try { await setDoc(dataRef('diet'), data) } catch (e) { logDbError('saveDiet', e) }
+  fireWrite(setDoc(dataRef('diet'), data), 'saveDiet')
 }
 
 // ── Daily (hábitos + foco) ────────────────────────────────────────────────────
 
 export interface Habit { id: string; icon: string; label: string; done: boolean }
 export interface FocusItem { id: string; text: string; done: boolean }
-export interface DailyData { habits?: Habit[]; focus?: FocusItem[]; waterMl?: number }
+
+/** Check-in de prontidão da manhã — quatro toques que dizem como o corpo acordou. */
+export interface ReadinessEntry {
+  /** Horas dormidas (aceita meia hora: 7.5). */
+  sleepHours: number
+  /** Qualidade do sono, 1 (péssima) a 5 (ótima). */
+  sleepQuality: number
+  /** Dor muscular / DOMS, 1 (nenhuma) a 5 (muita). */
+  soreness: number
+  /** Disposição para treinar hoje, 1 (zero) a 5 (de sobra). */
+  drive: number
+  /** FC de repouso em bpm — opcional, só quem mede de manhã preenche. */
+  restingHr?: number
+  /** Unix ms do registro. */
+  loggedAt: number
+}
+
+export interface DailyData {
+  habits?: Habit[]
+  focus?: FocusItem[]
+  waterMl?: number
+  readiness?: ReadinessEntry
+}
 
 export async function getDaily(date: string): Promise<DailyData | null> {
   if (!currentUid) return null
@@ -96,22 +165,22 @@ export async function getDaily(date: string): Promise<DailyData | null> {
 
 export async function saveDaily(date: string, data: Partial<DailyData>) {
   if (!currentUid) return
-  const ym = date.slice(0, 7)
-  const mRef = monthlyRef('dailyMonthly', ym)
-  // Build dot-notation keys so partial writes don't overwrite sibling fields
-  // e.g. { 'waterMl': 500 } becomes { '2026-06-16.waterMl': 500 } in the monthly doc
-  const dotData: Record<string, unknown> = {}
+
+  // `setDoc` com merge faz merge PROFUNDO de mapas, então gravar
+  // { '2026-06-16': { waterMl: 500 } } preserva os hábitos e o foco do mesmo dia
+  // — e funciona tanto se o documento do mês já existir quanto se não existir.
+  // (O par updateDoc-com-dot-notation + setDoc-no-catch que havia aqui dependia
+  // de uma rejeição vinda do servidor, que offline nunca chega.)
+  const clean: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(data)) {
-    if (v !== undefined) dotData[`${date}.${k}`] = v
+    if (v !== undefined) clean[k] = v
   }
-  try {
-    await updateDoc(mRef, dotData)
-  } catch {
-    // Doc doesn't exist yet for this month — create it
-    try { await setDoc(mRef, { [date]: data }) } catch (e) { logDbError('saveDaily/monthly-create', e) }
-  }
-  // Keep writing individual doc during transition so existing reads still work
-  try { await setDoc(subRef('daily', date), data, { merge: true }) } catch (e) { logDbError('saveDaily/individual', e) }
+  if (Object.keys(clean).length === 0) return
+
+  const ym = date.slice(0, 7)
+  fireWrite(setDoc(monthlyRef('dailyMonthly', ym), { [date]: clean }, { merge: true }), 'saveDaily/monthly')
+  // Documento individual mantido enquanto houver dados antigos lidos por ele.
+  fireWrite(setDoc(subRef('daily', date), clean, { merge: true }), 'saveDaily/individual')
 }
 
 export async function getDailyHistory(dates: string[]): Promise<Record<string, DailyData>> {
@@ -160,8 +229,8 @@ export async function saveMental(date: string, data: MentalEntry) {
   if (!currentUid) return
   const ym = date.slice(0, 7)
   // MentalEntry is always a complete object, so top-level merge is safe
-  try { await setDoc(monthlyRef('mentalMonthly', ym), { [date]: data }, { merge: true }) } catch (e) { logDbError('saveMental/monthly', e) }
-  try { await setDoc(subRef('mental', date), data) } catch (e) { logDbError('saveMental/individual', e) }
+  fireWrite(setDoc(monthlyRef('mentalMonthly', ym), { [date]: data }, { merge: true }), 'saveMental/monthly')
+  fireWrite(setDoc(subRef('mental', date), data), 'saveMental/individual')
 }
 
 export async function getMentalHistory(dates: string[]): Promise<Record<string, MentalEntry>> {
@@ -206,7 +275,7 @@ export async function getProjects(): Promise<Project[] | null> {
 
 export async function saveProjects(projects: Project[]) {
   if (!currentUid) return
-  try { await setDoc(dataRef('projects'), { items: projects }) } catch (e) { logDbError('saveProjects', e) }
+  fireWrite(setDoc(dataRef('projects'), { items: projects }), 'saveProjects')
 }
 
 // ── Books ────────────────────────────────────────────────────────────────────
@@ -232,7 +301,7 @@ export async function getBooks(): Promise<Book[] | null> {
 
 export async function saveBooks(books: Book[]) {
   if (!currentUid) return
-  try { await setDoc(dataRef('books'), { items: books }) } catch (e) { logDbError('saveBooks', e) }
+  fireWrite(setDoc(dataRef('books'), { items: books }), 'saveBooks')
 }
 
 // ── Habit definitions ─────────────────────────────────────────────────────────
@@ -244,6 +313,12 @@ export interface HabitDef {
   /** O "porquê" — intenção/valor por trás do hábito */
   why?: string
   createdAt?: number
+  /**
+   * Quantas vezes por semana o hábito vale. 7 (ou ausente) = diário; 1 a 6 = de
+   * frequência, cobrado na semana e não no dia — dia de descanso planejado deixa
+   * de contar como falha. Ver lib/streaks.ts.
+   */
+  targetPerWeek?: number
 }
 
 export async function getHabitDefs(): Promise<HabitDef[] | null> {
@@ -256,7 +331,7 @@ export async function getHabitDefs(): Promise<HabitDef[] | null> {
 
 export async function saveHabitDefs(defs: HabitDef[]) {
   if (!currentUid) return
-  try { await setDoc(dataRef('habitDefs'), { items: defs }) } catch (e) { logDbError('saveHabitDefs', e) }
+  fireWrite(setDoc(dataRef('habitDefs'), { items: defs }), 'saveHabitDefs')
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────────
@@ -275,7 +350,7 @@ export interface LeaderboardEntry {
 
 export async function upsertLeaderboard(entry: LeaderboardEntry) {
   try {
-    await setDoc(doc(db, 'leaderboard', entry.uid), entry, { merge: true })
+    fireWrite(setDoc(doc(db, 'leaderboard', entry.uid), entry, { merge: true }), 'upsertLeaderboard')
   } catch (e) { logDbError('upsertLeaderboard', e) }
 }
 
@@ -302,13 +377,13 @@ export async function addFriend(friendUid: string): Promise<void> {
   if (!currentUid) return
   const existing = await getFriends()
   if (existing.includes(friendUid)) return
-  try { await setDoc(dataRef('friends'), { uids: [...existing, friendUid] }) } catch (e) { logDbError('addFriend', e) }
+  fireWrite(setDoc(dataRef('friends'), { uids: [...existing, friendUid] }), 'addFriend')
 }
 
 export async function removeFriend(friendUid: string): Promise<void> {
   if (!currentUid) return
   const existing = await getFriends()
-  try { await setDoc(dataRef('friends'), { uids: existing.filter(u => u !== friendUid) }) } catch (e) { logDbError('removeFriend', e) }
+  fireWrite(setDoc(dataRef('friends'), { uids: existing.filter(u => u !== friendUid) }), 'removeFriend')
 }
 
 export async function lookupByInviteCode(code: string): Promise<LeaderboardEntry | null> {
@@ -353,7 +428,7 @@ export async function getProgressPhotos(): Promise<ProgressPhoto[]> {
 
 export async function saveProgressPhotos(photos: ProgressPhoto[]) {
   if (!currentUid) return
-  try { await setDoc(dataRef('progress'), { items: photos }) } catch (e) { logDbError('saveProgressPhotos', e) }
+  fireWrite(setDoc(dataRef('progress'), { items: photos }), 'saveProgressPhotos')
 }
 
 // ── Hydration ────────────────────────────────────────────────────────────────
@@ -370,7 +445,7 @@ export async function getHydration(): Promise<HydrationSettings | null> {
 
 export async function saveHydration(data: HydrationSettings) {
   if (!currentUid) return
-  try { await setDoc(dataRef('hydration'), data) } catch (e) { logDbError('saveHydration', e) }
+  fireWrite(setDoc(dataRef('hydration'), data), 'saveHydration')
 }
 
 // ── Coach conversations ──────────────────────────────────────────────────────
@@ -429,7 +504,7 @@ export async function saveCoachConversations(conversations: CoachConversation[])
     items = items.slice(0, -1)
   }
 
-  try { await setDoc(dataRef('coachConversations'), { items }) } catch (e) { logDbError('saveCoachConversations', e) }
+  fireWrite(setDoc(dataRef('coachConversations'), { items }), 'saveCoachConversations')
 }
 
 // ── Weekly reviews ───────────────────────────────────────────────────────────
@@ -457,7 +532,7 @@ export async function saveWeeklyReview(review: WeeklyReview) {
   try {
     const existing = await getWeeklyReviews()
     const next = [review, ...existing.filter(r => r.weekKey !== review.weekKey)].slice(0, 26)
-    await setDoc(dataRef('weeklyReviews'), { items: next })
+    fireWrite(setDoc(dataRef('weeklyReviews'), { items: next }), 'saveWeeklyReview')
   } catch (e) { logDbError('saveWeeklyReview', e) }
 }
 
@@ -465,7 +540,7 @@ export async function saveWeeklyReview(review: WeeklyReview) {
 
 export async function savePushSubscription(sub: PushSubscriptionJSON): Promise<void> {
   if (!currentUid) return
-  try { await setDoc(dataRef('pushSubscription'), sub as Record<string, unknown>) } catch (e) { logDbError('savePushSubscription', e) }
+  fireWrite(setDoc(dataRef('pushSubscription'), sub as Record<string, unknown>), 'savePushSubscription')
 }
 
 export async function getPushSubscription(): Promise<PushSubscriptionJSON | null> {
@@ -487,7 +562,7 @@ export async function deleteAllUserData(uid: string): Promise<void> {
   const DATA_DOCS = [
     'profile', 'workouts', 'diet', 'projects', 'books',
     'habitDefs', 'progress', 'hydration', 'weeklyReviews', 'pushSubscription', 'friends',
-    'coachConversations',
+    'coachConversations', 'weightLog',
   ]
 
   await Promise.all(

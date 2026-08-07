@@ -121,8 +121,8 @@ export function Insights({ setPage }: Props) {
   const insights = analyzePatterns({ dailyHistory, mentalHistory, habitDefs, workouts })
 
   const weekPerformance = useMemo(
-    () => buildWeekPerformance(lastDates(7), mentalHistory, dietCompliance, workouts),
-    [mentalHistory, dietCompliance, workouts],
+    () => buildWeekPerformance(lastDates(7), mentalHistory, dietCompliance, workouts, dailyHistory),
+    [mentalHistory, dietCompliance, workouts, dailyHistory],
   )
   const weekDiagnosis = useMemo(() => diagnoseWeek(weekPerformance), [weekPerformance])
   const strongestFactor = useMemo(() => findStrongestFactor(weekPerformance), [weekPerformance])
@@ -265,7 +265,7 @@ export function Insights({ setPage }: Props) {
           </>
         ) : (
           <div style={{ fontSize: T.text.md, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
-            Registre sono (na página Mental), dieta e treinos por alguns dias para ver seu espelho de performance.
+            Faça o check-in de prontidão na página Hoje e registre dieta e treinos por alguns dias para ver seu espelho de performance.
           </div>
         )}
       </Card>

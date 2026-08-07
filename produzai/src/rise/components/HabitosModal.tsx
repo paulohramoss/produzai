@@ -2,12 +2,52 @@ import { useState } from 'react'
 import { T, C } from '../data'
 import { useHabitsStore } from '../../store/useHabitsStore'
 import { toast } from '../../lib/toast'
+import { targetOf, DEFAULT_TARGET_PER_WEEK } from '../../lib/streaks'
 
 const EMOJI_OPTIONS = [
   '💧','🏋','📚','🧘','😴','🥩','🚶','🏃','🚫','🧠','💪','🍎',
   '☕','🎯','✍️','🎵','🌞','🌙','🥤','🧃','🏊','🚴','⚽','🎾',
   '🧹','💊','🌿','🫁','❤️','🔥','⚡','🎖️','📝','🧘‍♂️','🛌',
 ]
+
+/** Frequências oferecidas. 7 = diário, o padrão de sempre. */
+const FREQUENCY_OPTIONS = [
+  { value: 7, label: 'Todo dia' },
+  { value: 6, label: '6x' },
+  { value: 5, label: '5x' },
+  { value: 4, label: '4x' },
+  { value: 3, label: '3x' },
+  { value: 2, label: '2x' },
+  { value: 1, label: '1x' },
+]
+
+function FrequencyPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <div style={{ fontSize: T.text.xs, color: C.muted, marginBottom: 6 }}>
+        Quantas vezes por semana? Abaixo de "todo dia", o hábito é cobrado na semana —
+        dia de descanso planejado deixa de contar como falha.
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {FREQUENCY_OPTIONS.map(f => (
+          <button
+            key={f.value}
+            onClick={() => onChange(f.value)}
+            style={{
+              padding: '5px 11px', borderRadius: T.radius.xs, cursor: 'pointer',
+              fontSize: T.text.sm, fontWeight: value === f.value ? T.weight.bold : T.weight.regular,
+              background: value === f.value ? C.orange : C.card,
+              border: `1px solid ${value === f.value ? C.orange : C.border2}`,
+              color: value === f.value ? '#fff' : C.muted,
+            }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 interface Props { onClose: () => void }
 
@@ -18,9 +58,11 @@ export function HabitosModal({ onClose }: Props) {
   const [newIcon, setNewIcon]   = useState('🎯')
   const [newLabel, setNewLabel] = useState('')
   const [newWhy, setNewWhy]     = useState('')
+  const [newTarget, setNewTarget] = useState(DEFAULT_TARGET_PER_WEEK)
   const [editing, setEditing]   = useState<string | null>(null)
   const [editLabel, setEditLabel] = useState('')
   const [editWhy, setEditWhy]     = useState('')
+  const [editTarget, setEditTarget] = useState(DEFAULT_TARGET_PER_WEEK)
 
   const inp: React.CSSProperties = {
     background: C.card2, border: `1px solid ${C.border2}`,
@@ -34,14 +76,14 @@ export function HabitosModal({ onClose }: Props) {
 
   function submitAdd() {
     if (!newLabel.trim()) return
-    addDef({ icon: newIcon, label: newLabel.trim(), why: newWhy.trim() || undefined })
+    addDef({ icon: newIcon, label: newLabel.trim(), why: newWhy.trim() || undefined, targetPerWeek: newTarget })
     toast.success(`${newIcon} Hábito "${newLabel.trim()}" criado!`)
-    setNewLabel(''); setNewIcon('🎯'); setNewWhy(''); setAdding(false)
+    setNewLabel(''); setNewIcon('🎯'); setNewWhy(''); setNewTarget(DEFAULT_TARGET_PER_WEEK); setAdding(false)
   }
 
   function submitEdit(id: string) {
     if (!editLabel.trim()) return
-    updateDef(id, { label: editLabel.trim(), why: editWhy.trim() || undefined })
+    updateDef(id, { label: editLabel.trim(), why: editWhy.trim() || undefined, targetPerWeek: editTarget })
     toast.success('✏️ Hábito atualizado!')
     setEditing(null)
   }
@@ -92,7 +134,7 @@ export function HabitosModal({ onClose }: Props) {
                     </>
                   ) : (
                     <>
-                      <button onClick={() => { setEditing(d.id); setEditLabel(d.label); setEditWhy(d.why ?? '') }} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '5px 8px', color: C.muted, fontSize: T.text.sm, cursor: 'pointer' }}>✏️</button>
+                      <button onClick={() => { setEditing(d.id); setEditLabel(d.label); setEditWhy(d.why ?? ''); setEditTarget(targetOf(d)) }} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '5px 8px', color: C.muted, fontSize: T.text.sm, cursor: 'pointer' }}>✏️</button>
                       {defs.length > 1 && (
                         <button onClick={() => handleRemove(d.id)} style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '5px 8px', color: C.muted, fontSize: T.text.sm, cursor: 'pointer' }}>🗑</button>
                       )}
@@ -102,21 +144,33 @@ export function HabitosModal({ onClose }: Props) {
               </div>
 
               {editing === d.id ? (
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: T.text.xs, color: C.muted, marginBottom: 4 }}>💭 Por que esse hábito importa pra você?</div>
-                  <textarea
-                    value={editWhy}
-                    onChange={e => setEditWhy(e.target.value)}
-                    placeholder="Ex: porque dormir bem me deixa com mais paciência com meus filhos"
-                    rows={2}
-                    style={{ ...textarea, fontSize: T.text.base }}
-                  />
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: T.text.xs, color: C.muted, marginBottom: 4 }}>💭 Por que esse hábito importa pra você?</div>
+                    <textarea
+                      value={editWhy}
+                      onChange={e => setEditWhy(e.target.value)}
+                      placeholder="Ex: porque dormir bem me deixa com mais paciência com meus filhos"
+                      rows={2}
+                      style={{ ...textarea, fontSize: T.text.base }}
+                    />
+                  </div>
+                  <FrequencyPicker value={editTarget} onChange={setEditTarget} />
                 </div>
-              ) : d.why ? (
-                <div style={{ marginTop: 8, fontSize: T.text.sm, color: C.muted, lineHeight: 1.5, paddingLeft: 30 }}>
-                  💭 {d.why}
-                </div>
-              ) : null}
+              ) : (
+                <>
+                  {targetOf(d) < 7 && (
+                    <div style={{ marginTop: 6, fontSize: T.text.sm, color: C.orange, paddingLeft: 30 }}>
+                      🎯 {targetOf(d)}x por semana
+                    </div>
+                  )}
+                  {d.why && (
+                    <div style={{ marginTop: 8, fontSize: T.text.sm, color: C.muted, lineHeight: 1.5, paddingLeft: 30 }}>
+                      💭 {d.why}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           ))}
 
@@ -175,9 +229,13 @@ export function HabitosModal({ onClose }: Props) {
                 />
               </div>
 
+              <div style={{ marginBottom: 12 }}>
+                <FrequencyPicker value={newTarget} onChange={setNewTarget} />
+              </div>
+
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={submitAdd} disabled={!newLabel.trim()} style={{ flex: 1, background: newLabel.trim() ? C.green : C.card2, border: 'none', borderRadius: T.radius.sm, padding: '10px', fontSize: T.text.md, fontWeight: T.weight.bold, color: newLabel.trim() ? '#fff' : C.muted, cursor: newLabel.trim() ? 'pointer' : 'default' }}>Criar</button>
-                <button onClick={() => { setAdding(false); setNewLabel(''); setNewIcon('🎯'); setNewWhy('') }} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.sm, padding: '10px 16px', fontSize: T.text.md, color: C.muted, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={() => { setAdding(false); setNewLabel(''); setNewIcon('🎯'); setNewWhy(''); setNewTarget(DEFAULT_TARGET_PER_WEEK) }} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.sm, padding: '10px 16px', fontSize: T.text.md, color: C.muted, cursor: 'pointer' }}>Cancelar</button>
               </div>
             </div>
           )}

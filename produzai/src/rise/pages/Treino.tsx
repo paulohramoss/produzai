@@ -67,7 +67,7 @@ const labelStyle: React.CSSProperties = {
 export function Treino({ setPage }: Props) {
   const { workouts, add, addMany, remove } = useWorkoutStore()
   const { isMobile } = useContext(LayoutContext)
-  const weightKg = useAuthStore(s => s.weightKg)
+  const weightKg = useAuthStore(s => s.body.weightKg)
 
   const [stravaConnected, setStravaConnected] = useState(false)
   const [syncing, setSyncing] = useState(false)

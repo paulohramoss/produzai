@@ -13,6 +13,11 @@ import {
   type ChatMessage, type ChatAttachment, type ChatToolUse, type ChatToolResult,
 } from '../../lib/anthropic'
 import { buildWorkout, type WorkoutDraft } from '../../lib/workouts'
+import { ageFromBirthDate, computeTdee, weightTrend } from '../../lib/body'
+import { computeDayStreak } from '../../lib/streaks'
+import { computeReadiness } from '../../lib/readiness'
+import { getDailyHistory, type DailyData, type ReadinessEntry } from '../../lib/db'
+import { lastNDays, todayKey } from '../../lib/date'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 
@@ -56,7 +61,9 @@ export function Coach({ setPage }: Props) {
   const wd        = useWebDietStore(s => s.data)
   const habitDefs = useHabitsStore(s => s.defs)
   const user      = useAuthStore(s => s.user)
-  const weightKg  = useAuthStore(s => s.weightKg)
+  const weightKg  = useAuthStore(s => s.body.weightKg)
+  const body      = useAuthStore(s => s.body)
+  const weightLog = useAuthStore(s => s.weightLog)
 
   const conversations       = useCoachStore(s => s.conversations)
   const activeId            = useCoachStore(s => s.activeId)
@@ -71,6 +78,13 @@ export function Coach({ setPage }: Props) {
     () => [...conversations].sort((a, b) => b.updatedAt - a.updatedAt),
     [conversations],
   )
+
+  // Histórico recente: dá ao Coach a prontidão de hoje e a sequência de dias.
+  const [dailyHistory, setDailyHistory] = useState<Record<string, DailyData>>({})
+  useEffect(() => {
+    if (!user) return
+    getDailyHistory(lastNDays(45)).then(setDailyHistory)
+  }, [user])
 
   const [showExport, setShowExport] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
@@ -103,6 +117,42 @@ export function Coach({ setPage }: Props) {
   const treinoScore = Math.min(weekWorkouts.length * 20, 60)
   const dietaScore  = wd ? Math.round(calPct * 0.4) : 0
   const perf        = treinoScore + dietaScore
+
+  // Contexto corporal e de prontidão enviado junto de cada mensagem.
+  const bodyContext = useMemo(() => {
+    const trend = weightTrend(weightLog, 30)
+    return {
+      weightKg: body.weightKg,
+      heightCm: body.heightCm,
+      age: ageFromBirthDate(body.birthDate),
+      sex: body.sex,
+      ...(trend ? { weightTrend: `${trend.direction} ${Math.abs(trend.perWeek)} kg/semana nos últimos ${trend.days} dias` } : {}),
+    }
+  }, [body, weightLog])
+
+  const readinessContext = useMemo(() => {
+    const today = dailyHistory[todayKey()]?.readiness as ReadinessEntry | undefined
+    if (!today) return undefined
+    const past = Object.entries(dailyHistory)
+      .filter(([d]) => d !== todayKey())
+      .map(([, d]) => d.readiness)
+      .filter((r): r is ReadinessEntry => Boolean(r))
+    const result = computeReadiness(today, past)
+    return {
+      score: result.score,
+      headline: result.headline,
+      sleepHours: today.sleepHours,
+      sleepQuality: today.sleepQuality,
+      soreness: today.soreness,
+      drive: today.drive,
+      ...(today.restingHr ? { restingHr: today.restingHr } : {}),
+    }
+  }, [dailyHistory])
+
+  const dayStreak = useMemo(
+    () => computeDayStreak(habitDefs, dailyHistory).count,
+    [habitDefs, dailyHistory],
+  )
 
   // ── Auto-scroll ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -171,6 +221,10 @@ export function Coach({ setPage }: Props) {
         wd,
         habitDefs,
         userName: user?.displayName || undefined,
+        body: bodyContext,
+        tdee: computeTdee(body),
+        readiness: readinessContext,
+        dayStreak,
       },
       chunk => { full += chunk; setStreamText(full) },
       uses => { toolUses = uses },

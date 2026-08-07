@@ -7,6 +7,7 @@ import { useHabitsStore } from '../../store/useHabitsStore'
 import { getDailyHistory, type DailyData } from '../../lib/db'
 import { DailyChecklist } from '../components/DailyChecklist'
 import { computeScore } from '../../lib/dailyScore'
+import { pendingIdsFor } from '../../lib/streaks'
 import { todayKey } from '../../lib/date'
 import { LayoutContext } from '../LayoutContext'
 
@@ -57,6 +58,7 @@ export function Historico({ setPage: _s }: Props) {
     return computeScore(
       habitDefs.map(def => ({ ...def, done: d.habits?.find(h => h.id === def.id)?.done ?? false })),
       d.focus ?? [],
+      pendingIdsFor(habitDefs, monthData, date),
     )
   }
 

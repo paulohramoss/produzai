@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+} from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
 const firebaseConfig = {
@@ -13,5 +15,25 @@ const firebaseConfig = {
 
 export const app     = initializeApp(firebaseConfig)
 export const auth    = getAuth(app)
-export const db      = getFirestore(app)
 export const storage = getStorage(app)
+
+// Cache local persistente (IndexedDB): leituras funcionam sem rede e escritas
+// ficam numa fila que sobe sozinha quando a conexão volta. Sem isso, treino
+// registrado na academia com sinal ruim só existia no localStorage do aparelho.
+//
+// `persistentMultipleTabManager` mantém o cache coerente com o app aberto em
+// mais de uma aba. Se o navegador não suportar IndexedDB (aba anônima, storage
+// bloqueado), a inicialização falha — aí caímos no Firestore só-memória, que é
+// o comportamento antigo, em vez de derrubar o app inteiro.
+function createDb() {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    })
+  } catch (e) {
+    console.warn('[firebase] cache persistente indisponível, usando memória:', e)
+    return initializeFirestore(app, {})
+  }
+}
+
+export const db = createDb()

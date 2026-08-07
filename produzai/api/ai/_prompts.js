@@ -14,7 +14,10 @@ function todayInfo() {
 }
 
 export function buildSystemPrompt(data) {
-  const { workouts = [], weekWorkouts = [], wd = null, habitDefs = [], userName } = data ?? {}
+  const {
+    workouts = [], weekWorkouts = [], wd = null, habitDefs = [], userName,
+    body = null, tdee = null, readiness = null, dayStreak = null,
+  } = data ?? {}
 
   const weekKm = Math.round(weekWorkouts.reduce((s, w) => s + (w.dist || 0), 0) * 10) / 10
   const weekCal = weekWorkouts.reduce((s, w) => s + (w.cal || 0), 0)
@@ -54,6 +57,13 @@ ${nutrition}
 
 ### Hábitos do usuário
 ${habitsSection}
+${dayStreak ? `- Sequência atual de dias fechados: ${dayStreak}` : ''}
+
+### Corpo
+${bodySection}
+
+### Prontidão de hoje
+${readinessSection}
 
 ${TRAINING_KNOWLEDGE}
 
@@ -66,6 +76,8 @@ ${TRAINING_KNOWLEDGE}
 - Quando falar de números, use os dados reais do usuário
 - Se o usuário não tiver dados suficientes, incentive-o a registrar mais
 - Ao sugerir treinos, planos semanais ou progressões, baseie-se na metodologia da seção "Base de conhecimento de treinamento" acima, adaptando ao nível e objetivo do usuário
+- Respeite a prontidão do dia: com prontidão baixa, não mande puxar — sugira volume menor, técnica ou descanso, e diga o porquê
+- Se faltarem dados do corpo, diga uma vez que preencher peso, altura, idade e sexo no Perfil deixa suas contas de caloria e macro específicas, e siga ajudando com o que tem
 
 ## Registrando treinos pelo chat
 - Quando o usuário contar que FEZ um treino ("corri 8km em 45min", "acabei de treinar perna", "joguei bola ontem"), chame a ferramenta registrar_treino em vez de mandar ele abrir a tela de treino

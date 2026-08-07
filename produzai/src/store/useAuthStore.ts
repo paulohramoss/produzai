@@ -21,11 +21,26 @@ import {
   setDbUid, getProfile, getWorkouts, getDiet, getHydration,
   saveProfile, deleteAllUserData,
   getCoachConversations, saveCoachConversations,
+  getWeightLog, saveWeightLog,
+  type ActivityLevel, type WeightEntry,
 } from '../lib/db'
+import { todayKey } from '../lib/date'
 import { useWorkoutStore } from './useWorkoutStore'
 import { useWebDietStore } from './useWebDietStore'
 import { useHabitsStore } from './useHabitsStore'
 import { useCoachStore } from './useCoachStore'
+
+export interface BodyProfile {
+  weightKg:      number | null
+  heightCm:      number | null
+  birthDate:     string | null
+  sex:           'masculino' | 'feminino' | null
+  activityLevel: ActivityLevel | null
+}
+
+const EMPTY_BODY: BodyProfile = {
+  weightKg: null, heightCm: null, birthDate: null, sex: null, activityLevel: null,
+}
 
 interface AuthState {
   user:              User | null
@@ -36,9 +51,15 @@ interface AuthState {
   initialized:       boolean
   onboardingDone:    boolean
   consentAccepted:   boolean
-  /** Peso em kg do perfil — null enquanto o usuário não informou. */
-  weightKg:          number | null
-  setWeightKg:       (kg: number) => Promise<void>
+  /** Dados corporais — cada campo é null enquanto o usuário não informa. */
+  body:              BodyProfile
+  /** Histórico de pesagens, em ordem crescente de data. */
+  weightLog:         WeightEntry[]
+  /** Atualiza um ou mais campos corporais no perfil. */
+  setBody:           (patch: Partial<BodyProfile>) => Promise<void>
+  /** Registra a pesagem do dia (substitui a do mesmo dia) e atualiza o peso atual. */
+  logWeight:         (kg: number, date?: string) => Promise<void>
+  removeWeightEntry: (date: string) => Promise<void>
   login:             (email: string, password: string) => Promise<void>
   loginWithGoogle:   () => Promise<void>
   register:          (name: string, email: string, password: string) => Promise<void>
@@ -133,7 +154,7 @@ function firebaseErrorMsg(e: unknown): string {
   }
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user:            null,
   displayName:     null,
   photoURL:        null,
@@ -142,11 +163,43 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialized:     false,
   onboardingDone:  false,
   consentAccepted: false,
-  weightKg:        null,
+  body:            EMPTY_BODY,
+  weightLog:       [],
 
-  setWeightKg: async (kg) => {
-    set({ weightKg: kg })
-    await saveProfile({ weightKg: kg })
+  setBody: async (patch) => {
+    const body = { ...get().body, ...patch }
+    set({ body })
+    // O Firestore rejeita `undefined`; null significa "informado como vazio",
+    // então só mandamos o que tem valor de verdade.
+    const toSave: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(patch)) {
+      if (v !== null && v !== undefined) toSave[k] = v
+    }
+    if (Object.keys(toSave).length > 0) await saveProfile(toSave)
+  },
+
+  logWeight: async (kg, date = todayKey()) => {
+    const next = [...get().weightLog.filter(e => e.date !== date), { date, kg }]
+      .sort((a, b) => a.date.localeCompare(b.date))
+    set({ weightLog: next })
+    await saveWeightLog(next)
+    // O peso "atual" do perfil é sempre a pesagem mais recente registrada.
+    const latest = next[next.length - 1]
+    if (latest.date === date || latest.kg !== get().body.weightKg) {
+      set(s => ({ body: { ...s.body, weightKg: latest.kg } }))
+      await saveProfile({ weightKg: latest.kg })
+    }
+  },
+
+  removeWeightEntry: async (date) => {
+    const next = get().weightLog.filter(e => e.date !== date)
+    set({ weightLog: next })
+    await saveWeightLog(next)
+    const latest = next[next.length - 1]
+    if (latest) {
+      set(s => ({ body: { ...s.body, weightKg: latest.kg } }))
+      await saveProfile({ weightKg: latest.kg })
+    }
   },
 
   login: async (email, password) => {
@@ -251,8 +304,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (user) {
         setUserStorageUid(user.uid)
         setDbUid(user.uid)
-        const [profile] = await Promise.all([
+        const [profile, weightLog] = await Promise.all([
           getProfile(),
+          getWeightLog(),
           loadFirestoreData(),
         ])
         set({
@@ -263,11 +317,22 @@ export const useAuthStore = create<AuthState>((set) => ({
           initialized:     true,
           onboardingDone:  profile?.onboardingDone ?? false,
           consentAccepted: !!(profile?.consentAt),
-          weightKg:        profile?.weightKg ?? null,
+          body: {
+            weightKg:      profile?.weightKg ?? null,
+            heightCm:      profile?.heightCm ?? null,
+            birthDate:     profile?.birthDate ?? null,
+            sex:           profile?.sex ?? null,
+            activityLevel: profile?.activityLevel ?? null,
+          },
+          weightLog,
         })
       } else {
         clearSessionState()
-        set({ user: null, loading: false, initialized: true, onboardingDone: false, consentAccepted: false, weightKg: null })
+        set({
+          user: null, loading: false, initialized: true,
+          onboardingDone: false, consentAccepted: false,
+          body: EMPTY_BODY, weightLog: [],
+        })
       }
     })
     return unsub

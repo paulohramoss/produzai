@@ -3,12 +3,13 @@ import { T, C } from '../data'
 import { Card, Bar } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
-import { getDaily, saveDaily } from '../../lib/db'
+import { getDaily, saveDaily, getDailyHistory, type DailyData } from '../../lib/db'
 import { toast } from '../../lib/toast'
 import { userStorage } from '../../lib/userStorage'
 import { type Habit, type FocusItem } from '../../lib/dailyScore'
-import { todayKey } from '../../lib/date'
+import { todayKey, lastNDays } from '../../lib/date'
 import { HabitosModal } from './HabitosModal'
+import { computeHabitStreak, isDaily, isPendingToday, targetOf } from '../../lib/streaks'
 
 export type { Habit, FocusItem }
 
@@ -41,6 +42,17 @@ export const DailyChecklist = forwardRef<DailyChecklistHandle, Props>(function D
   const [focus,  setFocus]  = useState<FocusItem[]>(DEFAULT_FOCUS.map(f => ({ ...f })))
   const [loaded, setLoaded] = useState(false)
   const [managingHabits, setManagingHabits] = useState(false)
+  // Histórico da semana: diz quantas vezes cada hábito de frequência já foi
+  // cumprido, para o checklist mostrar "2/4" em vez de cobrar todo dia.
+  const [weekHistory, setWeekHistory] = useState<Record<string, DailyData>>({})
+
+  useEffect(() => {
+    async function loadWeek() {
+      if (!user) return
+      setWeekHistory(await getDailyHistory(lastNDays(14)))
+    }
+    loadWeek()
+  }, [user, date])
 
   useEffect(() => {
     async function load() {
@@ -123,6 +135,16 @@ export const DailyChecklist = forwardRef<DailyChecklistHandle, Props>(function D
 
   useImperativeHandle(ref, () => ({ toggleHabit, toggleFocus }), [toggleHabit, toggleFocus])
 
+  // O dia corrente entra pelo estado local para o contador reagir ao toque.
+  const historyWithToday: Record<string, DailyData> = {
+    ...weekHistory,
+    [date]: { ...weekHistory[date], habits },
+  }
+  const streakOf = (id: string) => {
+    const def = habitDefs.find(d => d.id === id)
+    return def ? computeHabitStreak(def, historyWithToday, date) : null
+  }
+
   const doneHabits = habits.filter(h => h.done).length
 
   if (!loaded) {
@@ -178,24 +200,59 @@ export const DailyChecklist = forwardRef<DailyChecklistHandle, Props>(function D
         </div>
         <Bar pct={habits.length > 0 ? Math.round(doneHabits / habits.length * 100) : 0} color={C.green} h={4} />
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {habits.map(h => (
-            <div
-              key={h.id}
-              onClick={() => toggleHabit(h.id)}
-              style={{ padding: '8px 10px', background: h.done ? `${C.green}11` : C.card2, borderRadius: T.radius.sm, cursor: editable ? 'pointer' : 'default', border: `1px solid ${h.done ? C.green + '44' : C.border}`, transition: 'all .12s' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: T.text.xl }}>{h.icon}</span>
-                <span style={{ flex: 1, fontSize: T.text.md, color: h.done ? C.muted : C.text, textDecoration: h.done ? 'line-through' : 'none' }}>{h.label}</span>
-                <span style={{ color: h.done ? C.green : C.border2, fontSize: T.text.lg }}>{h.done ? '✓' : '○'}</span>
-              </div>
-              {!h.done && h.why && (
-                <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 6, paddingLeft: 25, lineHeight: 1.5 }}>
-                  💭 {h.why}
+          {habits.map(h => {
+            const def = habitDefs.find(d => d.id === h.id)
+            const streak = streakOf(h.id)
+            // Hábito de frequência com a meta da semana batida entra em modo
+            // descanso: continua clicável, mas não pesa como pendência.
+            const resting = Boolean(def && streak && !h.done && !isPendingToday(def, streak, date))
+            return (
+              <div
+                key={h.id}
+                onClick={() => toggleHabit(h.id)}
+                style={{
+                  padding: '8px 10px',
+                  background: h.done ? `${C.green}11` : C.card2,
+                  borderRadius: T.radius.sm,
+                  cursor: editable ? 'pointer' : 'default',
+                  border: `1px solid ${h.done ? C.green + '44' : C.border}`,
+                  opacity: resting ? 0.6 : 1,
+                  transition: 'all .12s',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: T.text.xl }}>{h.icon}</span>
+                  <span style={{ flex: 1, fontSize: T.text.md, color: h.done ? C.muted : C.text, textDecoration: h.done ? 'line-through' : 'none' }}>
+                    {h.label}
+                  </span>
+                  {def && streak && !isDaily(def) && (
+                    <span
+                      title={`Meta de ${targetOf(def)}x por semana`}
+                      style={{
+                        fontSize: T.text.xs, fontWeight: T.weight.bold, padding: '2px 7px',
+                        borderRadius: T.radius.pill, whiteSpace: 'nowrap',
+                        background: streak.weekMet ? `${C.green}22` : C.card3,
+                        color: streak.weekMet ? C.green : C.muted,
+                      }}
+                    >
+                      {streak.weekDone}/{streak.weekTarget}
+                    </span>
+                  )}
+                  <span style={{ color: h.done ? C.green : C.border2, fontSize: T.text.lg }}>{h.done ? '✓' : '○'}</span>
                 </div>
-              )}
-            </div>
-          ))}
+                {resting && (
+                  <div style={{ fontSize: T.text.sm, color: C.green, marginTop: 6, paddingLeft: 25 }}>
+                    ✅ Meta da semana cumprida — hoje pode descansar.
+                  </div>
+                )}
+                {!h.done && !resting && h.why && (
+                  <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 6, paddingLeft: 25, lineHeight: 1.5 }}>
+                    💭 {h.why}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </Card>
     </div>

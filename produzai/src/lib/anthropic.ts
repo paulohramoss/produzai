@@ -36,6 +36,25 @@ export interface ChatMessage {
   toolResults?: ChatToolResult[]
 }
 
+export interface CoachBodyContext {
+  weightKg?: number | null
+  heightCm?: number | null
+  age?: number | null
+  sex?: string | null
+  /** Frase pronta, ex: "descendo 0.4 kg/semana nos últimos 28 dias". */
+  weightTrend?: string
+}
+
+export interface CoachReadinessContext {
+  score: number
+  headline: string
+  sleepHours: number
+  sleepQuality: number
+  soreness: number
+  drive: number
+  restingHr?: number
+}
+
 export interface CoachContext {
   type: 'coach'
   workouts: ManualWorkout[]
@@ -43,6 +62,13 @@ export interface CoachContext {
   wd: WebDietData | null
   habitDefs: HabitDef[]
   userName?: string
+  /** Dados corporais — dão ao Coach números do usuário em vez de médias. */
+  body?: CoachBodyContext
+  tdee?: number | null
+  /** Check-in de prontidão de hoje, quando já registrado. */
+  readiness?: CoachReadinessContext
+  /** Sequência de dias fechados, para o Coach reconhecer consistência. */
+  dayStreak?: number
 }
 
 export interface OnboardingContext {

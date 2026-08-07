@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { T, C, displayStyle } from '../data'
-import { CheckCircle2, Gem, Target, Utensils } from 'lucide-react'
+import { CheckCircle2, Gem, Scale, Target, Utensils } from 'lucide-react'
 import { Tag } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { saveProfile, saveDaily } from '../../lib/db'
 import { todayKey } from '../../lib/date'
-import { MIN_WEIGHT_KG, MAX_WEIGHT_KG, REFERENCE_WEIGHT_KG } from '../../lib/calories'
+import { OnboardingBody } from '../components/OnboardingBody'
+import { EMPTY_BODY_DRAFT, draftToBody, draftMacros, type BodyDraft } from '../../lib/bodyDraft'
+import type { BodyInput } from '../../lib/body'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
 import { toast } from '../../lib/toast'
@@ -30,6 +32,28 @@ export function Onboarding() {
   return <ConversationalOnboarding onSwitchToQuick={() => setMode('quick')} />
 }
 
+/** Campos corporais com valor, prontos para o Firestore (que rejeita null/undefined). */
+function cleanBody(body: BodyInput): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(body)) {
+    if (v !== null && v !== undefined) out[k] = v
+  }
+  return out
+}
+
+/** Espelha o corpo recém-informado no store para o app já usar sem recarregar. */
+function applyBodyToStore(body: BodyInput) {
+  useAuthStore.setState(s => ({
+    body: {
+      weightKg:      body.weightKg      ?? s.body.weightKg,
+      heightCm:      body.heightCm      ?? s.body.heightCm,
+      birthDate:     body.birthDate     ?? s.body.birthDate,
+      sex:           body.sex           ?? s.body.sex,
+      activityLevel: body.activityLevel ?? s.body.activityLevel,
+    },
+  }))
+}
+
 // ── Onboarding conversacional ───────────────────────────────────────────────
 
 function openingMessage(firstName: string): string {
@@ -50,7 +74,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
   const [generating, setGenerating] = useState(false)
   const [plan, setPlan]             = useState<OnboardingPlan | null>(null)
   const [excluded, setExcluded]     = useState<Set<number>>(new Set())
-  const [weightInput, setWeightInput] = useState('')
+  const [bodyDraft, setBodyDraft]   = useState<BodyDraft>(EMPTY_BODY_DRAFT)
   const [saving, setSaving]         = useState(false)
 
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -129,7 +153,11 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
       }))
 
     if (habits.length > 0) setHabitDefs(habits)
-    if (plan.macros && plan.macros.cal > 0) setupDiet(plan.macros)
+    // Macros calculados a partir do corpo do usuário ganham do palpite da IA —
+    // um vem do gasto energético dele, o outro de uma conversa.
+    const computed = draftMacros(bodyDraft)
+    if (computed) setupDiet({ cal: computed.cal, prot: computed.prot, carb: computed.carb, fat: computed.fat })
+    else if (plan.macros && plan.macros.cal > 0) setupDiet(plan.macros)
 
     if (plan.focusSuggestion) {
       saveDaily(todayKey(), {
@@ -141,16 +169,16 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
       })
     }
 
-    const weightKg = parseWeight(weightInput)
+    const body = draftToBody(bodyDraft)
     await saveProfile({
       onboardingDone: true,
       createdAt: Date.now(),
       goals: plan.goals,
       values: plan.values,
       onboardingSummary: plan.summary,
-      ...(weightKg ? { weightKg } : {}),
+      ...cleanBody(body),
     })
-    if (weightKg) useAuthStore.setState({ weightKg })
+    applyBodyToStore(body)
     setOnboardingDone(true)
     toast.success(`🚀 Bem-vindo ao The Rise Plan, ${firstName}!`)
   }
@@ -284,8 +312,8 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
             plan={plan}
             excluded={excluded}
             toggleHabit={toggleHabit}
-            weightInput={weightInput}
-            setWeightInput={setWeightInput}
+            bodyDraft={bodyDraft}
+            setBodyDraft={patch => setBodyDraft(d => ({ ...d, ...patch }))}
             saving={saving}
             onBack={() => setPlan(null)}
             onConfirm={confirmPlan}
@@ -298,12 +326,12 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
 
 // ── Tela de revisão do plano gerado ─────────────────────────────────────────
 
-function PlanReview({ plan, excluded, toggleHabit, weightInput, setWeightInput, saving, onBack, onConfirm }: {
+function PlanReview({ plan, excluded, toggleHabit, bodyDraft, setBodyDraft, saving, onBack, onConfirm }: {
   plan: OnboardingPlan
   excluded: Set<number>
   toggleHabit: (i: number) => void
-  weightInput: string
-  setWeightInput: (v: string) => void
+  bodyDraft: BodyDraft
+  setBodyDraft: (patch: Partial<BodyDraft>) => void
   saving: boolean
   onBack: () => void
   onConfirm: () => void
@@ -382,35 +410,19 @@ function PlanReview({ plan, excluded, toggleHabit, weightInput, setWeightInput, 
         </div>
       )}
 
-      {/* Peso — entra na fórmula MET do gasto calórico dos treinos */}
+      {/* Corpo — destrava gasto calórico real, macros e contexto para o Coach */}
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 8, ...displayStyle }}>
-          ⚖️ Seu peso atual
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 4, ...displayStyle }}>
+          <Scale size={17} /> Seus dados corporais
         </div>
-        <input
-          type="number"
-          inputMode="decimal"
-          min={MIN_WEIGHT_KG}
-          max={MAX_WEIGHT_KG}
-          step="0.1"
-          value={weightInput}
-          onChange={e => setWeightInput(e.target.value)}
-          placeholder="ex: 74.5"
-          style={{
-            width: '100%', background: C.card2, border: `1px solid ${C.border2}`,
-            borderRadius: T.radius.md, padding: '11px 14px', color: C.text,
-            fontSize: T.text.lg, outline: 'none', boxSizing: 'border-box',
-          }}
-        />
-        <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>
-          {weightInput && !parseWeight(weightInput)
-            ? <span style={{ color: C.red }}>Informe um peso entre {MIN_WEIGHT_KG} e {MAX_WEIGHT_KG} kg.</span>
-            : `Sem isso, o gasto calórico dos treinos usa uma referência de ${REFERENCE_WEIGHT_KG}kg para todo mundo.`}
+        <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 12, lineHeight: 1.5 }}>
+          Opcional, mas é o que transforma estimativa em número seu.
         </div>
+        <OnboardingBody draft={bodyDraft} setDraft={setBodyDraft} />
       </div>
 
-      {/* Macros */}
-      {plan.macros && plan.macros.cal > 0 && (
+      {/* Macros sugeridos pela IA — só aparecem quando o cálculo pelo corpo não existe */}
+      {!draftMacros(bodyDraft) && plan.macros && plan.macros.cal > 0 && (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 12, ...displayStyle }}><Utensils size={17} /> Metas nutricionais sugeridas</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
@@ -468,13 +480,6 @@ const HABITS_OPTIONS = [
   { id: 'sem_acucar',icon: '🚫', label: 'Sem açúcar',          why: 'Reduzir açúcar protege sua energia e seu humor durante o dia.' },
 ]
 
-/** Lê o peso digitado; devolve null se estiver vazio ou fora do intervalo aceito. */
-function parseWeight(raw: string): number | null {
-  const n = parseFloat(raw.replace(',', '.'))
-  if (!Number.isFinite(n) || n < MIN_WEIGHT_KG || n > MAX_WEIGHT_KG) return null
-  return n
-}
-
 const GOALS_OPTIONS = [
   { id: 'perder_peso',  icon: '⚖️',  label: 'Perder peso' },
   { id: 'ganhar_massa', icon: '💪',  label: 'Ganhar massa muscular' },
@@ -495,14 +500,28 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
   // Step 0 — objetivos
   const [selectedGoals, setSelectedGoals] = useState<string[]>([])
 
-  // Step 1 — peso + metas nutricionais
-  const [weightInput, setWeightInput] = useState('')
-  const [macros, setMacros] = useState({ cal: 2000, prot: 150, carb: 200, fat: 60 })
+  // Step 1 — corpo e metas nutricionais. Os macros começam num valor genérico e
+  // são sobrescritos assim que o corpo permite calcular o gasto real.
+  const [bodyDraft, setBodyDraft] = useState<BodyDraft>(EMPTY_BODY_DRAFT)
+  const [manualMacros, setManualMacros] = useState({ cal: 2000, prot: 150, carb: 200, fat: 60 })
+  const [macrosTouched, setMacrosTouched] = useState(false)
+  const suggestion = draftMacros(bodyDraft)
+
+  // Enquanto o usuário não mexer nos sliders, eles seguem o cálculo pelo corpo.
+  // Assim que ele arrasta um, o valor manual passa a mandar.
+  const macros = !macrosTouched && suggestion
+    ? { cal: suggestion.cal, prot: suggestion.prot, carb: suggestion.carb, fat: suggestion.fat }
+    : manualMacros
+
+  function setMacro(key: 'cal' | 'prot' | 'carb' | 'fat', value: number) {
+    setManualMacros({ ...macros, [key]: value })
+    setMacrosTouched(true)
+  }
 
   // Step 2 — hábitos
   const [selectedHabits, setSelectedHabits] = useState<string[]>(['agua', 'treino', 'leitura', 'proteina'])
 
-  const STEPS = ['Seus objetivos', 'Nutrição', 'Hábitos diários']
+  const STEPS = ['Seus objetivos', 'Corpo e nutrição', 'Hábitos diários']
   const firstName = user?.displayName?.split(' ')[0] || 'atleta'
 
   function toggleGoal(id: string) {
@@ -524,9 +543,9 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
     setHabitDefs(habits)
     // Marca onboarding como concluído no Firestore
     const goals = GOALS_OPTIONS.filter(g => selectedGoals.includes(g.id)).map(g => g.label)
-    const weightKg = parseWeight(weightInput)
-    await saveProfile({ onboardingDone: true, createdAt: Date.now(), goals, ...(weightKg ? { weightKg } : {}) })
-    if (weightKg) useAuthStore.setState({ weightKg })
+    const body = draftToBody(bodyDraft)
+    await saveProfile({ onboardingDone: true, createdAt: Date.now(), goals, ...cleanBody(body) })
+    applyBodyToStore(body)
     setOnboardingDone(true)
     toast.success(`🚀 Bem-vindo ao The Rise Plan, ${firstName}!`)
   }
@@ -622,34 +641,12 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
             <div style={{ fontWeight: T.weight.bold, fontSize: 17, marginBottom: 6 }}>Seu peso e suas metas</div>
             <div style={{ fontSize: T.text.md, color: C.muted, marginBottom: 20 }}>Você pode ajustar depois na página de Dieta</div>
 
-            {/* Peso — entra na fórmula MET do gasto calórico dos treinos */}
-            <div style={{
-              background: '#1A1A1A', borderRadius: T.radius.lg, padding: 16, marginBottom: 16,
-              border: `1px solid ${C.border}`,
-            }}>
-              <label style={{ fontSize: T.text.md, color: C.muted, display: 'block', marginBottom: 8 }}>
-                Peso atual (kg)
-              </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min={MIN_WEIGHT_KG}
-                max={MAX_WEIGHT_KG}
-                step="0.1"
-                value={weightInput}
-                onChange={e => setWeightInput(e.target.value)}
-                placeholder="ex: 74.5"
-                style={{
-                  width: '100%', background: C.card2, border: `1px solid ${C.border2}`,
-                  borderRadius: T.radius.md, padding: '11px 14px', color: C.text,
-                  fontSize: T.text.lg, outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-              <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>
-                {weightInput && !parseWeight(weightInput)
-                  ? <span style={{ color: C.red }}>Informe um peso entre {MIN_WEIGHT_KG} e {MAX_WEIGHT_KG} kg.</span>
-                  : `Sem isso, o gasto calórico dos treinos usa uma referência de ${REFERENCE_WEIGHT_KG}kg para todo mundo.`}
-              </div>
+            <div style={{ marginBottom: 16 }}>
+              <OnboardingBody draft={bodyDraft} setDraft={patch => setBodyDraft(d => ({ ...d, ...patch }))} />
+            </div>
+
+            <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 10 }}>
+              {suggestion ? 'Ajuste fino, se quiser:' : 'Ou defina na mão:'}
             </div>
 
             <div style={{
@@ -672,7 +669,7 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
                   <input
                     type="range" min={min} max={max} step={s}
                     value={macros[k]}
-                    onChange={e => setMacros(m => ({ ...m, [k]: +e.target.value }))}
+                    onChange={e => setMacro(k, +e.target.value)}
                     style={{ width: '100%', accentColor: color }}
                   />
                 </div>
