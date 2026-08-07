@@ -106,9 +106,11 @@ export function CycleSettingsCard() {
 
       {enabled && (
         <div style={{ marginTop: 18 }}>
+          {/* O <label> ENVOLVE o input: sem isso não há associação nenhuma e o
+              leitor de tela anuncia um campo numérico sem nome. */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <div>
-              <label style={label}>Ciclo (dias)</label>
+            <label style={{ display: 'block' }}>
+              <span style={label}>Ciclo (dias)</span>
               <input
                 type="number"
                 min={CYCLE_LENGTH_RANGE.min}
@@ -117,9 +119,9 @@ export function CycleSettingsCard() {
                 onChange={e => setAvgInput(e.target.value)}
                 style={inp}
               />
-            </div>
-            <div>
-              <label style={label}>Fluxo (dias)</label>
+            </label>
+            <label style={{ display: 'block' }}>
+              <span style={label}>Fluxo (dias)</span>
               <input
                 type="number"
                 min={PERIOD_LENGTH_RANGE.min}
@@ -128,7 +130,7 @@ export function CycleSettingsCard() {
                 onChange={e => setPeriodInput(e.target.value)}
                 style={inp}
               />
-            </div>
+            </label>
           </div>
 
           <button
