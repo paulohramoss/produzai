@@ -302,9 +302,25 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
                   Responda pelo menos uma vez para liberar o seu plano.
                 </div>
               )}
-              <span onClick={onSwitchToQuick} style={{ fontSize: T.text.base, color: C.muted, cursor: 'pointer', textDecoration: 'underline' }}>
-                Prefiro o modo rápido (sem conversa)
-              </span>
+              <button
+                onClick={onSwitchToQuick}
+                style={{
+                  width: '100%', padding: '12px', borderRadius: T.radius.lg,
+                  border: `1.5px solid ${C.border2}`, background: C.card2,
+                  color: C.text, fontSize: T.text.lg, fontWeight: T.weight.semibold,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = C.orange
+                  e.currentTarget.style.color = C.orange
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = C.border2
+                  e.currentTarget.style.color = C.text
+                }}
+              >
+                ⚡ Prefiro o modo rápido (sem conversa)
+              </button>
             </div>
           </>
         ) : (

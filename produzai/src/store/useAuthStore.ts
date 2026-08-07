@@ -230,10 +230,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, password)
-      await updateProfile(user, { displayName: name.trim() || email.split('@')[0] })
-      // Record consent immediately after account creation (checkbox was required)
-      setDbUid(user.uid)
-      await saveProfile({ consentAt: Date.now() })
+      // A conta já existe daqui pra frente: nenhuma falha de perfil pode
+      // devolver o usuário para o formulário de cadastro.
+      try {
+        await updateProfile(user, { displayName: name.trim() || email.split('@')[0] })
+        // Record consent immediately after account creation (checkbox was required)
+        setDbUid(user.uid)
+        await saveProfile({ consentAt: Date.now() })
+      } catch (e) {
+        console.error('[auth] cadastro criado, mas o perfil inicial falhou', e)
+      }
+      set({ consentAccepted: true, loading: false })
     } catch (e) {
       set({ error: firebaseErrorMsg(e), loading: false })
     }
@@ -308,11 +315,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (user) {
         setUserStorageUid(user.uid)
         setDbUid(user.uid)
-        const [profile, weightLog] = await Promise.all([
-          getProfile(),
-          getWeightLog(),
-          loadFirestoreData(),
-        ])
+
+        // A carga da nuvem NUNCA pode impedir a entrada: se o Firestore falhar
+        // (offline, regra negada, doc inexistente logo após o cadastro), o
+        // `set` abaixo ainda precisa rodar — senão `user` fica null, `loading`
+        // fica true e a tela de login trava no "Aguarde...".
+        let profile: Awaited<ReturnType<typeof getProfile>> = null
+        let weightLog: WeightEntry[] = []
+        try {
+          const [p, w] = await Promise.all([
+            getProfile(),
+            getWeightLog(),
+            loadFirestoreData(),
+          ])
+          profile = p
+          weightLog = w
+        } catch (e) {
+          console.error('[auth] falha ao carregar dados do usuário', e)
+        }
+
         set({
           user,
           displayName:     user.displayName,
@@ -320,7 +341,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           loading:         false,
           initialized:     true,
           onboardingDone:  profile?.onboardingDone ?? false,
-          consentAccepted: !!(profile?.consentAt),
+          // O cadastro já grava o consentimento, mas a escrita é assíncrona e
+          // pode não estar visível nesta leitura — não peça consentimento de novo.
+          consentAccepted: !!(profile?.consentAt) || get().consentAccepted,
           body: {
             weightKg:      profile?.weightKg ?? null,
             heightCm:      profile?.heightCm ?? null,
