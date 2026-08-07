@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { T, C, displayStyle } from '../data'
+import { T, C, displayStyle, safeInset } from '../data'
 import { CheckCircle2, Gem, Scale, Target, Utensils } from 'lucide-react'
 import { Tag } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -186,9 +186,13 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
   const inputDisabled = streaming || generating
 
   return (
-    <div style={{
-      minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column',
-      alignItems: 'center', fontFamily: 'system-ui, sans-serif', padding: '20px 16px',
+    <div className="rise-screen" style={{
+      background: C.bg, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', fontFamily: 'system-ui, sans-serif',
+      paddingTop:    safeInset('top', 20),
+      paddingBottom: safeInset('bottom', 20),
+      paddingLeft:   safeInset('left', 16),
+      paddingRight:  safeInset('right', 16),
     }}>
       <div style={{ width: '100%', maxWidth: 620 }}>
 
@@ -567,14 +571,16 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
+    <div className="rise-screen" style={{
       background: C.bg,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: 'system-ui, sans-serif',
-      padding: 20,
+      paddingTop:    safeInset('top', 20),
+      paddingBottom: safeInset('bottom', 20),
+      paddingLeft:   safeInset('left', 16),
+      paddingRight:  safeInset('right', 16),
     }}>
       <div style={{ width: '100%', maxWidth: 520 }}>
 

@@ -225,11 +225,11 @@ export function ShareCard({ onClose, ...data }: Props) {
 
   return (
     <div
+      className="rise-overlay"
       style={{
         position: 'fixed', inset: 0, zIndex: 9000,
         background: 'rgba(0,0,0,0.88)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 16,
       }}
       onClick={onClose}
     >

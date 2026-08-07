@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react'
 import { Dumbbell, HeartPulse, Droplet, AlertTriangle } from 'lucide-react'
-import { T, C, displayStyle } from '../data'
+import { T, C, displayStyle, safeInset } from '../data'
 import { Card, Bar, Tag } from '../primitives'
 import { getCoachShare, type CoachShareSnapshot } from '../../lib/db'
 import { dietLabel } from '../../lib/coachShare'
@@ -21,9 +21,12 @@ function painColor(level: number): string {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      minHeight: '100vh', background: C.bg, color: C.text,
-      fontFamily: 'system-ui, sans-serif', padding: '28px 16px 60px',
+    <div className="rise-screen" style={{
+      background: C.bg, color: C.text, fontFamily: 'system-ui, sans-serif',
+      paddingTop:    safeInset('top', 28),
+      paddingBottom: safeInset('bottom', 60),
+      paddingLeft:   safeInset('left', 16),
+      paddingRight:  safeInset('right', 16),
     }}>
       <div style={{ maxWidth: 760, margin: '0 auto' }}>{children}</div>
     </div>

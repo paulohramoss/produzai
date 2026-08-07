@@ -86,6 +86,85 @@
   #root { width: 100%; max-width: 100%; text-align: left; border: none; display: block; min-height: 100%; }
 }
 
+/* ── Responsividade global ────────────────────────────────────────────────────
+   O app é quase todo estilizado com `style={{}}` inline, que ganha da cascata.
+   Por isso o que precisa valer em TODA tela mora aqui, e o pouco que precisa
+   sobrepor um estilo inline usa !important de propósito.
+   ─────────────────────────────────────────────────────────────────────────── */
+@layer base {
+  html {
+    /* Impede o "font boosting" do WebKit/Blink em blocos largos. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Um campo dentro de grid/flex tem largura mínima intrínseca (o
+     input[type=date] do iOS é enorme) e estoura a coluna se não puder
+     encolher. Sem isto o formulário empurra a página para fora da tela. */
+  input, select, textarea, button {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+  }
+
+  /* Mídia nunca dita a largura da página. */
+  img, svg, video, canvas { max-width: 100%; }
+
+  /* Palavras longas (e-mail, URL, nome de exercício) não furam o card. */
+  body { overflow-wrap: break-word; }
+}
+
+/* O Safari no iOS dá zoom automático ao focar um campo com fonte < 16px — e
+   NÃO desfaz o zoom depois. É por isso que o app aparecia gigante no celular.
+   16px em qualquer campo digitável desliga esse comportamento. */
+@media (max-width: 900px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Altura de tela cheia que acompanha a barra do navegador móvel.
+   `100vh` no iOS é a altura COM a barra escondida: usar só ele deixa o rodapé
+   da tela embaixo da barra do Safari. `dvh` sobrescreve onde houver suporte. */
+.rise-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Overlay de modal: recuo que respeita o notch e a barra de gestos, e rolagem
+   contida (arrastar dentro do modal não arrasta a página atrás). */
+.rise-overlay {
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  overscroll-behavior: contain;
+}
+
+/* Painel de modal: nunca mais alto que a tela visível, rolando por dentro.
+   Sem isto, num celular baixo o formulário passa da tela e o botão de
+   confirmar fica inalcançável — o overlay é `fixed`, a página não rola. */
+.rise-modal {
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+}
+
+/* No celular o toast não pode nascer em cima da barra de navegação. */
+@media (max-width: 767px) {
+  .rise-toaster {
+    right: 12px !important;
+    left: 12px !important;
+    bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+    align-items: stretch !important;
+  }
+  .rise-toaster > * { min-width: 0 !important; max-width: 100% !important; }
+}
+
 @keyframes toast-slide-in {
   from { opacity: 0; transform: translateX(40px); }
   to   { opacity: 1; transform: translateX(0); }

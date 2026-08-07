@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { LayoutDashboard, Sun, Dumbbell, Brain, Bot, Menu } from "lucide-react";
-import { T, C, NAV_GROUPS, type Page } from "./data";
+import { T, C, NAV_GROUPS, safeInset, safePlus, type Page } from "./data";
 import { Dashboard }    from "./pages/Dashboard";
 import { Treino }       from "./pages/Treino";
 import { Dieta }        from "./pages/Dieta";
@@ -100,9 +100,8 @@ export function RisePlan() {
 
   return (
     <LayoutContext.Provider value={{ isMobile, isTablet, menuOpen, setMenuOpen }}>
-      <div style={{
+      <div className="rise-screen" style={{
         display: "flex",
-        minHeight: "100vh",
         background: C.bg,
         color: C.text,
         fontFamily: "system-ui,sans-serif",
@@ -129,7 +128,8 @@ export function RisePlan() {
           borderRight: `1px solid ${C.border}`,
           display: "flex",
           flexDirection: "column",
-          padding: "20px 0",
+          paddingTop: safeInset("top", 20),
+          paddingBottom: safeInset("bottom", 20),
           flexShrink: 0,
           overflowY: "auto",
           overflowX: "hidden",
@@ -138,7 +138,9 @@ export function RisePlan() {
             position: "fixed" as const,
             top: 0,
             left: 0,
+            // 100dvh acompanha a barra do navegador; 100vh fica de fallback.
             height: "100vh",
+            maxHeight: "100dvh",
             width: SIDEBAR_FULL,
             zIndex: 50,
             transform: menuOpen ? "translateX(0)" : `translateX(-${SIDEBAR_FULL}px)`,
@@ -283,9 +285,11 @@ export function RisePlan() {
           overflowY: "auto",
           minWidth: 0,
           paddingTop:    isMobile ? 0   : isTablet ? 24 : 28,
-          paddingLeft:   isMobile ? 16  : isTablet ? 20 : 28,
-          paddingRight:  isMobile ? 16  : isTablet ? 20 : 28,
-          paddingBottom: isMobile ? 80  : isTablet ? 24 : 28,
+          paddingLeft:   safeInset("left",  isMobile ? 16 : isTablet ? 20 : 28),
+          paddingRight:  safeInset("right", isMobile ? 16 : isTablet ? 20 : 28),
+          // No celular o rodapé fixo (64px) mais a barra de gestos comem o fim
+          // da página: sem esta folga o último card fica inalcançável.
+          paddingBottom: isMobile ? safePlus("bottom", 80) : isTablet ? 24 : 28,
         }}>
           {/* Top bar — mobile only */}
           {isMobile && (
@@ -296,7 +300,8 @@ export function RisePlan() {
               display: "flex",
               alignItems: "center",
               gap: 12,
-              padding: "12px 0 14px",
+              paddingTop: safePlus("top", 12),
+              paddingBottom: 14,
               marginBottom: 8,
               background: C.bg,
               borderBottom: `1px solid ${C.border}`,

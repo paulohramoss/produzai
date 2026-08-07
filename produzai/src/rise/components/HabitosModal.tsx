@@ -95,8 +95,8 @@ export function HabitosModal({ onClose }: Props) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400, padding: 20 }}>
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], width: '100%', maxWidth: 480, maxHeight: '90vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div className="rise-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], width: '100%', maxWidth: 480, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
         {/* Header */}
         <div style={{ padding: '20px 24px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

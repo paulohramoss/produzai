@@ -173,9 +173,10 @@ export function WeekPlanCard() {
       {adding !== null && (
         <div
           onClick={e => { if (e.target === e.currentTarget) setAdding(null) }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          className="rise-overlay"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 24, width: '100%', maxWidth: 420 }}>
+          <div className="rise-modal" style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 'clamp(18px, 5vw, 24px)', width: '100%', maxWidth: 420 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: T.text['2xl'], fontWeight: T.weight.extrabold, ...displayStyle }}>
                 Treino de {WEEKDAY_NAMES[adding].toLowerCase()}

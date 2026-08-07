@@ -28,7 +28,10 @@ Os dublês imitam de propósito dois comportamentos que já causaram bug aqui:
 |---|---|
 | `firestore.rules` | `firebase deploy --only firestore:rules` e testar com conta real |
 | `/api/*` (Coach, Strava, push) | ambiente com as chaves, `npm run dev:vercel` |
-| Layout mobile | os cenários rodam em 1400×1000; passe `viewport` para checar |
+| Aparência no iOS/Safari | o navegador aqui é Chrome; `06-responsividade` cobre largura, fonte de campo e altura de modal, mas não o render do Safari |
+
+Layout mobile **é** coberto: `06-responsividade` roda em 320×568 e 390×844. Os
+demais cenários rodam em 1400×1000 — passe `viewport` para mudar.
 
 ## Escrever um cenário
 

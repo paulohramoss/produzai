@@ -20,10 +20,10 @@ interface Props {
  */
 export function OneThingMode({ thing, onComplete, onClose }: Props) {
   return (
-    <div style={{
+    <div className="rise-overlay" style={{
       position: 'fixed', inset: 0, background: C.bg, zIndex: 500,
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: 24, fontFamily: 'system-ui, sans-serif',
+      fontFamily: 'system-ui, sans-serif',
     }}>
       <button
         onClick={onClose}

@@ -253,11 +253,12 @@ export function Galeria({ setPage: _setPage }: Props) {
           aria-label="Fechar imagem"
           onClick={() => setSelected(null)}
           onKeyDown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') setSelected(null) }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          className="rise-overlay"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
         >
           <div onClick={e => e.stopPropagation()} style={{ maxWidth: 600, width: '100%', background: C.card, borderRadius: T.radius['4xl'], overflow: 'hidden', border: `1px solid ${C.border}` }}>
             <div style={{ position: 'relative' }}>
-              <img src={selected.url} alt={selected.caption || selected.date} style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', background: '#000', display: 'block' }} />
+              <img src={selected.url} alt={selected.caption || selected.date} style={{ width: '100%', maxHeight: '60dvh', objectFit: 'contain', background: '#000', display: 'block' }} />
               <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,.6)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', fontSize: T.text['4xl'], cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
             <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>

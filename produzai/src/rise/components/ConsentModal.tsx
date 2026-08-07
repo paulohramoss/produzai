@@ -3,7 +3,7 @@
 // Blocks access to the app until the user explicitly accepts.
 
 import { useState } from 'react';
-import { T, C } from '../data';
+import { T, C, safeInset } from '../data';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export function ConsentModal() {
@@ -22,14 +22,17 @@ export function ConsentModal() {
 
   return (
     <div
+      className="rise-screen"
       style={{
-        minHeight: '100vh',
         background: C.bg,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontFamily: 'system-ui, sans-serif',
-        padding: '20px 16px',
+        paddingTop:    safeInset('top', 20),
+        paddingBottom: safeInset('bottom', 20),
+        paddingLeft:   safeInset('left', 16),
+        paddingRight:  safeInset('right', 16),
       }}
     >
       <div style={{ width: '100%', maxWidth: 500 }}>
@@ -60,7 +63,7 @@ export function ConsentModal() {
             background: C.card,
             border: `1px solid ${C.border}`,
             borderRadius: T.radius['4xl'],
-            padding: 28,
+            padding: 'clamp(20px, 6vw, 28px)',
           }}
         >
           <div
@@ -228,7 +231,10 @@ export function PolicyOverlay({ onClose }: { onClose: () => void }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 16,
+        paddingTop:    safeInset('top', 16),
+        paddingBottom: safeInset('bottom', 16),
+        paddingLeft:   safeInset('left', 16),
+        paddingRight:  safeInset('right', 16),
       }}
     >
       <div
@@ -238,7 +244,7 @@ export function PolicyOverlay({ onClose }: { onClose: () => void }) {
           borderRadius: T.radius['3xl'],
           width: '100%',
           maxWidth: 600,
-          maxHeight: '90vh',
+          maxHeight: 'calc(100dvh - 48px)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',

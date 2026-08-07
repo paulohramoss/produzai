@@ -26,8 +26,7 @@ export default function App() {
 
   if (!initialized) {
     return (
-      <div style={{
-        minHeight: '100vh',
+      <div className="rise-screen" style={{
         background: C.bg,
         display: 'flex',
         flexDirection: 'column',

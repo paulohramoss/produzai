@@ -559,9 +559,10 @@ export function Treino({ setPage }: Props) {
       {showModal && (
         <div
           onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          className="rise-overlay"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 28, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 'clamp(20px, 6vw, 28px)', width: '100%', maxWidth: 480, maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold }}>
                 {editingId ? 'Editar treino' : 'Registrar treino'}

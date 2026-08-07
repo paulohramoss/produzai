@@ -11,7 +11,7 @@ export function Toaster() {
   if (toasts.length === 0) return null
 
   return (
-    <div style={{
+    <div className="rise-toaster" style={{
       position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
       display: 'flex', flexDirection: 'column', gap: 10,
       pointerEvents: 'none',
