@@ -13,10 +13,16 @@ import { LayoutContext } from '../LayoutContext'
 import { WORKOUT_TEMPLATES } from '../data/templates'
 import {
   getWeekBuckets, aggregateWorkoutsByWeek, buildPaceTrend, computeRecords, formatPace,
-  calcPace, formatDuration,
+  formatDuration,
 } from '../../lib/performance'
 import { getStravaStatus, fetchStravaActivities, stravaActivityToWorkout } from '../../lib/strava'
-import { EFFORT_LEVELS, estimateCalories, type EffortLevel } from '../../lib/calories'
+import { EFFORT_LEVELS, estimateCalories, REFERENCE_WEIGHT_KG, type EffortLevel } from '../../lib/calories'
+import {
+  ACTIVITY_TYPES, DEFAULT_NAMES, DEFAULT_EFFORT, usesDistance, buildWorkout,
+} from '../../lib/workouts'
+import { todayKey } from '../../lib/date'
+import { useSpeechToText } from '../../lib/useSpeechToText'
+import { parseWorkoutFromSpeech, parseWorkoutFromImage } from '../../lib/anthropic'
 
 interface Props {
   setPage: (page: Page) => void
@@ -91,7 +97,7 @@ export function Treino({ setPage }: Props) {
   const [form, setForm] = useState({
     type: 'Corrida',
     name: '',
-    date: new Date().toISOString().split('T')[0],
+    date: todayKey(),
     durationMin: '',
     dist: '',
     effort: DEFAULT_EFFORT as EffortLevel,
@@ -135,7 +141,7 @@ export function Treino({ setPage }: Props) {
   })
 
   function openModal() {
-    setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', effort: null, hr: '' })
+    setForm({ type: 'Corrida', name: '', date: todayKey(), durationMin: '', dist: '', effort: DEFAULT_EFFORT, hr: '' })
     setShowTemplates(false)
     setShowMore(false)
     setDictation('')
@@ -207,19 +213,17 @@ export function Treino({ setPage }: Props) {
   function handleSubmit() {
     const durationMin = parseInt(form.durationMin)
     if (!durationMin || durationMin <= 0) return
+    // buildWorkout deriva pace, tempo formatado, nome e calorias — aqui só vai o
+    // que o usuário informou. O peso entra na fórmula MET do gasto calórico.
     const workout = buildWorkout({
       type: form.type,
-      name,
-      rawDate: form.date,
-      date: friendlyDate(form.date),
-      dist: distKm,
-      pace: calcPace(durationMin, distKm),
-      time: formatDuration(durationMin),
-      cal: estimateCalories(form.type, durationMin, form.effort),
-      hr: parseInt(form.hr) || 0,
-      elev: 0,
+      name: form.name,
+      date: form.date,
+      durationMin,
+      dist: usesDistance(form.type) ? form.dist : 0,
       effort: form.effort,
       hr: form.hr,
+      weightKg,
     })
     add(workout)
     setShowModal(false)
@@ -674,7 +678,7 @@ export function Treino({ setPage }: Props) {
                     <input
                       type="date"
                       value={form.date}
-                      max={new Date().toISOString().split('T')[0]}
+                      max={todayKey()}
                       onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                       style={{ ...inputStyle, colorScheme: 'dark' }}
                     />
@@ -717,7 +721,19 @@ export function Treino({ setPage }: Props) {
             {/* Prévia do que será salvo */}
             {parseInt(form.durationMin) > 0 && (
               <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
-                Gasto calórico estimado: <strong style={{ color: C.text }}>{estimateCalories(form.type, parseInt(form.durationMin), form.effort)} kcal</strong>
+                Gasto calórico estimado: <strong style={{ color: C.text }}>{estimateCalories(form.type, parseInt(form.durationMin), form.effort, weightKg)} kcal</strong>
+                {weightKg == null && (
+                  <div style={{ fontSize: T.text.sm, color: C.orange, marginTop: 6, lineHeight: 1.5 }}>
+                    Calculado com peso de referência de {REFERENCE_WEIGHT_KG}kg.{' '}
+                    <span
+                      onClick={() => setPage('perfil')}
+                      style={{ textDecoration: 'underline', cursor: 'pointer' }}
+                    >
+                      Informe seu peso no Perfil
+                    </span>{' '}
+                    para uma estimativa real.
+                  </div>
+                )}
               </div>
             )}
 

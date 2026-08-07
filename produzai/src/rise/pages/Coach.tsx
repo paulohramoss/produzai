@@ -56,6 +56,7 @@ export function Coach({ setPage }: Props) {
   const wd        = useWebDietStore(s => s.data)
   const habitDefs = useHabitsStore(s => s.defs)
   const user      = useAuthStore(s => s.user)
+  const weightKg  = useAuthStore(s => s.weightKg)
 
   const conversations       = useCoachStore(s => s.conversations)
   const activeId            = useCoachStore(s => s.activeId)
@@ -125,7 +126,7 @@ export function Coach({ setPage }: Props) {
       return { id: use.id, content: `Ferramenta desconhecida: ${use.name}`, isError: true }
     }
     try {
-      const workout = buildWorkout(use.input as WorkoutDraft)
+      const workout = buildWorkout({ ...(use.input as WorkoutDraft), weightKg })
       addWorkout(workout)
       toast.success(`🏋 ${workout.name} registrado`)
       return {
@@ -472,7 +473,7 @@ export function Coach({ setPage }: Props) {
                 )}
 
                 {registered.map(use => {
-                  const w = buildWorkout(use.input as WorkoutDraft)
+                  const w = buildWorkout({ ...(use.input as WorkoutDraft), weightKg })
                   return (
                     <div
                       key={use.id}

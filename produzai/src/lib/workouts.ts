@@ -4,6 +4,7 @@
 
 import { estimateCalories, type EffortLevel } from './calories'
 import { calcPace, formatDuration, friendlyDate } from './performance'
+import { todayKey } from './date'
 import type { ManualWorkout } from '../store/useWorkoutStore'
 
 export const ACTIVITY_TYPES = ['Corrida', 'Caminhada', 'Academia', 'Ciclismo', 'Natação', 'Futebol', 'Outro']
@@ -39,11 +40,8 @@ export function usesDistance(type: string): boolean {
 /** Esforço assumido quando ninguém escolhe: moderado. */
 export const DEFAULT_EFFORT: EffortLevel = 2
 
-export function todayISO(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
+/** Data de hoje no fuso local — fonte única em lib/date.ts. */
+export const todayISO = todayKey
 
 export interface WorkoutDraft {
   type?: string
@@ -54,6 +52,8 @@ export interface WorkoutDraft {
   hr?: number | string
   /** "YYYY-MM-DD". Ausente ou inválida vira hoje; futura é puxada para hoje. */
   date?: string
+  /** Peso do usuário em kg — sem ele o gasto calórico cai no peso de referência. */
+  weightKg?: number | null
 }
 
 function normalizeDate(raw?: string): string {
@@ -98,7 +98,7 @@ export function buildWorkout(draft: WorkoutDraft): Omit<ManualWorkout, 'id'> {
     dist,
     pace: calcPace(durationMin, dist),
     time: formatDuration(durationMin),
-    cal: estimateCalories(type, durationMin, effort),
+    cal: estimateCalories(type, durationMin, effort, draft.weightKg),
     hr,
     elev: 0,
     effort,
