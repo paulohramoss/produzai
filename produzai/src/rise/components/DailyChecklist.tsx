@@ -7,6 +7,7 @@ import { getDaily, saveDaily } from '../../lib/db'
 import { toast } from '../../lib/toast'
 import { userStorage } from '../../lib/userStorage'
 import { type Habit, type FocusItem } from '../../lib/dailyScore'
+import { todayKey } from '../../lib/date'
 import { HabitosModal } from './HabitosModal'
 
 export type { Habit, FocusItem }
@@ -31,7 +32,7 @@ interface Props {
 export const DailyChecklist = forwardRef<DailyChecklistHandle, Props>(function DailyChecklist(
   { date, editable, onStateChange }, ref,
 ) {
-  const today      = new Date().toISOString().slice(0, 10)
+  const today      = todayKey()
   const isToday    = date === today
   const user       = useAuthStore(s => s.user)
   const habitDefs  = useHabitsStore(s => s.defs)

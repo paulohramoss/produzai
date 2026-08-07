@@ -7,6 +7,7 @@ import { useHabitsStore } from '../../store/useHabitsStore'
 import { getDailyHistory, type DailyData } from '../../lib/db'
 import { DailyChecklist } from '../components/DailyChecklist'
 import { computeScore } from '../../lib/dailyScore'
+import { todayKey } from '../../lib/date'
 import { LayoutContext } from '../LayoutContext'
 
 interface Props { setPage: (p: Page) => void }
@@ -15,7 +16,6 @@ const WEEKDAY_LABELS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 function dateKey(y: number, m: number, d: number) { return `${y}-${pad(m + 1)}-${pad(d)}` }
-function todayKey() { return new Date().toISOString().slice(0, 10) }
 
 function monthLabel(viewMonth: Date): string {
   const s = viewMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })

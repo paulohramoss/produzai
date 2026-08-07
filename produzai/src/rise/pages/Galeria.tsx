@@ -8,6 +8,7 @@ import { T, C, type Page, displayStyle } from '../data'
 import { Camera } from 'lucide-react'
 import { Card } from '../primitives'
 import { LayoutContext } from '../LayoutContext'
+import { todayKey } from '../../lib/date'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -53,7 +54,7 @@ export function Galeria({ setPage: _setPage }: Props) {
       const photo: ProgressPhoto = {
         id,
         url,
-        date: new Date().toISOString().slice(0, 10),
+        date: todayKey(),
         weight: form.weight ? parseFloat(form.weight) : undefined,
         caption: form.caption.trim(),
       }

@@ -36,6 +36,9 @@ interface AuthState {
   initialized:       boolean
   onboardingDone:    boolean
   consentAccepted:   boolean
+  /** Peso em kg do perfil — null enquanto o usuário não informou. */
+  weightKg:          number | null
+  setWeightKg:       (kg: number) => Promise<void>
   login:             (email: string, password: string) => Promise<void>
   loginWithGoogle:   () => Promise<void>
   register:          (name: string, email: string, password: string) => Promise<void>
@@ -139,6 +142,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialized:     false,
   onboardingDone:  false,
   consentAccepted: false,
+  weightKg:        null,
+
+  setWeightKg: async (kg) => {
+    set({ weightKg: kg })
+    await saveProfile({ weightKg: kg })
+  },
 
   login: async (email, password) => {
     set({ loading: true, error: null })
@@ -254,10 +263,11 @@ export const useAuthStore = create<AuthState>((set) => ({
           initialized:     true,
           onboardingDone:  profile?.onboardingDone ?? false,
           consentAccepted: !!(profile?.consentAt),
+          weightKg:        profile?.weightKg ?? null,
         })
       } else {
         clearSessionState()
-        set({ user: null, loading: false, initialized: true, onboardingDone: false, consentAccepted: false })
+        set({ user: null, loading: false, initialized: true, onboardingDone: false, consentAccepted: false, weightKg: null })
       }
     })
     return unsub

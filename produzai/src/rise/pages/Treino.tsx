@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import { Card, Tag, Bar, ChartTooltip } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 import { WORKOUT_TEMPLATES } from '../data/templates'
@@ -15,7 +16,8 @@ import {
   friendlyDate, calcPace, formatDuration,
 } from '../../lib/performance'
 import { getStravaStatus, fetchStravaActivities, stravaActivityToWorkout } from '../../lib/strava'
-import { EFFORT_LEVELS, estimateCalories, type EffortLevel } from '../../lib/calories'
+import { EFFORT_LEVELS, estimateCalories, REFERENCE_WEIGHT_KG, type EffortLevel } from '../../lib/calories'
+import { todayKey } from '../../lib/date'
 
 interface Props {
   setPage: (page: Page) => void
@@ -66,9 +68,10 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 6,
 }
 
-export function Treino({ setPage: _setPage }: Props) {
+export function Treino({ setPage }: Props) {
   const { workouts, add, addMany, remove } = useWorkoutStore()
   const { isMobile } = useContext(LayoutContext)
+  const weightKg = useAuthStore(s => s.weightKg)
 
   const [stravaConnected, setStravaConnected] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -96,7 +99,7 @@ export function Treino({ setPage: _setPage }: Props) {
   const [form, setForm] = useState({
     type: 'Corrida',
     name: '',
-    date: new Date().toISOString().split('T')[0],
+    date: todayKey(),
     durationMin: '',
     dist: '',
     effort: null as EffortLevel | null,
@@ -132,7 +135,7 @@ export function Treino({ setPage: _setPage }: Props) {
   const hasVolumeData = weeklyVolume.some(w => w.km > 0)
 
   function openModal() {
-    setForm({ type: 'Corrida', name: '', date: new Date().toISOString().split('T')[0], durationMin: '', dist: '', effort: null, hr: '' })
+    setForm({ type: 'Corrida', name: '', date: todayKey(), durationMin: '', dist: '', effort: null, hr: '' })
     setShowTemplates(false)
     setShowModal(true)
   }
@@ -163,7 +166,7 @@ export function Treino({ setPage: _setPage }: Props) {
       dist: distKm,
       pace: calcPace(durationMin, distKm),
       time: formatDuration(durationMin),
-      cal: estimateCalories(form.type, durationMin, form.effort),
+      cal: estimateCalories(form.type, durationMin, form.effort, weightKg),
       hr: parseInt(form.hr) || 0,
       elev: 0,
       effort: form.effort,
@@ -484,7 +487,7 @@ export function Treino({ setPage: _setPage }: Props) {
                 <input
                   type="date"
                   value={form.date}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={todayKey()}
                   onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                   style={{ ...inputStyle, colorScheme: 'dark' }}
                 />
@@ -555,7 +558,19 @@ export function Treino({ setPage: _setPage }: Props) {
             {/* Calorie preview */}
             {form.durationMin && parseInt(form.durationMin) > 0 && form.effort && (
               <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
-                Gasto calórico estimado: <strong style={{ color: C.text }}>{estimateCalories(form.type, parseInt(form.durationMin), form.effort)} kcal</strong>
+                Gasto calórico estimado: <strong style={{ color: C.text }}>{estimateCalories(form.type, parseInt(form.durationMin), form.effort, weightKg)} kcal</strong>
+                {weightKg == null && (
+                  <div style={{ fontSize: T.text.sm, color: C.orange, marginTop: 6, lineHeight: 1.5 }}>
+                    Calculado com peso de referência de {REFERENCE_WEIGHT_KG}kg.{' '}
+                    <span
+                      onClick={() => setPage('perfil')}
+                      style={{ textDecoration: 'underline', cursor: 'pointer' }}
+                    >
+                      Informe seu peso no Perfil
+                    </span>{' '}
+                    para uma estimativa real.
+                  </div>
+                )}
               </div>
             )}
 

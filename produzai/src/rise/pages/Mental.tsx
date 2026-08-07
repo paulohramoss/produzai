@@ -8,6 +8,7 @@ import { toast } from '../../lib/toast'
 import { userStorage } from '../../lib/userStorage'
 import { LayoutContext } from '../LayoutContext'
 import { hasApiKey, generateReflectionQuestion, fallbackReflectionQuestion } from '../../lib/anthropic'
+import { todayKey as localTodayKey, lastNDays } from '../../lib/date'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -45,7 +46,7 @@ const MOODS       = ['😞', '😕', '😐', '🙂', '😄']
 const MOOD_LABELS = ['Ruim', 'Regular', 'Ok', 'Bom', 'Ótimo']
 const MOOD_COLORS = [C.red, '#F97316', '#EAB308', C.green, '#22C55E']
 
-const todayKey = () => new Date().toISOString().slice(0, 10)
+const todayKey = localTodayKey
 
 const EMPTY: MentalEntry = { mood: 0, energy: 0, gratitude: ['', '', ''], note: '' }
 
@@ -79,11 +80,7 @@ export function Mental({ setPage: _s }: Props) {
   useEffect(() => {
     async function load() {
       // Histórico: últimos 7 dias
-      const dates: string[] = []
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(); d.setDate(d.getDate() - i)
-        dates.push(d.toISOString().slice(0, 10))
-      }
+      const dates = lastNDays(7)
 
       if (user) {
         const [cloudEntry, cloudHistory] = await Promise.all([

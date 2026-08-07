@@ -4,6 +4,8 @@ import { CheckCircle2, Gem, Target, Utensils } from 'lucide-react'
 import { Tag } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { saveProfile, saveDaily } from '../../lib/db'
+import { todayKey } from '../../lib/date'
+import { MIN_WEIGHT_KG, MAX_WEIGHT_KG, REFERENCE_WEIGHT_KG } from '../../lib/calories'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
 import { toast } from '../../lib/toast'
@@ -48,6 +50,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
   const [generating, setGenerating] = useState(false)
   const [plan, setPlan]             = useState<OnboardingPlan | null>(null)
   const [excluded, setExcluded]     = useState<Set<number>>(new Set())
+  const [weightInput, setWeightInput] = useState('')
   const [saving, setSaving]         = useState(false)
 
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -129,8 +132,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
     if (plan.macros && plan.macros.cal > 0) setupDiet(plan.macros)
 
     if (plan.focusSuggestion) {
-      const todayKey = new Date().toISOString().slice(0, 10)
-      saveDaily(todayKey, {
+      saveDaily(todayKey(), {
         focus: [
           { id: '1', text: plan.focusSuggestion, done: false },
           { id: '2', text: '', done: false },
@@ -139,13 +141,16 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
       })
     }
 
+    const weightKg = parseWeight(weightInput)
     await saveProfile({
       onboardingDone: true,
       createdAt: Date.now(),
       goals: plan.goals,
       values: plan.values,
       onboardingSummary: plan.summary,
+      ...(weightKg ? { weightKg } : {}),
     })
+    if (weightKg) useAuthStore.setState({ weightKg })
     setOnboardingDone(true)
     toast.success(`🚀 Bem-vindo ao The Rise Plan, ${firstName}!`)
   }
@@ -279,6 +284,8 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
             plan={plan}
             excluded={excluded}
             toggleHabit={toggleHabit}
+            weightInput={weightInput}
+            setWeightInput={setWeightInput}
             saving={saving}
             onBack={() => setPlan(null)}
             onConfirm={confirmPlan}
@@ -291,10 +298,12 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
 
 // ── Tela de revisão do plano gerado ─────────────────────────────────────────
 
-function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: {
+function PlanReview({ plan, excluded, toggleHabit, weightInput, setWeightInput, saving, onBack, onConfirm }: {
   plan: OnboardingPlan
   excluded: Set<number>
   toggleHabit: (i: number) => void
+  weightInput: string
+  setWeightInput: (v: string) => void
   saving: boolean
   onBack: () => void
   onConfirm: () => void
@@ -373,6 +382,33 @@ function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: 
         </div>
       )}
 
+      {/* Peso — entra na fórmula MET do gasto calórico dos treinos */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 8, ...displayStyle }}>
+          ⚖️ Seu peso atual
+        </div>
+        <input
+          type="number"
+          inputMode="decimal"
+          min={MIN_WEIGHT_KG}
+          max={MAX_WEIGHT_KG}
+          step="0.1"
+          value={weightInput}
+          onChange={e => setWeightInput(e.target.value)}
+          placeholder="ex: 74.5"
+          style={{
+            width: '100%', background: C.card2, border: `1px solid ${C.border2}`,
+            borderRadius: T.radius.md, padding: '11px 14px', color: C.text,
+            fontSize: T.text.lg, outline: 'none', boxSizing: 'border-box',
+          }}
+        />
+        <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>
+          {weightInput && !parseWeight(weightInput)
+            ? <span style={{ color: C.red }}>Informe um peso entre {MIN_WEIGHT_KG} e {MAX_WEIGHT_KG} kg.</span>
+            : `Sem isso, o gasto calórico dos treinos usa uma referência de ${REFERENCE_WEIGHT_KG}kg para todo mundo.`}
+        </div>
+      </div>
+
       {/* Macros */}
       {plan.macros && plan.macros.cal > 0 && (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16 }}>
@@ -432,6 +468,13 @@ const HABITS_OPTIONS = [
   { id: 'sem_acucar',icon: '🚫', label: 'Sem açúcar',          why: 'Reduzir açúcar protege sua energia e seu humor durante o dia.' },
 ]
 
+/** Lê o peso digitado; devolve null se estiver vazio ou fora do intervalo aceito. */
+function parseWeight(raw: string): number | null {
+  const n = parseFloat(raw.replace(',', '.'))
+  if (!Number.isFinite(n) || n < MIN_WEIGHT_KG || n > MAX_WEIGHT_KG) return null
+  return n
+}
+
 const GOALS_OPTIONS = [
   { id: 'perder_peso',  icon: '⚖️',  label: 'Perder peso' },
   { id: 'ganhar_massa', icon: '💪',  label: 'Ganhar massa muscular' },
@@ -452,7 +495,8 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
   // Step 0 — objetivos
   const [selectedGoals, setSelectedGoals] = useState<string[]>([])
 
-  // Step 1 — metas nutricionais
+  // Step 1 — peso + metas nutricionais
+  const [weightInput, setWeightInput] = useState('')
   const [macros, setMacros] = useState({ cal: 2000, prot: 150, carb: 200, fat: 60 })
 
   // Step 2 — hábitos
@@ -480,7 +524,9 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
     setHabitDefs(habits)
     // Marca onboarding como concluído no Firestore
     const goals = GOALS_OPTIONS.filter(g => selectedGoals.includes(g.id)).map(g => g.label)
-    await saveProfile({ onboardingDone: true, createdAt: Date.now(), goals })
+    const weightKg = parseWeight(weightInput)
+    await saveProfile({ onboardingDone: true, createdAt: Date.now(), goals, ...(weightKg ? { weightKg } : {}) })
+    if (weightKg) useAuthStore.setState({ weightKg })
     setOnboardingDone(true)
     toast.success(`🚀 Bem-vindo ao The Rise Plan, ${firstName}!`)
   }
@@ -573,8 +619,38 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
         {/* ── STEP 1: Nutrição ── */}
         {step === 1 && (
           <div className="fade-in">
-            <div style={{ fontWeight: T.weight.bold, fontSize: 17, marginBottom: 6 }}>Metas nutricionais diárias</div>
+            <div style={{ fontWeight: T.weight.bold, fontSize: 17, marginBottom: 6 }}>Seu peso e suas metas</div>
             <div style={{ fontSize: T.text.md, color: C.muted, marginBottom: 20 }}>Você pode ajustar depois na página de Dieta</div>
+
+            {/* Peso — entra na fórmula MET do gasto calórico dos treinos */}
+            <div style={{
+              background: '#1A1A1A', borderRadius: T.radius.lg, padding: 16, marginBottom: 16,
+              border: `1px solid ${C.border}`,
+            }}>
+              <label style={{ fontSize: T.text.md, color: C.muted, display: 'block', marginBottom: 8 }}>
+                Peso atual (kg)
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={MIN_WEIGHT_KG}
+                max={MAX_WEIGHT_KG}
+                step="0.1"
+                value={weightInput}
+                onChange={e => setWeightInput(e.target.value)}
+                placeholder="ex: 74.5"
+                style={{
+                  width: '100%', background: C.card2, border: `1px solid ${C.border2}`,
+                  borderRadius: T.radius.md, padding: '11px 14px', color: C.text,
+                  fontSize: T.text.lg, outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>
+                {weightInput && !parseWeight(weightInput)
+                  ? <span style={{ color: C.red }}>Informe um peso entre {MIN_WEIGHT_KG} e {MAX_WEIGHT_KG} kg.</span>
+                  : `Sem isso, o gasto calórico dos treinos usa uma referência de ${REFERENCE_WEIGHT_KG}kg para todo mundo.`}
+              </div>
+            </div>
 
             <div style={{
               background: '#1A1A1A', borderRadius: T.radius.lg, padding: 16, marginBottom: 20,

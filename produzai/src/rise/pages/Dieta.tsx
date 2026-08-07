@@ -8,6 +8,7 @@ import { DietaModal } from '../DietaModal'
 import { LayoutContext } from '../LayoutContext'
 import { parsePdfDiet, estimateMealMacros } from '../../lib/anthropic'
 import { getDaily, saveDaily } from '../../lib/db'
+import { todayKey as localTodayKey } from '../../lib/date'
 
 interface Props {
   setPage: (page: Page) => void
@@ -20,10 +21,7 @@ const COMPLIANCE_OPTIONS: { status: ComplianceStatus; emoji: string; label: stri
   { status: 'skipped', emoji: '❌', label: 'Não segui',        color: C.red },
 ]
 
-function getTodayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+const getTodayStr = localTodayKey
 
 function dayLabel(dateStr: string) {
   const [y, m, d] = dateStr.split('-').map(Number)
@@ -57,7 +55,7 @@ export function Dieta({ setPage: _setPage }: Props) {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const today = getTodayStr()
-  const todayKey = new Date().toISOString().slice(0, 10)
+  const todayKey = today
   const todayLog = compliance.find(c => c.date === today)
 
   const [waterMl, setWaterMl]       = useState(0)

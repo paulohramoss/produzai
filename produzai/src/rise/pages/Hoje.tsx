@@ -10,6 +10,7 @@ import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 import { DailyChecklist, type DailyChecklistHandle } from '../components/DailyChecklist'
 import { computeScore, type Habit, type FocusItem } from '../../lib/dailyScore'
+import { todayKey as localTodayKey, yesterdayKey } from '../../lib/date'
 import { OneThingMode, type OneThing } from '../components/OneThingMode'
 import {
   notificationsSupported, requestPermission, loadPrefs, savePrefs, applyPrefs,
@@ -19,7 +20,7 @@ import {
 interface Props { setPage: (p: Page) => void }
 
 export function Hoje({ setPage }: Props) {
-  const todayKey   = new Date().toISOString().slice(0, 10)
+  const todayKey   = localTodayKey()
   const wd         = useWebDietStore(s => s.data)
   const user       = useAuthStore(s => s.user)
   const habitDefs  = useHabitsStore(s => s.defs)
@@ -43,7 +44,7 @@ export function Hoje({ setPage }: Props) {
   useEffect(() => {
     async function loadYesterday() {
       if (!user) return
-      const yKey = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      const yKey = yesterdayKey()
       const cloud = await getDaily(yKey)
       if (!cloud?.habits) { setMissedYesterday([]); return }
       const missed = cloud.habits

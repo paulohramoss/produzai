@@ -9,6 +9,7 @@ import { Card } from '../primitives'
 import { LayoutContext } from '../LayoutContext'
 import { PolicyOverlay } from '../components/ConsentModal'
 import { getStravaStatus, goToStravaConnect, disconnectStrava, type StravaStatus } from '../../lib/strava'
+import { MIN_WEIGHT_KG, MAX_WEIGHT_KG, REFERENCE_WEIGHT_KG } from '../../lib/calories'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -35,7 +36,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function Perfil({ setPage }: Props) {
   const { isMobile } = useContext(LayoutContext)
-  const { user, displayName: storedName, photoURL: storedPhoto, updateProfileData, changePassword, deleteAccount, logout } = useAuthStore()
+  const { user, displayName: storedName, photoURL: storedPhoto, weightKg, setWeightKg, updateProfileData, changePassword, deleteAccount, logout } = useAuthStore()
 
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -44,6 +45,9 @@ export function Perfil({ setPage }: Props) {
 
   const [photoUploading, setPhotoUploading] = useState(false)
   const [previewURL, setPreviewURL]         = useState<string | null>(null)
+
+  const [weightInput, setWeightInput]   = useState(weightKg != null ? String(weightKg) : '')
+  const [savingWeight, setSavingWeight] = useState(false)
 
   const [curPass, setCurPass]   = useState('')
   const [newPass, setNewPass]   = useState('')
@@ -96,6 +100,32 @@ export function Perfil({ setPage }: Props) {
       toast.error('Erro ao salvar nome')
     } finally {
       setSavingName(false)
+    }
+  }
+
+  // ── Save weight ────────────────────────────────────────────────────────────
+  // O peso alimenta a fórmula MET do gasto calórico (lib/calories.ts).
+  useEffect(() => {
+    setWeightInput(weightKg != null ? String(weightKg) : '')
+  }, [weightKg])
+
+  const parsedWeight  = parseFloat(weightInput.replace(',', '.'))
+  const weightValid   = Number.isFinite(parsedWeight) && parsedWeight >= MIN_WEIGHT_KG && parsedWeight <= MAX_WEIGHT_KG
+  const weightChanged = weightValid && parsedWeight !== weightKg
+
+  async function handleSaveWeight() {
+    if (!weightChanged) {
+      if (weightInput.trim() && !weightValid) toast.error(`Peso deve estar entre ${MIN_WEIGHT_KG} e ${MAX_WEIGHT_KG} kg`)
+      return
+    }
+    setSavingWeight(true)
+    try {
+      await setWeightKg(parsedWeight)
+      toast.success(`⚖️ Peso atualizado: ${parsedWeight} kg`)
+    } catch {
+      toast.error('Erro ao salvar peso')
+    } finally {
+      setSavingWeight(false)
     }
   }
 
@@ -249,6 +279,46 @@ export function Perfil({ setPage }: Props) {
               {savingName ? '...' : 'Salvar'}
             </button>
           </div>
+        </div>
+      </Section>
+
+      {/* ── Corpo ─────────────────────────────────────────────────────────── */}
+      <Section title="Corpo">
+        <div style={{ maxWidth: 260 }}>
+          <label style={label}>Peso (kg)</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="number"
+              inputMode="decimal"
+              min={MIN_WEIGHT_KG}
+              max={MAX_WEIGHT_KG}
+              step="0.1"
+              value={weightInput}
+              onChange={e => setWeightInput(e.target.value)}
+              placeholder="ex: 74.5"
+              style={inp}
+            />
+            <button
+              onClick={handleSaveWeight}
+              disabled={!weightChanged || savingWeight}
+              style={{
+                background: weightChanged ? C.orange : C.card2,
+                border: `1px solid ${weightChanged ? C.orange : C.border2}`,
+                borderRadius: T.radius.md, padding: '0 18px',
+                color: weightChanged ? '#fff' : C.muted,
+                fontSize: T.text.md, fontWeight: T.weight.bold,
+                cursor: weightChanged && !savingWeight ? 'pointer' : 'default',
+                flexShrink: 0,
+              }}
+            >
+              {savingWeight ? '...' : 'Salvar'}
+            </button>
+          </div>
+        </div>
+        <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 10, lineHeight: 1.6 }}>
+          {weightKg == null
+            ? `Sem o seu peso, o gasto calórico dos treinos é calculado com uma referência de ${REFERENCE_WEIGHT_KG}kg — o que erra bastante nos extremos.`
+            : 'Usado para calcular o gasto calórico dos treinos pela fórmula MET. Treinos já registrados mantêm o valor da época.'}
         </div>
       </Section>
 

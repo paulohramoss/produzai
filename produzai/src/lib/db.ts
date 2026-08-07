@@ -33,6 +33,8 @@ export interface UserProfile {
   goals?: string[]
   values?: string[]
   onboardingSummary?: string
+  /** Peso em kg — entra na fórmula MET do gasto calórico dos treinos. */
+  weightKg?: number
 }
 
 export async function getProfile(): Promise<UserProfile | null> {

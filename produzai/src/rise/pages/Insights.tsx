@@ -15,6 +15,7 @@ import {
   type DailyData, type MentalEntry, type WeeklyReview,
 } from '../../lib/db'
 import { analyzePatterns, type PatternInsight } from '../../lib/patterns'
+import { lastNDays } from '../../lib/date'
 import { getWeekBuckets, aggregateWellbeingByWeek, compareTrainingVsRestDays } from '../../lib/performance'
 import { buildWeekPerformance, diagnoseWeek, findStrongestFactor } from '../../lib/performanceScore'
 import { hasApiKey, generateWeeklyReview } from '../../lib/anthropic'
@@ -31,14 +32,7 @@ const TONE_COLOR: Record<PatternInsight['tone'], string> = {
   attention: C.orange,
 }
 
-function lastDates(n: number): string[] {
-  const dates: string[] = []
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i)
-    dates.push(d.toISOString().slice(0, 10))
-  }
-  return dates
-}
+const lastDates = lastNDays
 
 function getISOWeekKey(date: Date): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
