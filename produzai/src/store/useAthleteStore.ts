@@ -16,9 +16,14 @@ export const useAthleteStore = create<AthleteState>()(
     (set, get) => ({
       profile: EMPTY_ATHLETE,
       update: patch => {
-        const next = { ...get().profile, ...patch }
-        set({ profile: next })
-        saveAthleteProfile(patch)
+        // Chaves `undefined` são descartadas na escrita (o Firestore as rejeita),
+        // então aplicá-las no estado local faria a memória divergir da nuvem
+        // até o próximo reload. Descarta nos dois lados.
+        const defined = Object.fromEntries(
+          Object.entries(patch).filter(([, v]) => v !== undefined),
+        ) as Partial<AthleteProfile>
+        set({ profile: { ...get().profile, ...defined } })
+        saveAthleteProfile(defined)
       },
       setAll: profile => set({ profile }),
       loadFromCloud: async () => {

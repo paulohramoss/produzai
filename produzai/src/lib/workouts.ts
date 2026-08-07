@@ -54,6 +54,12 @@ export interface WorkoutDraft {
   hr?: number | string
   /** "YYYY-MM-DD". Ausente ou inválida vira hoje; futura é puxada para hoje. */
   date?: string
+  /**
+   * Peso do atleta, para o cálculo de calorias. Passado por quem chama em vez
+   * de lido de um store aqui dentro: este módulo é puro de propósito, o que
+   * mantém `buildWorkout` testável e utilizável fora de um componente React.
+   */
+  weightKg?: number | null
 }
 
 function normalizeDate(raw?: string): string {
@@ -98,7 +104,7 @@ export function buildWorkout(draft: WorkoutDraft): Omit<ManualWorkout, 'id'> {
     dist,
     pace: calcPace(durationMin, dist),
     time: formatDuration(durationMin),
-    cal: estimateCalories(type, durationMin, effort),
+    cal: estimateCalories(type, durationMin, effort, draft.weightKg),
     hr,
     elev: 0,
     effort,

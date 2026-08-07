@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import { Card, Tag, Bar, ChartTooltip } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
+import { useAthleteStore } from '../../store/useAthleteStore'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 import { WORKOUT_TEMPLATES } from '../data/templates'
@@ -67,6 +68,7 @@ const labelStyle: React.CSSProperties = {
 
 export function Treino({ setPage: _setPage }: Props) {
   const { workouts, add, addMany, remove } = useWorkoutStore()
+  const athlete = useAthleteStore(s => s.profile)
   const { isMobile } = useContext(LayoutContext)
 
   const [stravaConnected, setStravaConnected] = useState(false)
@@ -223,6 +225,7 @@ export function Treino({ setPage: _setPage }: Props) {
       dist: usesDistance(form.type) ? form.dist : 0,
       effort: form.effort,
       hr: form.hr,
+      weightKg: athlete.weightKg,
     })
     add(workout)
     setShowModal(false)
@@ -739,7 +742,7 @@ export function Treino({ setPage: _setPage }: Props) {
               <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
                 {form.name.trim() || DEFAULT_NAMES[form.type]} ·{' '}
                 <strong style={{ color: C.text }}>
-                  {estimateCalories(form.type, parseInt(form.durationMin), form.effort)} kcal
+                  {estimateCalories(form.type, parseInt(form.durationMin), form.effort, athlete.weightKg)} kcal
                 </strong>
                 {usesDistance(form.type) && parseFloat(form.dist) > 0 && (
                   <> · ritmo <strong style={{ color: C.text }}>{calcPace(parseInt(form.durationMin), parseFloat(form.dist))}/km</strong></>

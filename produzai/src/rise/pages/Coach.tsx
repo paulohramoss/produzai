@@ -143,7 +143,7 @@ export function Coach({ setPage }: Props) {
       return { id: use.id, content: `Ferramenta desconhecida: ${use.name}`, isError: true }
     }
     try {
-      const workout = buildWorkout(use.input as WorkoutDraft)
+      const workout = buildWorkout({ ...(use.input as WorkoutDraft), weightKg: athlete.weightKg })
       addWorkout(workout)
       toast.success(`🏋 ${workout.name} registrado`)
       return {
@@ -496,7 +496,10 @@ export function Coach({ setPage }: Props) {
                 )}
 
                 {registered.map(use => {
-                  const w = buildWorkout(use.input as WorkoutDraft)
+                  // A bolha re-deriva o treino a partir do input da ferramenta
+                  // para exibi-lo; passar o peso aqui mantém as calorias iguais
+                  // às que foram de fato registradas em `runTool`.
+                  const w = buildWorkout({ ...(use.input as WorkoutDraft), weightKg: athlete.weightKg })
                   return (
                     <div
                       key={use.id}

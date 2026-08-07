@@ -37,7 +37,13 @@
       "Bash(node --check api/ai/completion.js)",
       "Bash(node --check api/ai/_prompts.js)",
       "Bash(node -e \"import\\('./api/ai/_prompts.js'\\).then\\(m=>{const p=m.buildSystemPrompt\\({userName:'Paulo'}\\); console.log\\(p.split\\('\\\\n'\\).slice\\(0,3\\).join\\('\\\\n'\\)\\); console.log\\('---'\\); console.log\\(p.slice\\(-400\\)\\)}\\)\")",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "WebFetch(domain:www.athletedata.health)",
+      "Bash(node -e ' *)",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(git checkout *)",
+      "Bash(rm -rf node_modules/.tmp)",
+      "Bash(echo \"--- TSC exit: $? ---\")"
     ]
   }
 }

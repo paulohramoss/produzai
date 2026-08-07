@@ -7,6 +7,7 @@ import type { AthleteProfile } from './athleteProfile'
 import type { WorkoutAnalysis } from './workoutAnalysis'
 import type { WorkoutSummaryResult } from './anthropic'
 import type { TrainingPlan } from './plan'
+import type { CoachSnapshot } from './coachSnapshot'
 
 let currentUid = ''
 export function setDbUid(uid: string) { currentUid = uid }
@@ -26,6 +27,21 @@ function monthlyRef(sub: 'dailyMonthly' | 'mentalMonthly', ym: string) {
 
 function logDbError(fn: string, err: unknown) {
   console.error(`[db] ${fn}:`, err)
+}
+
+/**
+ * Remove chaves com valor `undefined`.
+ *
+ * O Firestore REJEITA o documento inteiro se qualquer campo for `undefined`
+ * (a instância não usa `ignoreUndefinedProperties`). Como as escritas ficam
+ * dentro de try/catch, isso não estoura na tela — simplesmente nada é salvo,
+ * que é o pior dos dois mundos. Campos opcionais montados a partir de
+ * formulários (`campoVazio || undefined`) caem exatamente nesse caso.
+ */
+function stripUndefined<T extends object>(data: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined),
+  ) as Partial<T>
 }
 
 // ── Profile ──────────────────────────────────────────────────────────────────
@@ -49,7 +65,9 @@ export async function getProfile(): Promise<UserProfile | null> {
 
 export async function saveProfile(data: Partial<UserProfile>) {
   if (!currentUid) return
-  try { await setDoc(dataRef('profile'), data, { merge: true }) } catch (e) { logDbError('saveProfile', e) }
+  try {
+    await setDoc(dataRef('profile'), stripUndefined(data), { merge: true })
+  } catch (e) { logDbError('saveProfile', e) }
 }
 
 // ── Workouts ─────────────────────────────────────────────────────────────────
@@ -79,7 +97,9 @@ export async function getAthleteProfile(): Promise<AthleteProfile | null> {
 
 export async function saveAthleteProfile(data: Partial<AthleteProfile>) {
   if (!currentUid) return
-  try { await setDoc(dataRef('athlete'), data, { merge: true }) } catch (e) { logDbError('saveAthleteProfile', e) }
+  try {
+    await setDoc(dataRef('athlete'), stripUndefined(data), { merge: true })
+  } catch (e) { logDbError('saveAthleteProfile', e) }
 }
 
 // ── Workout insights (análise + resumo de IA por treino) ─────────────────────
@@ -107,6 +127,37 @@ export async function saveWorkoutInsight(insight: WorkoutInsight) {
   try {
     await setDoc(subRef('workoutInsights', insight.workoutId), insight)
   } catch (e) { logDbError('saveWorkoutInsight', e) }
+}
+
+// ── Coach snapshot (coaching proativo) ───────────────────────────────────────
+// Publicado pelo cliente, lido pelo cron. Ver `coachSnapshot.ts`.
+
+export async function saveCoachSnapshot(snapshot: CoachSnapshot) {
+  if (!currentUid) return
+  try {
+    await setDoc(dataRef('coachSnapshot'), snapshot as unknown as Record<string, unknown>)
+  } catch (e) { logDbError('saveCoachSnapshot', e) }
+}
+
+/**
+ * Liga o id de atleta do Strava ao uid, em coleção própria.
+ * O webhook do Strava só recebe o id do atleta — sem este mapeamento não há
+ * como saber de quem é a atividade que acabou de chegar.
+ */
+export async function linkStravaAthlete(athleteId: number) {
+  if (!currentUid) return
+  try {
+    await setDoc(doc(db, 'stravaAthletes', String(athleteId)), {
+      uid: currentUid,
+      linkedAt: Date.now(),
+    })
+  } catch (e) { logDbError('linkStravaAthlete', e) }
+}
+
+export async function unlinkStravaAthlete(athleteId: number) {
+  try {
+    await deleteDoc(doc(db, 'stravaAthletes', String(athleteId)))
+  } catch (e) { logDbError('unlinkStravaAthlete', e) }
 }
 
 // ── Training plan ────────────────────────────────────────────────────────────
@@ -550,7 +601,7 @@ export async function deleteAllUserData(uid: string): Promise<void> {
   const DATA_DOCS = [
     'profile', 'workouts', 'diet', 'projects', 'books',
     'habitDefs', 'progress', 'hydration', 'weeklyReviews', 'pushSubscription', 'friends',
-    'coachConversations', 'athlete', 'trainingPlan',
+    'coachConversations', 'athlete', 'trainingPlan', 'coachSnapshot',
   ]
 
   await Promise.all(

@@ -8,8 +8,10 @@ export const EFFORT_LEVELS: { value: EffortLevel; label: string }[] = [
   { value: 5, label: 'Máximo' },
 ]
 
-// Peso de referência usado na fórmula (kcal = MET × kg × horas) até o app ter o peso real do usuário.
-const REFERENCE_WEIGHT_KG = 70
+// Peso assumido quando o usuário ainda não preencheu o perfil de atleta.
+// A fórmula é kcal = MET × kg × horas, então o peso entra linearmente: um
+// atleta de 95 kg gasta ~36% mais que este padrão na mesma sessão.
+const FALLBACK_WEIGHT_KG = 70
 
 // MET (Metabolic Equivalent of Task) por tipo de atividade e grau de esforço (1 a 5).
 const MET_TABLE: Record<string, [number, number, number, number, number]> = {
@@ -22,10 +24,22 @@ const MET_TABLE: Record<string, [number, number, number, number, number]> = {
   Outro:     [3,   4.5, 6,   7.5, 9],
 }
 
-/** Estima o gasto calórico (kcal) a partir do tipo de atividade, duração e grau de esforço percebido. */
-export function estimateCalories(type: string, durationMin: number, effort: EffortLevel): number {
+/**
+ * Estima o gasto calórico (kcal) a partir do tipo de atividade, duração e grau
+ * de esforço percebido.
+ *
+ * `weightKg` é opcional para que o valor padrão continue valendo em qualquer
+ * chamada que ainda não tenha o perfil do atleta em mãos.
+ */
+export function estimateCalories(
+  type: string,
+  durationMin: number,
+  effort: EffortLevel,
+  weightKg?: number | null,
+): number {
   const mets = MET_TABLE[type] ?? MET_TABLE.Outro
   const met = mets[effort - 1]
   const hours = durationMin / 60
-  return Math.round(met * REFERENCE_WEIGHT_KG * hours)
+  const kg = weightKg && weightKg > 25 && weightKg < 300 ? weightKg : FALLBACK_WEIGHT_KG
+  return Math.round(met * kg * hours)
 }

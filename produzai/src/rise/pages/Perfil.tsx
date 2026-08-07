@@ -10,6 +10,7 @@ import { LayoutContext } from '../LayoutContext'
 import { PolicyOverlay } from '../components/ConsentModal'
 import { getStravaStatus, goToStravaConnect, disconnectStrava, type StravaStatus } from '../../lib/strava'
 import { AthleteProfileForm } from '../components/AthleteProfileForm'
+import { unlinkStravaAthlete } from '../../lib/db'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -70,9 +71,13 @@ export function Perfil({ setPage }: Props) {
 
   async function handleDisconnectStrava() {
     setDisconnecting(true)
+    const athleteId = stravaStatus.athlete?.id
     const ok = await disconnectStrava()
     setDisconnecting(false)
     if (ok) {
+      // Sem remover o mapeamento, o webhook continuaria notificando por
+      // atividades de uma conta que o usuário já desconectou.
+      if (athleteId) await unlinkStravaAthlete(athleteId)
       setStravaStatus({ connected: false })
       toast.success('Strava desconectado')
     } else {

@@ -1,5 +1,7 @@
 import crypto from 'node:crypto'
 import { sanitizeEnv } from './_shared.js'
+import { getAdminDb, isAdminConfigured } from '../push/_firebase.js'
+import { isPushConfigured, sendToUser } from '../push/_send.js'
 
 function parseSignature(header) {
   return Object.fromEntries(
@@ -62,8 +64,43 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid Strava signature' })
     }
 
-    return res.status(200).json({ ok: true })
+    // O Strava reenvia o evento se não receber 200 rápido — responder primeiro
+    // e notificar depois evita duplicatas por timeout.
+    res.status(200).json({ ok: true })
+    await notifyNewActivity(req.body).catch(err => {
+      console.error('[strava/webhook] notify:', err.message)
+    })
+    return
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
+}
+
+/**
+ * "Ele te chama primeiro": assim que a atividade chega do relógio, o app avisa
+ * que já tem análise pronta — em vez de esperar o usuário lembrar de abrir.
+ *
+ * O webhook só traz o id do atleta no Strava, então o mapeamento
+ * `stravaAthletes/{athleteId} → uid` (gravado quando o usuário conecta a conta)
+ * é o que permite saber de quem é a atividade.
+ */
+async function notifyNewActivity(event) {
+  if (event?.object_type !== 'activity' || event?.aspect_type !== 'create') return
+  if (!isAdminConfigured() || !isPushConfigured()) return
+
+  const athleteId = event.owner_id
+  if (!athleteId) return
+
+  const db = await getAdminDb()
+  const linkSnap = await db.doc(`stravaAthletes/${athleteId}`).get()
+  if (!linkSnap.exists) return
+
+  const uid = linkSnap.data()?.uid
+  if (!uid) return
+
+  await sendToUser(db, uid, {
+    title: '🏃 Treino sincronizado',
+    body: 'Sua atividade chegou do Strava. Toque para ver a análise: zonas, deriva cardíaca e como ela se compara com as anteriores.',
+    url: '/?page=treino',
+  })
 }

@@ -22,6 +22,7 @@ import { Toaster }      from "./components/Toaster";
 import { useAuthStore } from "../store/useAuthStore";
 import { LayoutContext } from "./LayoutContext";
 import { toast } from "../lib/toast";
+import { useCoachSnapshot, useStravaLink } from "../lib/useCoachSnapshot";
 
 const STRAVA_REDIRECT_MESSAGES: Record<string, { type: "success" | "error" | "info"; text: string }> = {
   connected:     { type: "success", text: "🏃 Strava conectado com sucesso!" },
@@ -50,9 +51,14 @@ const SIDEBAR_ICON = 62;
 
 export function RisePlan() {
   const { user, displayName, photoURL, logout, onboardingDone, consentAccepted } = useAuthStore();
-  const [page, setPage]         = useState<Page>(() => (
-    new URLSearchParams(window.location.search).get("strava") ? "perfil" : "dashboard"
-  ));
+  // As notificações do coach proativo apontam para uma página específica
+  // (?page=plano, ?page=treino) — abrir sempre no dashboard perderia o destino.
+  const [page, setPage]         = useState<Page>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("strava")) return "perfil";
+    const target = params.get("page");
+    return target && RISE_IMPLEMENTED.includes(target as Page) ? (target as Page) : "dashboard";
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const [windowW, setWindowW]   = useState(window.innerWidth);
 
@@ -63,12 +69,19 @@ export function RisePlan() {
   }, []);
 
   useEffect(() => {
-    const status = new URLSearchParams(window.location.search).get("strava");
-    if (!status) return;
-    const msg = STRAVA_REDIRECT_MESSAGES[status];
-    if (msg) toast[msg.type](msg.text);
-    window.history.replaceState(null, "", window.location.pathname);
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("strava");
+    if (status) {
+      const msg = STRAVA_REDIRECT_MESSAGES[status];
+      if (msg) toast[msg.type](msg.text);
+    }
+    if (status || params.get("page")) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
   }, []);
+
+  useCoachSnapshot(user?.uid ?? null, displayName);
+  useStravaLink(user?.uid ?? null);
 
   const isMobile = windowW < 768;
   const isTablet = windowW >= 768 && windowW < 1024;

@@ -1,80 +1,96 @@
 // GET /api/push/cron
-// Daily cron that sends push notifications to all subscribed users.
-// Triggered by Vercel Cron (see vercel.json). Protected by CRON_SECRET.
+// Coaching proativo: percorre os usuários com inscrição de push ativa, avalia
+// os gatilhos em cima do snapshot que o app publicou e envia NO MÁXIMO uma
+// notificação relevante por usuário por dia.
 //
-// To activate this cron you need firebase-admin to read Firestore server-side:
-//   1. npm install firebase-admin
-//   2. Go to Firebase Console → Project Settings → Service Accounts
-//   3. Click "Generate new private key" → download JSON
-//   4. base64 encode: node -e "console.log(Buffer.from(require('fs').readFileSync('key.json')).toString('base64'))"
-//   5. Add FIREBASE_SERVICE_ACCOUNT_B64 to .env and Vercel env vars
+// A diferença para a versão anterior é o conteúdo: em vez da mesma frase para
+// todo mundo, cada envio tem um motivo tirado dos dados daquele atleta.
 //
-// Until then the cron is a no-op.
+// Acionado pelo Vercel Cron (ver vercel.json) e protegido por CRON_SECRET.
+// Sem FIREBASE_SERVICE_ACCOUNT_B64 e VAPID_PRIVATE_KEY o cron é no-op — ver
+// `_firebase.js` para a configuração.
 
-import webpush from 'web-push'
+import { getAdminDb, isAdminConfigured } from './_firebase.js'
+import { isPushConfigured, sendToUser } from './_send.js'
+import { pickNotification, localHour } from './_triggers.js'
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL || 'mailto:contato@therisepln.com.br',
-  process.env.VAPID_PUBLIC_KEY || '',
-  process.env.VAPID_PRIVATE_KEY || '',
-)
+// Fora dessa faixa (hora local do usuário) ninguém quer ser notificado.
+// A janela é larga porque o cron roda uma vez por dia (12:00 UTC = 9h em
+// Brasília): apertá-la deixaria usuários em outros fusos sem notificação alguma.
+const EARLIEST_HOUR = 6
+const LATEST_HOUR = 22
 
 export default async function handler(req, res) {
   if (req.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  if (!process.env.FIREBASE_SERVICE_ACCOUNT_B64 || !process.env.VAPID_PRIVATE_KEY) {
+  if (!isAdminConfigured() || !isPushConfigured()) {
     console.log('[push/cron] Not configured — skipping')
     return res.json({ sent: 0, reason: 'not configured' })
   }
 
-  // ── Read all push subscriptions from Firestore ────────────────────────────
-  const { initializeApp, cert } = await import('firebase-admin/app')
-  const { getFirestore }        = await import('firebase-admin/firestore')
+  const db = await getAdminDb()
 
-  const serviceAccount = JSON.parse(
-    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_B64, 'base64').toString(),
-  )
+  // Um doc `pushSubscription` por usuário; o path dá o uid.
+  const subs = await db.collectionGroup('data').where('endpoint', '!=', null).get()
 
-  let adminApp
-  try {
-    const { getApp } = await import('firebase-admin/app')
-    adminApp = getApp('cron')
-  } catch {
-    adminApp = initializeApp({ credential: cert(serviceAccount) }, 'cron')
-  }
+  const stats = { candidates: 0, sent: 0, quiet: 0, noTrigger: 0, expired: 0, errors: 0 }
+  const now = Date.now()
 
-  const adminDb = getFirestore(adminApp)
-  // Each user stores their subscription at: users/{uid}/data/pushSubscription
-  // We need a collection-group query across all users:
-  const snap = await adminDb.collectionGroup('data')
-    .where('endpoint', '!=', null)   // only docs that look like push subscriptions
-    .get()
+  await Promise.allSettled(subs.docs.map(async doc => {
+    if (doc.id !== 'pushSubscription') return
+    // users/{uid}/data/pushSubscription
+    const uid = doc.ref.parent.parent?.id
+    if (!uid) return
 
-  const payload = JSON.stringify({
-    title: '⚡ Rise Plan',
-    body:  'Hora de verificar seus hábitos e treino do dia!',
-    url:   '/',
-  })
+    stats.candidates++
 
-  let sent = 0
-  await Promise.allSettled(
-    snap.docs
-      .filter(d => d.id === 'pushSubscription' && d.data().endpoint)
-      .map(async d => {
-        try {
-          await webpush.sendNotification(d.data(), payload)
-          sent++
-        } catch (err) {
-          if (err.statusCode === 410 || err.statusCode === 404) {
-            // Subscription expired — clean up
-            await d.ref.delete()
-          }
-        }
-      }),
-  )
+    try {
+      const [snapshotSnap, stateSnap] = await Promise.all([
+        db.doc(`users/${uid}/data/coachSnapshot`).get(),
+        db.doc(`users/${uid}/data/pushState`).get(),
+      ])
 
-  console.log(`[push/cron] sent=${sent}`)
-  res.json({ sent })
+      const snapshot = snapshotSnap.exists ? snapshotSnap.data() : null
+      if (!snapshot) { stats.noTrigger++; return }
+
+      const hour = localHour(snapshot.timeZone, new Date(now))
+      if (hour < EARLIEST_HOUR || hour > LATEST_HOUR) { stats.quiet++; return }
+
+      const state = stateSnap.exists ? stateSnap.data() : {}
+
+      // Teto absoluto: um envio por dia, aconteça o que acontecer.
+      if (state.lastSentAt && now - state.lastSentAt < 20 * 60 * 60 * 1000) {
+        stats.noTrigger++
+        return
+      }
+
+      const notification = pickNotification(snapshot, state.history ?? {}, now)
+      if (!notification) { stats.noTrigger++; return }
+
+      const result = await sendToUser(db, uid, {
+        title: notification.title,
+        body: notification.body,
+        url: notification.url || '/',
+      })
+
+      if (result === 'sent') {
+        stats.sent++
+        await db.doc(`users/${uid}/data/pushState`).set({
+          lastSentAt: now,
+          lastKey: notification.key,
+          history: { ...(state.history ?? {}), [notification.key]: now },
+        }, { merge: true })
+      } else if (result === 'expired') {
+        stats.expired++
+      }
+    } catch (err) {
+      stats.errors++
+      console.error(`[push/cron] uid=${uid}:`, err.message)
+    }
+  }))
+
+  console.log('[push/cron]', JSON.stringify(stats))
+  res.json(stats)
 }
