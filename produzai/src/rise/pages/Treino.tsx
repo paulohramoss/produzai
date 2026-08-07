@@ -1,6 +1,6 @@
-import { useState, useContext, useMemo, useEffect, useRef } from 'react'
+import { useState, useContext, useMemo, useRef } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Dumbbell, TrendingUp, Trophy, RefreshCw, Mic, Square, Camera } from 'lucide-react'
+import { Dumbbell, TrendingUp, Trophy, Mic, Square, Camera } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -15,7 +15,6 @@ import {
   getWeekBuckets, aggregateWorkoutsByWeek, buildPaceTrend, computeRecords, formatPace,
   formatDuration, parseDurationToMinutes,
 } from '../../lib/performance'
-import { getStravaStatus, fetchStravaActivities, stravaActivityToWorkout } from '../../lib/strava'
 import { EFFORT_LEVELS, estimateCalories, REFERENCE_WEIGHT_KG, type EffortLevel } from '../../lib/calories'
 import {
   ACTIVITY_TYPES, DEFAULT_NAMES, DEFAULT_EFFORT, usesDistance, buildWorkout,
@@ -76,30 +75,9 @@ function painColor(level: number): string {
 }
 
 export function Treino({ setPage }: Props) {
-  const { workouts, add, addMany, remove, update } = useWorkoutStore()
+  const { workouts, add, remove, update } = useWorkoutStore()
   const { isMobile } = useContext(LayoutContext)
   const weightKg = useAuthStore(s => s.body.weightKg)
-
-  const [stravaConnected, setStravaConnected] = useState(false)
-  const [syncing, setSyncing] = useState(false)
-
-  useEffect(() => {
-    getStravaStatus().then(s => setStravaConnected(s.connected))
-  }, [])
-
-  async function handleSyncStrava() {
-    setSyncing(true)
-    try {
-      const activities = await fetchStravaActivities(1, 50)
-      const added = addMany(activities.map(stravaActivityToWorkout))
-      if (added > 0) toast.success(`🏃 ${added} atividade${added > 1 ? 's' : ''} importada${added > 1 ? 's' : ''} do Strava`)
-      else toast.info('Nenhuma atividade nova para importar')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao sincronizar com o Strava')
-    } finally {
-      setSyncing(false)
-    }
-  }
 
   const [showModal, setShowModal] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
@@ -302,21 +280,6 @@ export function Treino({ setPage }: Props) {
           <div style={{ fontSize: T.text.md, color: C.muted }}>Performance física — força + cardio</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {stravaConnected && (
-            <button
-              onClick={handleSyncStrava}
-              disabled={syncing}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 7,
-                background: C.card2, border: `1px solid ${C.running}66`, borderRadius: T.radius.sm,
-                padding: '8px 16px', color: C.running, fontSize: T.text.md, fontWeight: T.weight.bold,
-                cursor: syncing ? 'default' : 'pointer',
-              }}
-            >
-              <RefreshCw size={14} className={syncing ? 'spin' : undefined} />
-              {syncing ? 'Sincronizando...' : 'Sincronizar Strava'}
-            </button>
-          )}
           <button
             onClick={openModal}
             style={{ background: C.purple, border: 'none', borderRadius: T.radius.sm, padding: '8px 16px', color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer' }}
@@ -459,7 +422,6 @@ export function Treino({ setPage }: Props) {
                     <div style={{ fontSize: T.text.sm, color: C.muted }}>{a.date}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                    {a.source === 'strava' && <Tag label="Strava" color={C.running} small />}
                     {a.painLevel != null && a.painLevel > 0 && (
                       <Tag label={`Dor ${a.painLevel}/5`} color={painColor(a.painLevel)} small />
                     )}

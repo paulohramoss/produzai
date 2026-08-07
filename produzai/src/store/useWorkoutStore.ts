@@ -18,8 +18,7 @@ export interface ManualWorkout {
   hr: number
   elev: number
   effort?: EffortLevel
-  source?: 'manual' | 'strava'
-  stravaId?: number
+  source?: 'manual'
   /** Exercícios com séries × reps × carga — o que distância e pace não medem. */
   exercises?: Exercise[]
   /** Como o treino foi, em texto livre: sensação, clima, o que travou. */
@@ -36,9 +35,7 @@ export const INJURY_PAIN_LEVEL = 4
 interface WorkoutState {
   workouts: ManualWorkout[]
   add:    (w: Omit<ManualWorkout, 'id'>) => void
-  /** Mescla atividades importadas (ex: Strava), ignorando as que já foram importadas (por stravaId). Retorna quantas foram adicionadas. */
-  addMany: (items: Omit<ManualWorkout, 'id'>[]) => number
-  /** Corrige um treino já registrado, preservando id e origem (manual/Strava). */
+  /** Corrige um treino já registrado, preservando id e origem. */
   update: (id: string, patch: Omit<ManualWorkout, 'id'>) => void
   remove: (id: string) => void
   setAll: (workouts: ManualWorkout[]) => void
@@ -61,27 +58,14 @@ export const useWorkoutStore = create<WorkoutState>()(
         set({ workouts: next })
         saveWorkouts(next)
       },
-      addMany: items => {
-        const existing = get().workouts
-        const knownStravaIds = new Set(existing.filter(w => w.stravaId != null).map(w => w.stravaId))
-        const toAdd = items.filter(w => w.stravaId == null || !knownStravaIds.has(w.stravaId))
-        if (toAdd.length === 0) return 0
-        const withIds = toAdd.map(w => ({ ...w, id: Math.random().toString(36).slice(2) }))
-        const next = [...withIds, ...existing].sort((a, b) => b.rawDate.localeCompare(a.rawDate))
-        set({ workouts: next })
-        saveWorkouts(next)
-        return toAdd.length
-      },
       update: (id, patch) => {
         const existing = get().workouts.find(w => w.id === id)
         if (!existing) return
-        // A origem não é editável: um treino importado do Strava continua sendo
-        // dele mesmo depois de corrigido, senão a próxima sincronização duplica.
+        // A origem não é editável: correção de um treino não muda de onde ele veio.
         const merged = stripUndefined({
           ...patch,
           id,
           ...(existing.source ? { source: existing.source } : {}),
-          ...(existing.stravaId != null ? { stravaId: existing.stravaId } : {}),
         })
         const next = get().workouts
           .map(w => (w.id === id ? merged : w))

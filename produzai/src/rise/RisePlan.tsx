@@ -20,15 +20,6 @@ import { ConsentModal } from "./components/ConsentModal";
 import { Toaster }      from "./components/Toaster";
 import { useAuthStore } from "../store/useAuthStore";
 import { LayoutContext } from "./LayoutContext";
-import { toast } from "../lib/toast";
-
-const STRAVA_REDIRECT_MESSAGES: Record<string, { type: "success" | "error" | "info"; text: string }> = {
-  connected:     { type: "success", text: "🏃 Strava conectado com sucesso!" },
-  denied:        { type: "info",    text: "Conexão com o Strava cancelada" },
-  missing_scope: { type: "error",   text: "Autorize o acesso às atividades para conectar o Strava" },
-  invalid_state: { type: "error",   text: "Sessão do Strava expirou, tente novamente" },
-  error:         { type: "error",   text: "Erro ao conectar com o Strava" },
-};
 
 const RISE_IMPLEMENTED: Page[] = [
   "dashboard", "hoje", "historico", "treino", "dieta", "agenda",
@@ -49,9 +40,7 @@ const SIDEBAR_ICON = 62;
 
 export function RisePlan() {
   const { user, displayName, photoURL, logout, onboardingDone, consentAccepted } = useAuthStore();
-  const [page, setPage]         = useState<Page>(() => (
-    new URLSearchParams(window.location.search).get("strava") ? "perfil" : "dashboard"
-  ));
+  const [page, setPage]         = useState<Page>("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
   const [windowW, setWindowW]   = useState(window.innerWidth);
 
@@ -59,14 +48,6 @@ export function RisePlan() {
     const handler = () => setWindowW(window.innerWidth);
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
-  }, []);
-
-  useEffect(() => {
-    const status = new URLSearchParams(window.location.search).get("strava");
-    if (!status) return;
-    const msg = STRAVA_REDIRECT_MESSAGES[status];
-    if (msg) toast[msg.type](msg.text);
-    window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
   const isMobile = windowW < 768;

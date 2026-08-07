@@ -164,7 +164,7 @@ async function handleParseWorkout(payload, apiKey) {
   // Sem texto e sem imagem não há o que extrair.
   if (!described && !hasImage) return null
 
-  const system = `Você extrai dados estruturados de um treino descrito em português brasileiro — por texto falado/digitado ou por uma foto (print de relógio esportivo, painel de esteira, tela do Strava/Garmin Connect, ou foto do visor de um aparelho).
+  const system = `Você extrai dados estruturados de um treino descrito em português brasileiro — por texto falado/digitado ou por uma foto (print de relógio esportivo, painel de esteira, tela de app de corrida, ou foto do visor de um aparelho).
 
 Responda APENAS com JSON puro, sem markdown, sem crases, sem texto antes ou depois, no formato exato:
 {"type":"string","name":"string","durationMin":number,"dist":number,"effort":number,"hr":number}

@@ -29,8 +29,8 @@
   --rise-pink:     #F472B6;
   --rise-red:      #EF4444;
 
-  /* External */
-  --rise-strava:   #FC4C02;
+  /* Corrida */
+  --rise-running:  #FC4C02;
 
   /* Typography (mirrors F in data.ts) */
   --rise-font-display: "Archivo", "Open Sans", system-ui, sans-serif;

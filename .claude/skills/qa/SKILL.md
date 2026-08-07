@@ -103,7 +103,7 @@ const s = track(await openSession(browser, { baseUrl, scenarioSlug: slug, user }
 - **`firestore.rules` não é avaliado.** Os dublês ignoram as regras. Qualquer
   mudança em permissão (ex.: leitura pública de `coachShares/{token}`) só é
   validada de fato após `firebase deploy --only firestore:rules`.
-- **`/api/*` não sobe.** Coach (Anthropic), Strava e push respondem erro de
+- **`/api/*` não sobe.** Coach (Anthropic) e push respondem erro de
   rede; o app trata isso, mas cenários não podem depender dessas rotas.
 - **Sem CI.** Roda quando alguém pede. Depois de `npm run qa`, relate o
   resultado — não deixe implícito.

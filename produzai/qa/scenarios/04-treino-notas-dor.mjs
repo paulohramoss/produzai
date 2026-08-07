@@ -1,7 +1,7 @@
 // Notas e dor por treino, e a correção de um treino já salvo.
 //
-// A regressão cara aqui é a edição duplicar o registro ou perder a origem
-// Strava — treino duplicado envenena volume, carga e recordes.
+// A regressão cara aqui é a edição duplicar o registro — treino duplicado
+// envenena volume, carga e recordes.
 
 import { openSession } from '../lib/app.mjs'
 
