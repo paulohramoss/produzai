@@ -16,6 +16,9 @@ import { buildWorkout, type WorkoutDraft } from '../../lib/workouts'
 import { ageFromBirthDate, computeTdee, weightTrend } from '../../lib/body'
 import { computeDayStreak } from '../../lib/streaks'
 import { computeReadiness } from '../../lib/readiness'
+import { computeTrainingLoad } from '../../lib/trainingLoad'
+import { nextSession, weekAdherence, WEEKDAY_SHORT } from '../../lib/weekPlan'
+import { usePlanStore } from '../../store/usePlanStore'
 import { getDailyHistory, type DailyData, type ReadinessEntry } from '../../lib/db'
 import { lastNDays, todayKey } from '../../lib/date'
 import { toast } from '../../lib/toast'
@@ -64,6 +67,7 @@ export function Coach({ setPage }: Props) {
   const weightKg  = useAuthStore(s => s.body.weightKg)
   const body      = useAuthStore(s => s.body)
   const weightLog = useAuthStore(s => s.weightLog)
+  const planSessions = usePlanStore(s => s.sessions)
 
   const conversations       = useCoachStore(s => s.conversations)
   const activeId            = useCoachStore(s => s.activeId)
@@ -154,6 +158,24 @@ export function Coach({ setPage }: Props) {
     [habitDefs, dailyHistory],
   )
 
+  const loadContext = useMemo(() => {
+    const l = computeTrainingLoad(workouts)
+    return { acute: l.acute, chronic: l.chronic, acwr: l.acwr, zone: l.zone, headline: l.headline }
+  }, [workouts])
+
+  const planContext = useMemo(() => {
+    if (planSessions.length === 0) return undefined
+    const adherence = weekAdherence(planSessions, workouts)
+    const next = nextSession(planSessions, workouts)
+    return {
+      sessions: planSessions.map(p => `${WEEKDAY_SHORT[p.weekday]}: ${p.name} (${p.type}, ${p.durationMin}min)`),
+      adherencePct: adherence.pct,
+      matched: adherence.matchedCount,
+      planned: adherence.plannedCount,
+      ...(next ? { next: `${WEEKDAY_SHORT[next.session.weekday]} — ${next.session.name}` } : {}),
+    }
+  }, [planSessions, workouts])
+
   // ── Auto-scroll ───────────────────────────────────────────────────────────
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -225,6 +247,8 @@ export function Coach({ setPage }: Props) {
         tdee: computeTdee(body),
         readiness: readinessContext,
         dayStreak,
+        load: loadContext,
+        plan: planContext,
       },
       chunk => { full += chunk; setStreamText(full) },
       uses => { toolUses = uses },

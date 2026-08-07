@@ -23,6 +23,11 @@ import {
 import { todayKey } from '../../lib/date'
 import { useSpeechToText } from '../../lib/useSpeechToText'
 import { parseWorkoutFromSpeech, parseWorkoutFromImage } from '../../lib/anthropic'
+import { ExerciseEditor } from '../components/ExerciseEditor'
+import { TrainingLoadCard } from '../components/TrainingLoadCard'
+import { StrengthPanel } from '../components/StrengthPanel'
+import { WeekPlanCard } from '../components/WeekPlanCard'
+import { workoutVolume, hasStrengthData, type Exercise } from '../../lib/strength'
 
 interface Props {
   setPage: (page: Page) => void
@@ -92,6 +97,7 @@ export function Treino({ setPage }: Props) {
 
   const [showModal, setShowModal] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [exercises, setExercises] = useState<Exercise[]>([])
   // Detalhes opcionais ficam recolhidos: o registro pede tipo + duração e deriva o resto.
   const [showMore, setShowMore] = useState(false)
   const [form, setForm] = useState({
@@ -146,6 +152,7 @@ export function Treino({ setPage }: Props) {
     setShowMore(false)
     setDictation('')
     setPhoto(null)
+    setExercises([])
     setShowModal(true)
   }
 
@@ -224,6 +231,7 @@ export function Treino({ setPage }: Props) {
       effort: form.effort,
       hr: form.hr,
       weightKg,
+      exercises,
     })
     add(workout)
     setShowModal(false)
@@ -303,6 +311,13 @@ export function Treino({ setPage }: Props) {
             <div style={{ fontSize: T.text.sm, color: C.muted2 }}>{k.sub}</div>
           </Card>
         ))}
+      </div>
+
+      {/* Plano da semana e carga — o que vem, e se o corpo aguenta */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 16 }}>
+        <WeekPlanCard />
+        <TrainingLoadCard workouts={workouts} />
+        <StrengthPanel workouts={workouts} />
       </div>
 
       {/* Evolução de performance */}
@@ -411,6 +426,11 @@ export function Treino({ setPage }: Props) {
                     { l: 'tempo', v: a.time, c: C.text },
                     { l: 'kcal', v: a.cal > 0 ? String(a.cal) : '—', c: C.red },
                     { l: 'bpm', v: a.hr > 0 ? String(a.hr) : '—', c: C.pink },
+                    // Tonelagem só aparece quando o treino tem exercícios —
+                    // é a leitura de volume de quem levanta peso.
+                    ...(hasStrengthData(a)
+                      ? [{ l: 'volume', v: `${(workoutVolume(a) / 1000).toFixed(1)}t`, c: C.purple }]
+                      : []),
                   ].map((s, j) => (
                     <div key={j} style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: T.text.lg, fontWeight: T.weight.extrabold, color: s.c }}>{s.v}</div>
@@ -716,6 +736,11 @@ export function Treino({ setPage }: Props) {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Exercícios de força */}
+            <div style={{ marginBottom: 14 }}>
+              <ExerciseEditor exercises={exercises} onChange={setExercises} workouts={workouts} />
             </div>
 
             {/* Prévia do que será salvo */}

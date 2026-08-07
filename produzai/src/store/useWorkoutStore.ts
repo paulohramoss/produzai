@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { userStorage } from '../lib/userStorage'
 import { saveWorkouts } from '../lib/db'
 import type { EffortLevel } from '../lib/calories'
+import type { Exercise } from '../lib/strength'
 
 export interface ManualWorkout {
   id: string
@@ -19,6 +20,8 @@ export interface ManualWorkout {
   effort?: EffortLevel
   source?: 'manual' | 'strava'
   stravaId?: number
+  /** Exercícios com séries × reps × carga — o que distância e pace não medem. */
+  exercises?: Exercise[]
 }
 
 interface WorkoutState {

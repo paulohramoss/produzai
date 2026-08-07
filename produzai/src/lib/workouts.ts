@@ -6,6 +6,7 @@ import { estimateCalories, type EffortLevel } from './calories'
 import { calcPace, formatDuration, friendlyDate } from './performance'
 import { todayKey } from './date'
 import type { ManualWorkout } from '../store/useWorkoutStore'
+import type { Exercise } from './strength'
 
 export const ACTIVITY_TYPES = ['Corrida', 'Caminhada', 'Academia', 'Ciclismo', 'Natação', 'Futebol', 'Outro']
 
@@ -54,6 +55,8 @@ export interface WorkoutDraft {
   date?: string
   /** Peso do usuário em kg — sem ele o gasto calórico cai no peso de referência. */
   weightKg?: number | null
+  /** Exercícios de força, quando houver. Séries vazias são descartadas. */
+  exercises?: Exercise[]
 }
 
 function normalizeDate(raw?: string): string {
@@ -89,6 +92,7 @@ export function buildWorkout(draft: WorkoutDraft): Omit<ManualWorkout, 'id'> {
 
   const rawDate = normalizeDate(draft.date)
   const name = draft.name?.trim() || DEFAULT_NAMES[type] || 'Atividade'
+  const exercises = sanitizeExercises(draft.exercises)
 
   return {
     type,
@@ -103,5 +107,20 @@ export function buildWorkout(draft: WorkoutDraft): Omit<ManualWorkout, 'id'> {
     elev: 0,
     effort,
     source: 'manual',
+    ...(exercises.length > 0 ? { exercises } : {}),
   }
+}
+
+/** Limpa o que o usuário deixou pela metade: exercício sem nome ou sem série útil. */
+function sanitizeExercises(raw?: Exercise[]): Exercise[] {
+  if (!raw) return []
+  return raw
+    .map(e => ({
+      name: e.name.trim(),
+      sets: e.sets.filter(s => Number(s.reps) > 0).map(s => ({
+        reps: Math.min(999, Math.round(Number(s.reps))),
+        weightKg: Math.max(0, Math.min(1000, Number(s.weightKg) || 0)),
+      })),
+    }))
+    .filter(e => e.name.length > 0 && e.sets.length > 0)
 }

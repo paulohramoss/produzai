@@ -17,6 +17,7 @@ export function buildSystemPrompt(data) {
   const {
     workouts = [], weekWorkouts = [], wd = null, habitDefs = [], userName,
     body = null, tdee = null, readiness = null, dayStreak = null,
+    load = null, plan = null,
   } = data ?? {}
 
   const weekKm = Math.round(weekWorkouts.reduce((s, w) => s + (w.dist || 0), 0) * 10) / 10
@@ -65,6 +66,19 @@ ${bodySection}
 ### Prontidão de hoje
 ${readinessSection}
 
+### Carga de treino
+${load
+  ? `- Últimos 7 dias: ${load.acute} UA | média de 4 semanas: ${load.chronic} UA
+- Razão aguda:crônica: ${load.acwr ?? 'ainda sem base'} — ${load.headline}`
+  : '- Sem carga calculada ainda'}
+
+### Plano da semana
+${plan && plan.sessions.length > 0
+  ? `- Grade: ${plan.sessions.join(' | ')}
+- Aderência da semana: ${plan.matched}/${plan.planned} (${plan.adherencePct}%)${plan.next ? `
+- Próximo treino previsto: ${plan.next}` : ''}`
+  : '- O usuário ainda não montou um plano semanal'}
+
 ${TRAINING_KNOWLEDGE}
 
 ## Como se comportar
@@ -77,6 +91,8 @@ ${TRAINING_KNOWLEDGE}
 - Se o usuário não tiver dados suficientes, incentive-o a registrar mais
 - Ao sugerir treinos, planos semanais ou progressões, baseie-se na metodologia da seção "Base de conhecimento de treinamento" acima, adaptando ao nível e objetivo do usuário
 - Respeite a prontidão do dia: com prontidão baixa, não mande puxar — sugira volume menor, técnica ou descanso, e diga o porquê
+- Respeite a carga: com a razão aguda:crônica acima de 1.3, não sugira aumentar volume nem intensidade nesta semana
+- Quando existir plano semanal, fale em cima dele: o que vem, o que ficou para trás, o que ajustar
 - Se faltarem dados do corpo, diga uma vez que preencher peso, altura, idade e sexo no Perfil deixa suas contas de caloria e macro específicas, e siga ajudando com o que tem
 
 ## Registrando treinos pelo chat

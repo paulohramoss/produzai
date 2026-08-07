@@ -29,6 +29,7 @@ import { useWorkoutStore } from './useWorkoutStore'
 import { useWebDietStore } from './useWebDietStore'
 import { useHabitsStore } from './useHabitsStore'
 import { useCoachStore } from './useCoachStore'
+import { usePlanStore } from './usePlanStore'
 
 export interface BodyProfile {
   weightKg:      number | null
@@ -95,6 +96,8 @@ async function loadFirestoreData() {
   }
 
   await useHabitsStore.getState().loadFromCloud()
+  usePlanStore.persist.rehydrate()
+  await usePlanStore.getState().loadFromCloud()
   await loadCoachConversations()
 }
 
@@ -134,6 +137,7 @@ function clearSessionState() {
   setDbUid('')
   useWorkoutStore.setState({ workouts: [] })
   useWebDietStore.setState({ data: null })
+  usePlanStore.setState({ sessions: [] })
   useCoachStore.setState({ conversations: [], activeId: null })
 }
 

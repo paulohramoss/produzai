@@ -1,24 +1,22 @@
 import { useState, useEffect, useContext, useRef } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Bell, Dumbbell, MessageSquare, Sun, Utensils, Zap } from 'lucide-react'
+import { MessageSquare, Sun, Utensils, Zap } from 'lucide-react'
 import { Card, Bar } from '../primitives'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
 import { getDaily, getDailyHistory, type DailyData, type ReadinessEntry } from '../../lib/db'
-import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 import { DailyChecklist, type DailyChecklistHandle } from '../components/DailyChecklist'
 import { computeScore, type Habit, type FocusItem } from '../../lib/dailyScore'
 import { todayKey as localTodayKey, yesterdayKey, lastNDays } from '../../lib/date'
 import { ReadinessCard } from '../components/ReadinessCard'
 import { StreakCard } from '../components/StreakCard'
+import { NextSessionCard } from '../components/NextSessionCard'
 import { computeDayStreak, pendingIdsFor } from '../../lib/streaks'
 import { OneThingMode, type OneThing } from '../components/OneThingMode'
-import {
-  notificationsSupported, requestPermission, loadPrefs, savePrefs, applyPrefs,
-  type NotifPrefs,
-} from '../../lib/notifications'
+import { RemindersCard } from '../components/RemindersCard'
+import { useReminderPrefs, useReminderScheduler } from '../../lib/useReminders'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -34,7 +32,6 @@ export function Hoje({ setPage }: Props) {
 
   const [habits,        setHabits]        = useState<Habit[]>([])
   const [focus,         setFocus]         = useState<FocusItem[]>([])
-  const [notifPrefs,    setNotifPrefs]    = useState<NotifPrefs>(loadPrefs)
   const [missedYesterday, setMissedYesterday] = useState<Habit[]>([])
   const [showMissed,    setShowMissed]    = useState(true)
   const [oneThingOpen,  setOneThingOpen]  = useState(false)
@@ -43,11 +40,7 @@ export function Hoje({ setPage }: Props) {
   const [historyLoading, setHistoryLoading] = useState(true)
   const checklistRef = useRef<DailyChecklistHandle>(null)
 
-  // Apply saved notification schedule on mount
-  useEffect(() => {
-    if (notifPrefs.enabled) applyPrefs(notifPrefs)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const [reminderPrefs, setReminderPrefs] = useReminderPrefs(user?.uid)
 
   // Lembrete gentil: hábitos que ficaram pra depois ontem, com o "porquê"
   useEffect(() => {
@@ -107,6 +100,22 @@ export function Hoje({ setPage }: Props) {
   const doneFocus  = focus.filter(f => f.done && f.text).length
   const meals      = [...(wd?.meals ?? [])].sort((a, b) => a.time.localeCompare(b.time))
   const doneMeals  = meals.filter(m => m.done)
+
+  // O agendador consulta este estado na hora do disparo: um lembrete de hábito
+  // já marcado, ou de sequência num dia já fechado, não chega a tocar.
+  useReminderScheduler(
+    reminderPrefs,
+    habitDefs.map(d => ({ id: d.id, icon: d.icon, label: d.label })),
+    todayKey,
+    () => ({
+      pendingHabitIds: habits.filter(h => !h.done && pendingIds.has(h.id)).map(h => h.id),
+      anythingLogged: habits.some(h => h.done)
+        || focus.some(f => f.done && f.text.trim())
+        || readiness !== null,
+      streakDays: dayStreak.count,
+      dayComplete: dayStreak.todayComplete,
+    }),
+  )
   const calEaten   = doneMeals.reduce((s, m) => s + m.cal, 0)
   const score      = computeScore(habits, focus, pendingIds)
   const dateStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -210,16 +219,8 @@ export function Hoje({ setPage }: Props) {
 
           <StreakCard defs={habitDefs} history={history} loading={historyLoading} />
 
-          {/* Treino hoje */}
-          <Card onClick={() => setPage('treino')}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, ...displayStyle }}><Dumbbell size={17} /> Treino</div>
-              <span onClick={e => { e.stopPropagation(); setPage('treino') }} style={{ fontSize: T.text.sm, color: C.orange, cursor: 'pointer' }}>+ Registrar</span>
-            </div>
-            <div style={{ fontSize: T.text.md, color: C.muted, textAlign: 'center', padding: '16px 0' }}>
-              Clique para registrar seu treino de hoje
-            </div>
-          </Card>
+          {/* Próximo treino do plano */}
+          <NextSessionCard setPage={setPage} />
 
           {/* Refeições */}
           <Card>
@@ -274,52 +275,7 @@ export function Hoje({ setPage }: Props) {
             </Card>
           )}
 
-          {/* Notificações */}
-          {notificationsSupported() && (
-            <Card style={{ border: `1px solid ${notifPrefs.enabled ? C.blue + '44' : C.border}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: notifPrefs.enabled ? 12 : 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, ...displayStyle }}><Bell size={17} /> Lembrete diário</div>
-                <button
-                  onClick={async () => {
-                    if (!notifPrefs.enabled) {
-                      const perm = await requestPermission()
-                      if (perm !== 'granted') { toast.error('Permissão de notificação negada'); return }
-                    }
-                    const next = { ...notifPrefs, enabled: !notifPrefs.enabled }
-                    setNotifPrefs(next)
-                    savePrefs(next)
-                    applyPrefs(next)
-                    toast.success(next.enabled ? '🔔 Lembrete ativado!' : '🔕 Lembrete desativado')
-                  }}
-                  style={{
-                    background: notifPrefs.enabled ? C.blue : C.card2,
-                    border: `1px solid ${notifPrefs.enabled ? C.blue : C.border2}`,
-                    borderRadius: T.radius.xs, padding: '4px 10px', fontSize: T.text.sm, fontWeight: T.weight.bold,
-                    color: notifPrefs.enabled ? '#fff' : C.muted, cursor: 'pointer',
-                  }}
-                >
-                  {notifPrefs.enabled ? 'Ativo' : 'Ativar'}
-                </button>
-              </div>
-              {notifPrefs.enabled && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: T.text.base, color: C.muted }}>Horário:</span>
-                  <input
-                    type="time"
-                    value={`${String(notifPrefs.hour).padStart(2, '0')}:${String(notifPrefs.minute).padStart(2, '0')}`}
-                    onChange={e => {
-                      const [h, m] = e.target.value.split(':').map(Number)
-                      const next = { ...notifPrefs, hour: h, minute: m }
-                      setNotifPrefs(next)
-                      savePrefs(next)
-                      applyPrefs(next)
-                    }}
-                    style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '5px 8px', color: C.text, fontSize: T.text.md, outline: 'none', colorScheme: 'dark' }}
-                  />
-                </div>
-              )}
-            </Card>
-          )}
+          <RemindersCard prefs={reminderPrefs} onChange={setReminderPrefs} />
         </div>
       </div>
     </div>

@@ -69,6 +69,22 @@ export interface CoachContext {
   readiness?: CoachReadinessContext
   /** Sequência de dias fechados, para o Coach reconhecer consistência. */
   dayStreak?: number
+  /** Carga interna e razão aguda:crônica — evita mandar puxar em semana de pico. */
+  load?: {
+    acute: number
+    chronic: number
+    acwr: number | null
+    zone: string
+    headline: string
+  }
+  /** Plano da semana e aderência, para o Coach falar do que vem, não só do que passou. */
+  plan?: {
+    sessions: string[]
+    adherencePct: number
+    matched: number
+    planned: number
+    next?: string
+  }
 }
 
 export interface OnboardingContext {
