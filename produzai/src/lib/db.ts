@@ -4,6 +4,7 @@ import type { ManualWorkout } from '../store/useWorkoutStore'
 import type { WebDietData } from '../store/useWebDietStore'
 import type { CoachConversation } from '../store/useCoachStore'
 import type { PlannedSession } from './weekPlan'
+import type { CycleData } from './cycle'
 
 let currentUid = ''
 export function setDbUid(uid: string) { currentUid = uid }
@@ -52,6 +53,8 @@ export interface UserProfile {
   sex?: 'masculino' | 'feminino'
   /** Nível de atividade fora dos treinos registrados — multiplicador do TDEE. */
   activityLevel?: ActivityLevel
+  /** Token do link read-only ativo para o treinador — ausente quando não há link. */
+  coachShareToken?: string
 }
 
 export type ActivityLevel = 'sedentario' | 'leve' | 'moderado' | 'intenso' | 'atleta'
@@ -496,6 +499,88 @@ export async function saveHydration(data: HydrationSettings) {
   fireWrite(setDoc(dataRef('hydration'), data), 'saveHydration')
 }
 
+// ── Ciclo menstrual ──────────────────────────────────────────────────────────
+// Dado sensível de saúde e sempre opt-in: o documento só existe depois que a
+// usuária liga o acompanhamento. Ver lib/cycle.ts.
+
+export async function getCycle(): Promise<CycleData | null> {
+  if (!currentUid) return null
+  try {
+    const snap = await getDoc(dataRef('cycle'))
+    return snap.exists() ? (snap.data() as CycleData) : null
+  } catch (e) { logDbError('getCycle', e); return null }
+}
+
+export async function saveCycle(data: CycleData) {
+  if (!currentUid) return
+  fireWrite(setDoc(dataRef('cycle'), data), 'saveCycle')
+}
+
+// ── Link read-only do treinador ──────────────────────────────────────────────
+// Um documento em `coachShares/{token}` com um RESUMO — nunca uma chave para os
+// dados do usuário. Quem tem o link lê só esse resumo; as coleções de
+// `users/{uid}` continuam fechadas. O token é o segredo, então o link é privado
+// por obscuridade: revogar apaga o documento e o link morre na hora.
+
+export interface CoachShareWorkout {
+  date: string
+  name: string
+  type: string
+  time: string
+  dist: number
+  cal: number
+  /** Tonelagem em kg, quando o treino tem exercícios de força. */
+  volumeKg?: number
+  notes?: string
+  painLevel?: number
+  painArea?: string
+}
+
+export interface CoachShareDay {
+  date: string
+  readinessScore?: number
+  sleepHours?: number
+  soreness?: number
+  waterMl?: number
+  dietStatus?: string
+}
+
+export interface CoachShareSnapshot {
+  uid: string
+  athleteName: string
+  updatedAt: number
+  /** Primeiro e último dia da janela do resumo. */
+  from: string
+  to: string
+  workouts: CoachShareWorkout[]
+  days: CoachShareDay[]
+  weekSummary: {
+    workouts: number
+    km: number
+    minutes: number
+    avgReadiness: number | null
+    painFlags: number
+  }
+}
+
+export async function saveCoachShare(token: string, snapshot: CoachShareSnapshot) {
+  if (!currentUid) return
+  fireWrite(setDoc(doc(db, 'coachShares', token), snapshot), 'saveCoachShare')
+}
+
+/** Leitura pública — usada pela página do treinador, sem login. */
+export async function getCoachShare(token: string): Promise<CoachShareSnapshot | null> {
+  try {
+    const snap = await getDoc(doc(db, 'coachShares', token))
+    return snap.exists() ? (snap.data() as CoachShareSnapshot) : null
+  } catch (e) { logDbError('getCoachShare', e); return null }
+}
+
+export async function deleteCoachShare(token: string) {
+  if (!currentUid) return
+  fireWrite(deleteDoc(doc(db, 'coachShares', token)), 'deleteCoachShare')
+}
+
 // ── Coach conversations ──────────────────────────────────────────────────────
 // O histórico do Coach é espelhado no Firestore para que nunca dependa apenas do
 // localStorage (que some ao limpar o navegador, trocar de aparelho ou navegar
@@ -610,8 +695,13 @@ export async function deleteAllUserData(uid: string): Promise<void> {
   const DATA_DOCS = [
     'profile', 'workouts', 'diet', 'projects', 'books',
     'habitDefs', 'progress', 'hydration', 'weeklyReviews', 'pushSubscription', 'friends',
-    'coachConversations', 'weightLog', 'weekPlan', 'reminderPrefs',
+    'coachConversations', 'weightLog', 'weekPlan', 'reminderPrefs', 'cycle',
   ]
+
+  // O resumo do treinador vive fora de users/{uid} e ficaria público para sempre
+  // se não fosse apagado aqui. Lido ANTES do perfil sumir — é ele que tem o token.
+  const shareToken = (await getProfile())?.coachShareToken
+  if (shareToken) await deleteDoc(doc(db, 'coachShares', shareToken)).catch(() => {})
 
   await Promise.all(
     DATA_DOCS.map(name =>

@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { useHabitsStore, type HabitDef } from '../../store/useHabitsStore'
 import { useWorkoutStore, type ManualWorkout } from '../../store/useWorkoutStore'
 import { useWebDietStore } from '../../store/useWebDietStore'
+import { useCycleStore } from '../../store/useCycleStore'
 import {
   getDailyHistory, getMentalHistory, getWeeklyReviews, saveWeeklyReview,
   type DailyData, type MentalEntry, type WeeklyReview,
@@ -93,7 +94,16 @@ export function Insights({ setPage }: Props) {
   const habitDefs = useHabitsStore(s => s.defs)
   const workouts = useWorkoutStore(s => s.workouts)
   const dietCompliance = useWebDietStore(s => s.compliance)
+  const cycleEnabled      = useCycleStore(s => s.enabled)
+  const cycleStarts       = useCycleStore(s => s.starts)
+  const cycleAvgLength    = useCycleStore(s => s.avgLength)
+  const cyclePeriodLength = useCycleStore(s => s.periodLength)
   const { isMobile } = useContext(LayoutContext)
+
+  const cycle = useMemo(
+    () => ({ enabled: cycleEnabled, starts: cycleStarts, avgLength: cycleAvgLength, periodLength: cyclePeriodLength }),
+    [cycleEnabled, cycleStarts, cycleAvgLength, cyclePeriodLength],
+  )
 
   const [loaded, setLoaded] = useState(false)
   const [dailyHistory, setDailyHistory] = useState<Record<string, DailyData>>({})
@@ -121,8 +131,8 @@ export function Insights({ setPage }: Props) {
   const insights = analyzePatterns({ dailyHistory, mentalHistory, habitDefs, workouts })
 
   const weekPerformance = useMemo(
-    () => buildWeekPerformance(lastDates(7), mentalHistory, dietCompliance, workouts, dailyHistory),
-    [mentalHistory, dietCompliance, workouts, dailyHistory],
+    () => buildWeekPerformance(lastDates(7), mentalHistory, dietCompliance, workouts, dailyHistory, cycle),
+    [mentalHistory, dietCompliance, workouts, dailyHistory, cycle],
   )
   const weekDiagnosis = useMemo(() => diagnoseWeek(weekPerformance), [weekPerformance])
   const strongestFactor = useMemo(() => findStrongestFactor(weekPerformance), [weekPerformance])

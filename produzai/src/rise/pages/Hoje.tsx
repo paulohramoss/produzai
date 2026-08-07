@@ -16,6 +16,9 @@ import { NextSessionCard } from '../components/NextSessionCard'
 import { computeDayStreak, pendingIdsFor } from '../../lib/streaks'
 import { OneThingMode, type OneThing } from '../components/OneThingMode'
 import { RemindersCard } from '../components/RemindersCard'
+import { WaterCard } from '../components/WaterCard'
+import { CycleCard } from '../components/CycleCard'
+import { formatLiters } from '../../lib/hydration'
 import { useReminderPrefs, useReminderScheduler } from '../../lib/useReminders'
 
 interface Props { setPage: (p: Page) => void }
@@ -38,6 +41,7 @@ export function Hoje({ setPage }: Props) {
   const [readiness,     setReadiness]     = useState<ReadinessEntry | null>(null)
   const [history,       setHistory]       = useState<Record<string, DailyData>>({})
   const [historyLoading, setHistoryLoading] = useState(true)
+  const [waterMl,       setWaterMl]       = useState(0)
   const checklistRef = useRef<DailyChecklistHandle>(null)
 
   const [reminderPrefs, setReminderPrefs] = useReminderPrefs(user?.uid)
@@ -100,6 +104,7 @@ export function Hoje({ setPage }: Props) {
   const doneFocus  = focus.filter(f => f.done && f.text).length
   const meals      = [...(wd?.meals ?? [])].sort((a, b) => a.time.localeCompare(b.time))
   const doneMeals  = meals.filter(m => m.done)
+  const waterGoalMl = useWebDietStore(s => s.waterGoalMl)
 
   // O agendador consulta este estado na hora do disparo: um lembrete de hábito
   // já marcado, ou de sequência num dia já fechado, não chega a tocar.
@@ -164,6 +169,14 @@ export function Hoje({ setPage }: Props) {
               🥗 {calEaten}/{wd.goals.cal} kcal
             </div>
           )}
+          <div style={{
+            background: waterMl >= waterGoalMl && waterMl > 0 ? `${C.green}22` : C.card2,
+            borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base,
+            color: waterMl >= waterGoalMl && waterMl > 0 ? C.green : undefined,
+            fontWeight: waterMl >= waterGoalMl && waterMl > 0 ? T.weight.bold : undefined,
+          }}>
+            💧 {formatLiters(waterMl)}/{formatLiters(waterGoalMl)}L
+          </div>
           {score > 0 && (
             <div style={{ background: `${C.orange}22`, borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base, color: C.orange, fontWeight: T.weight.bold }}>
               ⚡ {score} pts
@@ -218,6 +231,12 @@ export function Hoje({ setPage }: Props) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           <StreakCard defs={habitDefs} history={history} loading={historyLoading} />
+
+          {/* Água: o gesto mais repetido do dia mora no check-in, não na Dieta */}
+          <WaterCard onChange={setWaterMl} />
+
+          {/* Ciclo — só renderiza quando a usuária ligou o acompanhamento */}
+          <CycleCard />
 
           {/* Próximo treino do plano */}
           <NextSessionCard setPage={setPage} />

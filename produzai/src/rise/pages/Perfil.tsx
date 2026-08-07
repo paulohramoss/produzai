@@ -10,6 +10,8 @@ import { LayoutContext } from '../LayoutContext'
 import { PolicyOverlay } from '../components/ConsentModal'
 import { getStravaStatus, goToStravaConnect, disconnectStrava, type StravaStatus } from '../../lib/strava'
 import { CorpoSection } from '../components/CorpoSection'
+import { CycleSettingsCard } from '../components/CycleSettingsCard'
+import { CoachShareCard } from '../components/CoachShareCard'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -252,6 +254,16 @@ export function Perfil({ setPage }: Props) {
       </Section>
 
       <CorpoSection />
+
+      {/* ── Ciclo menstrual (opt-in) ──────────────────────────────────────── */}
+      <Section title="Ciclo menstrual">
+        <CycleSettingsCard />
+      </Section>
+
+      {/* ── Link do treinador ─────────────────────────────────────────────── */}
+      <Section title="Compartilhar com treinador">
+        <CoachShareCard />
+      </Section>
 
       {/* ── Conta ─────────────────────────────────────────────────────────── */}
       <Section title="Conta">

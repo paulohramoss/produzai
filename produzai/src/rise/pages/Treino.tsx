@@ -6,14 +6,14 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import { Card, Tag, Bar, ChartTooltip } from '../primitives'
-import { useWorkoutStore } from '../../store/useWorkoutStore'
+import { useWorkoutStore, INJURY_PAIN_LEVEL, type ManualWorkout } from '../../store/useWorkoutStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 import { WORKOUT_TEMPLATES } from '../data/templates'
 import {
   getWeekBuckets, aggregateWorkoutsByWeek, buildPaceTrend, computeRecords, formatPace,
-  formatDuration,
+  formatDuration, parseDurationToMinutes,
 } from '../../lib/performance'
 import { getStravaStatus, fetchStravaActivities, stravaActivityToWorkout } from '../../lib/strava'
 import { EFFORT_LEVELS, estimateCalories, REFERENCE_WEIGHT_KG, type EffortLevel } from '../../lib/calories'
@@ -69,8 +69,14 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 6,
 }
 
+const PAIN_LABELS = ['Leve', 'Incômoda', 'Média', 'Forte', 'Muito forte']
+
+function painColor(level: number): string {
+  return level >= INJURY_PAIN_LEVEL ? C.red : level >= 3 ? C.orange : C.muted2
+}
+
 export function Treino({ setPage }: Props) {
-  const { workouts, add, addMany, remove } = useWorkoutStore()
+  const { workouts, add, addMany, remove, update } = useWorkoutStore()
   const { isMobile } = useContext(LayoutContext)
   const weightKg = useAuthStore(s => s.body.weightKg)
 
@@ -100,6 +106,8 @@ export function Treino({ setPage }: Props) {
   const [exercises, setExercises] = useState<Exercise[]>([])
   // Detalhes opcionais ficam recolhidos: o registro pede tipo + duração e deriva o resto.
   const [showMore, setShowMore] = useState(false)
+  /** id do treino sendo corrigido — null quando o modal está registrando um novo. */
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({
     type: 'Corrida',
     name: '',
@@ -108,6 +116,9 @@ export function Treino({ setPage }: Props) {
     dist: '',
     effort: DEFAULT_EFFORT as EffortLevel,
     hr: '',
+    notes: '',
+    painLevel: 0,
+    painArea: '',
   })
 
   const weekStart = (() => {
@@ -147,12 +158,41 @@ export function Treino({ setPage }: Props) {
   })
 
   function openModal() {
-    setForm({ type: 'Corrida', name: '', date: todayKey(), durationMin: '', dist: '', effort: DEFAULT_EFFORT, hr: '' })
+    setEditingId(null)
+    setForm({
+      type: 'Corrida', name: '', date: todayKey(), durationMin: '', dist: '',
+      effort: DEFAULT_EFFORT, hr: '', notes: '', painLevel: 0, painArea: '',
+    })
     setShowTemplates(false)
     setShowMore(false)
     setDictation('')
     setPhoto(null)
     setExercises([])
+    setShowModal(true)
+  }
+
+  // Correção de um treino já salvo: o formulário é o mesmo, preenchido a partir
+  // do registro. Duração volta do tempo formatado ("1h05" → 65).
+  function openEdit(w: ManualWorkout) {
+    setEditingId(w.id)
+    setForm({
+      type: ACTIVITY_TYPES.includes(w.type) ? w.type : 'Outro',
+      name: w.name,
+      date: w.rawDate,
+      durationMin: String(parseDurationToMinutes(w.time) ?? ''),
+      dist: w.dist > 0 ? String(w.dist) : '',
+      effort: w.effort ?? DEFAULT_EFFORT,
+      hr: w.hr > 0 ? String(w.hr) : '',
+      notes: w.notes ?? '',
+      painLevel: w.painLevel ?? 0,
+      painArea: w.painArea ?? '',
+    })
+    setShowTemplates(false)
+    // Numa correção o que a pessoa quer mexer costuma estar justamente aqui.
+    setShowMore(true)
+    setDictation('')
+    setPhoto(null)
+    setExercises(w.exercises ?? [])
     setShowModal(true)
   }
 
@@ -232,10 +272,19 @@ export function Treino({ setPage }: Props) {
       hr: form.hr,
       weightKg,
       exercises,
+      notes: form.notes,
+      painLevel: form.painLevel,
+      painArea: form.painArea,
     })
-    add(workout)
+    if (editingId) {
+      update(editingId, workout)
+      toast.success(`✏️ ${workout.name} atualizado`)
+    } else {
+      add(workout)
+      toast.success(`🏋 ${workout.name} registrado com sucesso!`)
+    }
     setShowModal(false)
-    toast.success(`🏋 ${workout.name} registrado com sucesso!`)
+    setEditingId(null)
   }
 
   function handleRemove(id: string) {
@@ -411,7 +460,15 @@ export function Treino({ setPage }: Props) {
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                     {a.source === 'strava' && <Tag label="Strava" color={C.running} small />}
+                    {a.painLevel != null && a.painLevel > 0 && (
+                      <Tag label={`Dor ${a.painLevel}/5`} color={painColor(a.painLevel)} small />
+                    )}
                     <Tag label={a.type} color={typeColor(a.type)} />
+                    <button
+                      onClick={() => openEdit(a)}
+                      title="Editar"
+                      style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text.md, padding: '0 2px', lineHeight: 1 }}
+                    >✎</button>
                     <button
                       onClick={() => handleRemove(a.id)}
                       title="Remover"
@@ -438,6 +495,17 @@ export function Treino({ setPage }: Props) {
                     </div>
                   ))}
                 </div>
+
+                {a.painLevel != null && a.painLevel > 0 && (
+                  <div style={{ marginTop: 10, fontSize: T.text.base, color: painColor(a.painLevel), fontWeight: T.weight.semibold }}>
+                    ⚠ {PAIN_LABELS[a.painLevel - 1]}{a.painArea ? ` · ${a.painArea}` : ''}
+                  </div>
+                )}
+                {a.notes && (
+                  <div style={{ marginTop: 8, fontSize: T.text.base, color: C.muted2, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                    “{a.notes}”
+                  </div>
+                )}
               </div>
             ))
           ) : (
@@ -495,11 +563,16 @@ export function Treino({ setPage }: Props) {
         >
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 28, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold }}>Registrar treino</div>
+              <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold }}>
+                {editingId ? 'Editar treino' : 'Registrar treino'}
+              </div>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 24, lineHeight: 1 }}>×</button>
             </div>
 
-            {/* Registro rápido: voz, foto ou texto livre */}
+            {/* Registro rápido: voz, foto ou texto livre — só ao criar, porque
+                numa correção o preenchimento automático sobrescreveria o que já
+                está certo no formulário. */}
+            {!editingId && (
             <div style={{ marginBottom: 16, background: C.card2, borderRadius: T.radius.md, padding: 14, border: `1px solid ${C.border2}` }}>
               <input
                 ref={photoInputRef}
@@ -584,8 +657,10 @@ export function Treino({ setPage }: Props) {
                 )
               })()}
             </div>
+            )}
 
             {/* Template picker */}
+            {!editingId && (
             <div style={{ marginBottom: 16 }}>
               <button
                 onClick={() => setShowTemplates(s => !s)}
@@ -611,6 +686,7 @@ export function Treino({ setPage }: Props) {
                 </div>
               )}
             </div>
+            )}
 
             {/* Type selector */}
             <div style={{ marginBottom: 18 }}>
@@ -743,6 +819,76 @@ export function Treino({ setPage }: Props) {
               <ExerciseEditor exercises={exercises} onChange={setExercises} workouts={workouts} />
             </div>
 
+            {/* Como foi + dor — o que os números do treino não contam */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Como foi o treino</label>
+              <textarea
+                value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="Sensação, clima, o que travou, o que rendeu..."
+                rows={2}
+                maxLength={500}
+                style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
+              />
+
+              <div style={{ marginTop: 14 }}>
+                <label style={labelStyle}>Sentiu dor?</label>
+                {/* Seis opções numa linha só: `minWidth` maior fazia "Muito forte"
+                    quebrar sozinha numa segunda linha. */}
+                <div style={{ display: 'flex', gap: 5 }}>
+                  <button
+                    onClick={() => setForm(f => ({ ...f, painLevel: 0, painArea: '' }))}
+                    style={{
+                      flex: 1, minWidth: 0, padding: '9px 2px', borderRadius: T.radius.sm, cursor: 'pointer',
+                      fontSize: T.text.sm, fontWeight: T.weight.semibold,
+                      background: form.painLevel === 0 ? C.green : C.card2,
+                      border: `1px solid ${form.painLevel === 0 ? C.green : C.border2}`,
+                      color: form.painLevel === 0 ? '#fff' : C.muted,
+                    }}
+                  >
+                    Não
+                  </button>
+                  {PAIN_LABELS.map((lbl, i) => {
+                    const level = i + 1
+                    const active = form.painLevel === level
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => setForm(f => ({ ...f, painLevel: level }))}
+                        style={{
+                          flex: 1, minWidth: 0, padding: '9px 2px', borderRadius: T.radius.sm, cursor: 'pointer',
+                          fontSize: T.text.sm, fontWeight: T.weight.semibold,
+                          background: active ? painColor(level) : C.card2,
+                          border: `1px solid ${active ? painColor(level) : C.border2}`,
+                          color: active ? '#fff' : C.muted,
+                        }}
+                      >
+                        {lbl}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {form.painLevel > 0 && (
+                  <>
+                    <input
+                      value={form.painArea}
+                      onChange={e => setForm(f => ({ ...f, painArea: e.target.value }))}
+                      placeholder="Onde doeu? ex: joelho direito, lombar"
+                      maxLength={60}
+                      style={{ ...inputStyle, marginTop: 10 }}
+                    />
+                    {form.painLevel >= INJURY_PAIN_LEVEL && (
+                      <div style={{ fontSize: T.text.sm, color: C.red, marginTop: 8, lineHeight: 1.6 }}>
+                        ⚠️ Dor nesse nível é sinal de lesão, não de treino puxado. Registre e
+                        considere segurar a carga até melhorar.
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
             {/* Prévia do que será salvo */}
             {parseInt(form.durationMin) > 0 && (
               <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '10px 14px', marginBottom: 14, fontSize: T.text.md, color: C.muted }}>
@@ -775,7 +921,7 @@ export function Treino({ setPage }: Props) {
                     color: '#fff', fontSize: T.text.xl, fontWeight: T.weight.bold,
                   }}
                 >
-                  Salvar treino
+                  {editingId ? 'Salvar alterações' : 'Salvar treino'}
                 </button>
               )
             })()}

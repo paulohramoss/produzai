@@ -4,6 +4,7 @@ import type { ComplianceStatus, DietCompliance } from '../store/useWebDietStore'
 import { parseDurationToMinutes } from './performance'
 import { pearson } from './patterns'
 import { computeReadiness } from './readiness'
+import { cycleStateFor, PHASE_LABEL, PHASE_SCORE, type CycleData, type CyclePhase } from './cycle'
 
 export interface DayFactors {
   sleepHours: number | null
@@ -12,6 +13,8 @@ export interface DayFactors {
   moodEnergyAvg: number | null
   /** Prontidão registrada de manhã, 0 a 100 — null quando não houve check-in. */
   readinessScore: number | null
+  /** Fase do ciclo menstrual — null quando o acompanhamento está desligado. */
+  cyclePhase: CyclePhase | null
 }
 
 export interface DayPerformance {
@@ -59,6 +62,7 @@ export function computeDayScore(f: DayFactors): number | null {
   if (f.dietStatus != null) parts.push(dietScore(f.dietStatus))
   if (f.moodEnergyAvg != null) parts.push(moodEnergyScore(f.moodEnergyAvg))
   if (f.readinessScore != null) parts.push(f.readinessScore)
+  if (f.cyclePhase != null) parts.push(PHASE_SCORE[f.cyclePhase])
   parts.push(trainingScore(f.trainingMinutes))
   return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length)
 }
@@ -75,6 +79,7 @@ export function buildWeekPerformance(
   compliance: DietCompliance[],
   workouts: ManualWorkout[],
   dailyHistory: Record<string, DailyData> = {},
+  cycle: CycleData | null = null,
 ): DayPerformance[] {
   const complianceByDate = new Map(compliance.map(c => [c.date, c.status]))
   const readinessHistory = Object.values(dailyHistory)
@@ -103,6 +108,7 @@ export function buildWeekPerformance(
       trainingMinutes: minutesByDate.get(date) ?? 0,
       moodEnergyAvg: moods.length ? moods.reduce((a, b) => a + b, 0) / moods.length : null,
       readinessScore: readiness ? computeReadiness(readiness, readinessHistory).score : null,
+      cyclePhase: cycle?.enabled ? (cycleStateFor(date, cycle)?.phase ?? null) : null,
     }
 
     return { date, weekday: weekdayOf(date), score: computeDayScore(factors), factors }
@@ -116,6 +122,7 @@ function describeDay(day: DayPerformance): string {
   if (factors.readinessScore != null) parts.push(`prontidão ${factors.readinessScore}/100`)
   parts.push(factors.trainingMinutes > 0 ? `treinou ${factors.trainingMinutes}min` : 'não treinou')
   parts.push(factors.dietStatus != null ? DIET_LABELS[factors.dietStatus] : 'dieta não registrada')
+  if (factors.cyclePhase != null) parts.push(`fase ${PHASE_LABEL[factors.cyclePhase].toLowerCase()}`)
   return parts.join(', ')
 }
 
@@ -144,7 +151,7 @@ export function diagnoseWeek(days: DayPerformance[]): WeekDiagnosis {
 }
 
 export interface FactorCorrelation {
-  factor: 'sono' | 'treino' | 'dieta'
+  factor: 'sono' | 'treino' | 'dieta' | 'ciclo'
   corr: number
   text: string
 }
@@ -166,6 +173,10 @@ export function findStrongestFactor(days: DayPerformance[]): FactorCorrelation |
   const dietPairs = withScore.filter(d => d.factors.dietStatus != null)
   const dietCorr = pearson(dietPairs.map(d => dietScore(d.factors.dietStatus!)), dietPairs.map(d => d.score))
   if (dietCorr !== null) candidates.push({ factor: 'dieta', corr: dietCorr, text: 'consistência da dieta' })
+
+  const cyclePairs = withScore.filter(d => d.factors.cyclePhase != null)
+  const cycleCorr = pearson(cyclePairs.map(d => PHASE_SCORE[d.factors.cyclePhase!]), cyclePairs.map(d => d.score))
+  if (cycleCorr !== null) candidates.push({ factor: 'ciclo', corr: cycleCorr, text: 'fase do ciclo menstrual' })
 
   if (candidates.length === 0) return null
   return candidates.reduce((a, b) => (Math.abs(b.corr) > Math.abs(a.corr) ? b : a))

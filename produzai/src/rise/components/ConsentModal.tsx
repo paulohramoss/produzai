@@ -326,7 +326,13 @@ export function PrivacyPolicyText() {
         <li>
           <strong style={{ color: C.text }}>Saúde e biometria:</strong> peso,
           fotos de progresso físico, treinos realizados (distância, calorias,
-          tempo), plano alimentar, macronutrientes consumidos
+          tempo), observações e dor relatada nos treinos, plano alimentar,
+          macronutrientes consumidos
+        </li>
+        <li>
+          <strong style={{ color: C.text }}>Ciclo menstrual (opcional):</strong>{' '}
+          datas de início da menstruação e duração do ciclo — coletadas apenas se
+          você ligar o acompanhamento no Perfil, e apagadas ao desligá-lo
         </li>
         <li>
           <strong style={{ color: C.text }}>Comportamentais:</strong> hábitos
@@ -376,6 +382,15 @@ export function PrivacyPolicyText() {
       <p style={p}>
         Todos os operadores estão contratualmente obrigados a proteger seus
         dados.
+      </p>
+      <p style={p}>
+        Se você gerar um{' '}
+        <strong style={{ color: C.text }}>link para o treinador</strong> no
+        Perfil, um resumo dos seus últimos 14 dias (treinos, observações e dor,
+        prontidão, hidratação e adesão à dieta) fica acessível a qualquer pessoa
+        que tenha o endereço, sem senha. O compartilhamento parte só de você e
+        pode ser revogado a qualquer momento — dados do ciclo menstrual nunca
+        entram nesse resumo.
       </p>
 
       <h2 style={h2}>4. Retenção</h2>

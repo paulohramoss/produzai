@@ -57,7 +57,17 @@ export interface WorkoutDraft {
   weightKg?: number | null
   /** Exercícios de força, quando houver. Séries vazias são descartadas. */
   exercises?: Exercise[]
+  /** Como o treino foi, em texto livre. */
+  notes?: string
+  /** Dor sentida, 1 a 5. Zero, vazio ou fora da faixa = sem dor a relatar. */
+  painLevel?: number | string
+  /** Onde doeu. Ignorado sem painLevel. */
+  painArea?: string
 }
+
+/** Nota longa demais só atrapalha a leitura (do usuário e do Coach). */
+const MAX_NOTES = 500
+const MAX_PAIN_AREA = 60
 
 function normalizeDate(raw?: string): string {
   const today = todayISO()
@@ -94,6 +104,11 @@ export function buildWorkout(draft: WorkoutDraft): Omit<ManualWorkout, 'id'> {
   const name = draft.name?.trim() || DEFAULT_NAMES[type] || 'Atividade'
   const exercises = sanitizeExercises(draft.exercises)
 
+  const notes = draft.notes?.trim().slice(0, MAX_NOTES) ?? ''
+  const rawPain = Math.round(Number(draft.painLevel))
+  const painLevel = Number.isFinite(rawPain) && rawPain >= 1 ? Math.min(5, rawPain) : 0
+  const painArea = draft.painArea?.trim().slice(0, MAX_PAIN_AREA) ?? ''
+
   return {
     type,
     name,
@@ -108,6 +123,9 @@ export function buildWorkout(draft: WorkoutDraft): Omit<ManualWorkout, 'id'> {
     effort,
     source: 'manual',
     ...(exercises.length > 0 ? { exercises } : {}),
+    ...(notes ? { notes } : {}),
+    ...(painLevel > 0 ? { painLevel } : {}),
+    ...(painLevel > 0 && painArea ? { painArea } : {}),
   }
 }
 

@@ -30,6 +30,7 @@ import { useWebDietStore } from './useWebDietStore'
 import { useHabitsStore } from './useHabitsStore'
 import { useCoachStore } from './useCoachStore'
 import { usePlanStore } from './usePlanStore'
+import { useCycleStore } from './useCycleStore'
 
 export interface BodyProfile {
   weightKg:      number | null
@@ -98,6 +99,7 @@ async function loadFirestoreData() {
   await useHabitsStore.getState().loadFromCloud()
   usePlanStore.persist.rehydrate()
   await usePlanStore.getState().loadFromCloud()
+  await useCycleStore.getState().load()
   await loadCoachConversations()
 }
 
@@ -139,6 +141,7 @@ function clearSessionState() {
   useWebDietStore.setState({ data: null })
   usePlanStore.setState({ sessions: [] })
   useCoachStore.setState({ conversations: [], activeId: null })
+  useCycleStore.getState().reset()
 }
 
 function firebaseErrorMsg(e: unknown): string {
