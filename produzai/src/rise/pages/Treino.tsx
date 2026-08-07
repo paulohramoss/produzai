@@ -1,6 +1,6 @@
 import { useState, useContext, useMemo, useEffect, useRef } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Dumbbell, TrendingUp, Trophy, RefreshCw, Mic, Square, Camera } from 'lucide-react'
+import { Dumbbell, TrendingUp, Trophy, RefreshCw, Mic, Square, Camera, Sparkles } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -21,6 +21,9 @@ import { useSpeechToText } from '../../lib/useSpeechToText'
 import {
   ACTIVITY_TYPES, DEFAULT_NAMES, DEFAULT_EFFORT, buildWorkout, usesDistance, todayISO,
 } from '../../lib/workouts'
+import { WorkoutInsightPanel } from '../components/WorkoutInsightPanel'
+import { TrainingLoadSection } from '../components/TrainingLoadSection'
+import { FitnessSection } from '../components/FitnessSection'
 
 interface Props {
   setPage: (page: Page) => void
@@ -68,6 +71,8 @@ export function Treino({ setPage: _setPage }: Props) {
 
   const [stravaConnected, setStravaConnected] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  // Só um painel de análise aberto por vez — cada um busca streams e Firestore.
+  const [openInsightId, setOpenInsightId] = useState<string | null>(null)
 
   useEffect(() => {
     getStravaStatus().then(s => setStravaConnected(s.connected))
@@ -299,6 +304,9 @@ export function Treino({ setPage: _setPage }: Props) {
         ))}
       </div>
 
+      <TrainingLoadSection />
+      <FitnessSection />
+
       {/* Evolução de performance */}
       {(hasVolumeData || paceTrend.length > 0) && (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -381,8 +389,8 @@ export function Treino({ setPage: _setPage }: Props) {
           </div>
 
           {workouts.length > 0 ? (
-            workouts.slice(0, 6).map((a, i) => (
-              <div key={i} style={{ padding: 14, background: C.card2, borderRadius: T.radius.lg, marginBottom: 8, borderLeft: `3px solid ${typeColor(a.type)}` }}>
+            workouts.slice(0, 6).map(a => (
+              <div key={a.id} style={{ padding: 14, background: C.card2, borderRadius: T.radius.lg, marginBottom: 8, borderLeft: `3px solid ${typeColor(a.type)}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: T.weight.bold, fontSize: T.text.lg }}>{a.name}</div>
@@ -412,6 +420,20 @@ export function Treino({ setPage: _setPage }: Props) {
                     </div>
                   ))}
                 </div>
+
+                <button
+                  onClick={() => setOpenInsightId(id => (id === a.id ? null : a.id))}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, padding: 0,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: T.text.base, fontWeight: T.weight.semibold, color: openInsightId === a.id ? C.purple : C.muted,
+                  }}
+                >
+                  <Sparkles size={13} />
+                  {openInsightId === a.id ? 'Fechar análise' : 'Ver análise do treino'}
+                </button>
+
+                {openInsightId === a.id && <WorkoutInsightPanel workout={a} allWorkouts={workouts} />}
               </div>
             ))
           ) : (

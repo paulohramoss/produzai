@@ -43,6 +43,8 @@ export interface CoachContext {
   wd: WebDietData | null
   habitDefs: HabitDef[]
   userName?: string
+  /** Bloco pronto com carga, condicionamento, prontidão e plano — ver `athleteBriefing.ts`. */
+  athleteBriefing?: string
 }
 
 export interface OnboardingContext {
@@ -233,4 +235,55 @@ export async function generateWeeklyReview(
   weekSummary: string,
 ): Promise<WeeklyReviewResult | null> {
   return callCompletion('weekly-review', { weekSummary })
+}
+
+// ── Workout summary ───────────────────────────────────────────────────────────
+
+export type WorkoutVerdict = 'excelente' | 'solido' | 'regular' | 'alerta'
+
+export interface WorkoutSummaryResult {
+  verdict: WorkoutVerdict
+  headline: string
+  reading: string
+  highlights: string[]
+  watchouts: string[]
+  nextStep: string
+}
+
+/** O briefing já vem com os números calculados localmente — a IA só interpreta. */
+export async function generateWorkoutSummary(
+  briefing: string,
+  weekContext?: string,
+  userName?: string,
+): Promise<WorkoutSummaryResult | null> {
+  if (!briefing.trim()) return null
+  return callCompletion('workout-summary', { briefing, weekContext, userName })
+}
+
+// ── Training plan ─────────────────────────────────────────────────────────────
+
+export interface RawPlanSession {
+  date: string
+  kind: 'easy' | 'long' | 'quality' | 'strength' | 'rest' | 'race'
+  title: string
+  description: string
+  targetMin: number
+  targetKm?: number
+  targetPaceKey?: 'easy' | 'marathon' | 'threshold' | 'interval' | 'repetition'
+  why: string
+}
+
+export interface TrainingPlanResult {
+  focus: string
+  sessions: RawPlanSession[]
+}
+
+/** Chamada crua — quem monta o briefing e o plano final é `planBuilder.ts`. */
+export async function callTrainingPlan(
+  briefing: string,
+  startDate: string,
+  days: number,
+  userName?: string,
+): Promise<TrainingPlanResult | null> {
+  return callCompletion('training-plan', { briefing, startDate, days, userName })
 }

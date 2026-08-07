@@ -9,6 +9,7 @@ import { userStorage } from '../../lib/userStorage'
 import { LayoutContext } from '../LayoutContext'
 import { hasApiKey, generateReflectionQuestion, fallbackReflectionQuestion } from '../../lib/anthropic'
 import { useSpeechToText } from '../../lib/useSpeechToText'
+import { RecoveryCheckin } from '../components/RecoveryCheckin'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -303,6 +304,8 @@ export function Mental({ setPage: _s }: Props) {
               </div>
             )}
           </Card>
+
+          <RecoveryCheckin entry={entry} onChange={update} today={today} />
 
           {/* Gratitude */}
           <Card>

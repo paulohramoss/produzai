@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import {
-  LayoutDashboard, Sun, Dumbbell, Utensils, CalendarDays,
+  LayoutDashboard, Sun, Dumbbell, Utensils, CalendarDays, CalendarRange,
   Target, Brain, BookOpen, TrendingUp, Bot, Images, History,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -63,7 +63,7 @@ export const displayStyle: CSSProperties = {
 }
 
 export type Page =
-  | 'dashboard' | 'hoje' | 'historico' | 'treino' | 'dieta' | 'agenda'
+  | 'dashboard' | 'hoje' | 'historico' | 'treino' | 'plano' | 'dieta' | 'agenda'
   | 'projetos' | 'mental' | 'biblioteca' | 'coach' | 'galeria' | 'perfil' | 'insights'
 
 export interface NavItem {
@@ -100,9 +100,10 @@ export const NAV_GROUPS: NavGroup[] = [
     { id: 'historico',  icon: History,         label: 'Histórico' },
   ]},
   { label: 'EXECUÇÃO', items: [
-    { id: 'treino',  icon: Dumbbell,    label: 'Treino' },
-    { id: 'dieta',   icon: Utensils,    label: 'Dieta' },
-    { id: 'agenda',  icon: CalendarDays, label: 'Agenda' },
+    { id: 'treino',  icon: Dumbbell,      label: 'Treino' },
+    { id: 'plano',   icon: CalendarRange, label: 'Plano' },
+    { id: 'dieta',   icon: Utensils,      label: 'Dieta' },
+    { id: 'agenda',  icon: CalendarDays,  label: 'Agenda' },
   ]},
   { label: 'CRESCIMENTO', items: [
     { id: 'projetos',   icon: Target,      label: 'Projetos' },

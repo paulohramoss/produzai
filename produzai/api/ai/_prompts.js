@@ -14,7 +14,7 @@ function todayInfo() {
 }
 
 export function buildSystemPrompt(data) {
-  const { workouts = [], weekWorkouts = [], wd = null, habitDefs = [], userName } = data ?? {}
+  const { workouts = [], weekWorkouts = [], wd = null, habitDefs = [], userName, athleteBriefing = '' } = data ?? {}
 
   const weekKm = Math.round(weekWorkouts.reduce((s, w) => s + (w.dist || 0), 0) * 10) / 10
   const weekCal = weekWorkouts.reduce((s, w) => s + (w.cal || 0), 0)
@@ -54,7 +54,15 @@ ${nutrition}
 
 ### Hábitos do usuário
 ${habitsSection}
+${athleteBriefing ? `
+## Métricas de performance (JÁ CALCULADAS — use, não recalcule)
 
+Estes números vêm dos motores do app rodando sobre os dados reais do usuário.
+São a MESMA informação que ele vê nas telas de Treino e Plano, então cite-os como
+estão. Nunca invente um VO₂máx, ritmo ou carga diferente dos que aparecem aqui.
+
+${athleteBriefing}
+` : ''}
 ${TRAINING_KNOWLEDGE}
 
 ## Como se comportar
@@ -66,6 +74,8 @@ ${TRAINING_KNOWLEDGE}
 - Quando falar de números, use os dados reais do usuário
 - Se o usuário não tiver dados suficientes, incentive-o a registrar mais
 - Ao sugerir treinos, planos semanais ou progressões, baseie-se na metodologia da seção "Base de conhecimento de treinamento" acima, adaptando ao nível e objetivo do usuário
+- Quando existirem métricas de performance calculadas, ANCORE suas respostas nelas: cite forma (TSB), ACWR, prontidão e os ritmos de treino pelo número real, e explique o que significam em linguagem simples
+- Se o plano de treino do usuário já responde ao que ele perguntou, aponte a sessão específica dele em vez de inventar um treino novo
 
 ## Registrando treinos pelo chat
 - Quando o usuário contar que FEZ um treino ("corri 8km em 45min", "acabei de treinar perna", "joguei bola ontem"), chame a ferramenta registrar_treino em vez de mandar ele abrir a tela de treino

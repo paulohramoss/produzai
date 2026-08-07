@@ -3,6 +3,7 @@ import { LayoutDashboard, Sun, Dumbbell, Brain, Bot, Menu } from "lucide-react";
 import { T, C, NAV_GROUPS, type Page } from "./data";
 import { Dashboard }    from "./pages/Dashboard";
 import { Treino }       from "./pages/Treino";
+import { Plano }        from "./pages/Plano";
 import { Dieta }        from "./pages/Dieta";
 import { Hoje }         from "./pages/Hoje";
 import { Historico }    from "./pages/Historico";
@@ -31,7 +32,7 @@ const STRAVA_REDIRECT_MESSAGES: Record<string, { type: "success" | "error" | "in
 };
 
 const RISE_IMPLEMENTED: Page[] = [
-  "dashboard", "hoje", "historico", "treino", "dieta", "agenda",
+  "dashboard", "hoje", "historico", "treino", "plano", "dieta", "agenda",
   "projetos", "mental", "biblioteca", "coach", "galeria", "perfil", "insights",
 ];
 
@@ -328,6 +329,7 @@ export function RisePlan() {
           {page === "hoje"       && <Hoje        setPage={navigate} />}
           {page === "historico"  && <Historico   setPage={navigate} />}
           {page === "treino"     && <Treino      setPage={navigate} />}
+          {page === "plano"      && <Plano       setPage={navigate} />}
           {page === "dieta"      && <Dieta       setPage={navigate} />}
           {page === "agenda"     && <Agenda      setPage={navigate} />}
           {page === "projetos"   && <Projetos    setPage={navigate} />}

@@ -26,6 +26,9 @@ import { useWorkoutStore } from './useWorkoutStore'
 import { useWebDietStore } from './useWebDietStore'
 import { useHabitsStore } from './useHabitsStore'
 import { useCoachStore } from './useCoachStore'
+import { useAthleteStore } from './useAthleteStore'
+import { usePlanStore } from './usePlanStore'
+import { EMPTY_ATHLETE } from '../lib/athleteProfile'
 
 interface AuthState {
   user:              User | null
@@ -71,6 +74,8 @@ async function loadFirestoreData() {
   }
 
   await useHabitsStore.getState().loadFromCloud()
+  await useAthleteStore.getState().loadFromCloud()
+  await usePlanStore.getState().loadFromCloud()
   await loadCoachConversations()
 }
 
@@ -111,6 +116,8 @@ function clearSessionState() {
   useWorkoutStore.setState({ workouts: [] })
   useWebDietStore.setState({ data: null })
   useCoachStore.setState({ conversations: [], activeId: null })
+  useAthleteStore.setState({ profile: EMPTY_ATHLETE })
+  usePlanStore.setState({ plan: null, lastChanges: [] })
 }
 
 function firebaseErrorMsg(e: unknown): string {

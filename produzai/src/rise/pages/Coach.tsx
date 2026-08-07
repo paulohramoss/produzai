@@ -15,6 +15,10 @@ import {
 import { buildWorkout, type WorkoutDraft } from '../../lib/workouts'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
+import { useAthleteStore } from '../../store/useAthleteStore'
+import { usePlanStore } from '../../store/usePlanStore'
+import { buildAthleteBriefing } from '../../lib/athleteBriefing'
+import { getMentalHistory, type MentalEntry } from '../../lib/db'
 
 function formatConversationDate(ts: number): string {
   const d = new Date(ts)
@@ -56,6 +60,8 @@ export function Coach({ setPage }: Props) {
   const wd        = useWebDietStore(s => s.data)
   const habitDefs = useHabitsStore(s => s.defs)
   const user      = useAuthStore(s => s.user)
+  const athlete   = useAthleteStore(s => s.profile)
+  const plan      = usePlanStore(s => s.plan)
 
   const conversations       = useCoachStore(s => s.conversations)
   const activeId            = useCoachStore(s => s.activeId)
@@ -78,6 +84,8 @@ export function Coach({ setPage }: Props) {
   const [streaming, setStreaming]   = useState(false)
   const [streamText, setStreamText] = useState('')
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null)
+  // Sono/humor/VFC alimentam a prontidão que vai no briefing do Coach.
+  const [mentalHistory, setMentalHistory] = useState<Record<string, MentalEntry>>({})
   const bottomRef    = useRef<HTMLDivElement>(null)
   const inputRef     = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -102,6 +110,16 @@ export function Coach({ setPage }: Props) {
   const treinoScore = Math.min(weekWorkouts.length * 20, 60)
   const dietaScore  = wd ? Math.round(calPct * 0.4) : 0
   const perf        = treinoScore + dietaScore
+
+  useEffect(() => {
+    const dates: string[] = []
+    for (let i = 0; i < 30; i++) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      dates.push(d.toISOString().slice(0, 10))
+    }
+    getMentalHistory(dates).then(setMentalHistory)
+  }, [])
 
   // ── Auto-scroll ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -170,6 +188,12 @@ export function Coach({ setPage }: Props) {
         wd,
         habitDefs,
         userName: user?.displayName || undefined,
+        athleteBriefing: buildAthleteBriefing({
+          workouts: current,
+          profile: athlete,
+          plan,
+          mentalHistory,
+        }),
       },
       chunk => { full += chunk; setStreamText(full) },
       uses => { toolUses = uses },

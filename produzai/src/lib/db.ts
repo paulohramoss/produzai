@@ -3,6 +3,10 @@ import { db } from './firebase'
 import type { ManualWorkout } from '../store/useWorkoutStore'
 import type { WebDietData } from '../store/useWebDietStore'
 import type { CoachConversation } from '../store/useCoachStore'
+import type { AthleteProfile } from './athleteProfile'
+import type { WorkoutAnalysis } from './workoutAnalysis'
+import type { WorkoutSummaryResult } from './anthropic'
+import type { TrainingPlan } from './plan'
 
 let currentUid = ''
 export function setDbUid(uid: string) { currentUid = uid }
@@ -61,6 +65,63 @@ export async function getWorkouts(): Promise<ManualWorkout[] | null> {
 export async function saveWorkouts(workouts: ManualWorkout[]) {
   if (!currentUid) return
   try { await setDoc(dataRef('workouts'), { items: workouts }) } catch (e) { logDbError('saveWorkouts', e) }
+}
+
+// ── Athlete profile (fisiologia) ─────────────────────────────────────────────
+
+export async function getAthleteProfile(): Promise<AthleteProfile | null> {
+  if (!currentUid) return null
+  try {
+    const snap = await getDoc(dataRef('athlete'))
+    return snap.exists() ? (snap.data() as AthleteProfile) : null
+  } catch (e) { logDbError('getAthleteProfile', e); return null }
+}
+
+export async function saveAthleteProfile(data: Partial<AthleteProfile>) {
+  if (!currentUid) return
+  try { await setDoc(dataRef('athlete'), data, { merge: true }) } catch (e) { logDbError('saveAthleteProfile', e) }
+}
+
+// ── Workout insights (análise + resumo de IA por treino) ─────────────────────
+// Ficam em subcoleção, um doc por treino: o documento `workouts` já carrega a
+// lista inteira e estouraria o limite de 1 MiB se acumulasse parciais e texto.
+
+export interface WorkoutInsight {
+  workoutId: string
+  analysis: WorkoutAnalysis
+  /** Ausente quando o usuário ainda não pediu a leitura da IA. */
+  summary?: WorkoutSummaryResult
+  generatedAt: number
+}
+
+export async function getWorkoutInsight(workoutId: string): Promise<WorkoutInsight | null> {
+  if (!currentUid) return null
+  try {
+    const snap = await getDoc(subRef('workoutInsights', workoutId))
+    return snap.exists() ? (snap.data() as WorkoutInsight) : null
+  } catch (e) { logDbError('getWorkoutInsight', e); return null }
+}
+
+export async function saveWorkoutInsight(insight: WorkoutInsight) {
+  if (!currentUid) return
+  try {
+    await setDoc(subRef('workoutInsights', insight.workoutId), insight)
+  } catch (e) { logDbError('saveWorkoutInsight', e) }
+}
+
+// ── Training plan ────────────────────────────────────────────────────────────
+
+export async function getTrainingPlan(): Promise<TrainingPlan | null> {
+  if (!currentUid) return null
+  try {
+    const snap = await getDoc(dataRef('trainingPlan'))
+    return snap.exists() ? (snap.data() as TrainingPlan) : null
+  } catch (e) { logDbError('getTrainingPlan', e); return null }
+}
+
+export async function saveTrainingPlan(plan: TrainingPlan) {
+  if (!currentUid) return
+  try { await setDoc(dataRef('trainingPlan'), plan) } catch (e) { logDbError('saveTrainingPlan', e) }
 }
 
 // ── Diet ─────────────────────────────────────────────────────────────────────
@@ -144,6 +205,10 @@ export interface MentalEntry {
   reflectionQuestion?: string
   reflectionAnswer?: string
   sleepHours?: number
+  /** VFC (rMSSD) medida ao acordar, em ms. Só faz sentido comparada à própria base. */
+  hrvMs?: number
+  /** FC de repouso medida ao acordar, em bpm. */
+  restingHr?: number
 }
 
 export async function getMental(date: string): Promise<MentalEntry | null> {
@@ -485,7 +550,7 @@ export async function deleteAllUserData(uid: string): Promise<void> {
   const DATA_DOCS = [
     'profile', 'workouts', 'diet', 'projects', 'books',
     'habitDefs', 'progress', 'hydration', 'weeklyReviews', 'pushSubscription', 'friends',
-    'coachConversations',
+    'coachConversations', 'athlete', 'trainingPlan',
   ]
 
   await Promise.all(
@@ -494,18 +559,13 @@ export async function deleteAllUserData(uid: string): Promise<void> {
     ),
   )
 
-  const [dailySnap, mentalSnap, dailyMonthlySnap, mentalMonthlySnap] = await Promise.all([
-    getDocs(collection(db, 'users', uid, 'daily')).catch(() => null),
-    getDocs(collection(db, 'users', uid, 'mental')).catch(() => null),
-    getDocs(collection(db, 'users', uid, 'dailyMonthly')).catch(() => null),
-    getDocs(collection(db, 'users', uid, 'mentalMonthly')).catch(() => null),
-  ])
+  const SUBCOLLECTIONS = ['daily', 'mental', 'dailyMonthly', 'mentalMonthly', 'workoutInsights']
+  const snaps = await Promise.all(
+    SUBCOLLECTIONS.map(name => getDocs(collection(db, 'users', uid, name)).catch(() => null)),
+  )
 
   await Promise.all([
-    ...(dailySnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
-    ...(mentalSnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
-    ...(dailyMonthlySnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
-    ...(mentalMonthlySnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
+    ...snaps.flatMap(snap => (snap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {}))),
     deleteDoc(doc(db, 'leaderboard', uid)).catch(() => {}),
   ])
 }

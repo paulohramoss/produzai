@@ -1,4 +1,5 @@
 import type { ManualWorkout } from '../store/useWorkoutStore'
+import type { StravaStreams } from './workoutAnalysis'
 import { friendlyDate, calcPace, formatDuration } from './performance'
 
 export interface StravaStatus {
@@ -33,7 +34,7 @@ export async function disconnectStrava(): Promise<boolean> {
   }
 }
 
-interface RawStravaActivity {
+export interface RawStravaActivity {
   id: number
   name: string
   type: string
@@ -53,6 +54,19 @@ export async function fetchStravaActivities(page = 1, perPage = 50): Promise<Raw
     throw new Error(data.error || `Strava API error: ${res.status}`)
   }
   return res.json()
+}
+
+/** Detalhe + streams de uma atividade. `streams` vem null quando a atividade não tem série temporal. */
+export async function fetchStravaActivityDetail(
+  stravaId: number,
+): Promise<{ activity: RawStravaActivity; streams: StravaStreams | null } | null> {
+  try {
+    const res = await fetch(`/api/strava/activity?id=${stravaId}`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
 }
 
 const TYPE_MAP: Record<string, string> = {

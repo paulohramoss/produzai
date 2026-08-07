@@ -11,6 +11,7 @@ import { LayoutContext } from '../LayoutContext'
 import { DailyChecklist, type DailyChecklistHandle } from '../components/DailyChecklist'
 import { computeScore, type Habit, type FocusItem } from '../../lib/dailyScore'
 import { OneThingMode, type OneThing } from '../components/OneThingMode'
+import { ReadinessCard } from '../components/ReadinessCard'
 import {
   notificationsSupported, requestPermission, loadPrefs, savePrefs, applyPrefs,
   type NotifPrefs,
@@ -164,6 +165,8 @@ export function Hoje({ setPage }: Props) {
 
         {/* ── Right ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          <ReadinessCard onOpenMental={() => setPage('mental')} />
 
           {/* Treino hoje */}
           <Card onClick={() => setPage('treino')}>

@@ -9,6 +9,7 @@ import { Card, Avatar } from '../primitives'
 import { LayoutContext } from '../LayoutContext'
 import { PolicyOverlay } from '../components/ConsentModal'
 import { getStravaStatus, goToStravaConnect, disconnectStrava, type StravaStatus } from '../../lib/strava'
+import { AthleteProfileForm } from '../components/AthleteProfileForm'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -285,6 +286,11 @@ export function Perfil({ setPage }: Props) {
             </div>
           </div>
         </div>
+      </Section>
+
+      {/* ── Perfil de atleta ──────────────────────────────────────────────── */}
+      <Section title="Perfil de atleta">
+        <AthleteProfileForm />
       </Section>
 
       {/* ── Integrações ───────────────────────────────────────────────────── */}

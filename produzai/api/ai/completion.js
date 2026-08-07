@@ -274,6 +274,109 @@ Regras:
   return extractJSON(text)
 }
 
+async function handleWorkoutSummary(payload, apiKey) {
+  const { briefing, userName, weekContext } = payload ?? {}
+  if (!briefing) return null
+
+  const system = `Você é o Coach IA do The Rise Plan analisando UM treino específico${userName ? ` de ${userName}` : ''}.
+Os números abaixo já foram calculados a partir dos dados reais do relógio/GPS — sua função é interpretá-los, não recalculá-los.
+
+Responda APENAS com JSON puro, sem markdown, sem crases, sem texto antes ou depois, no formato exato:
+{"verdict":"string","headline":"string","reading":"string","highlights":["string"],"watchouts":["string"],"nextStep":"string"}
+
+Regras:
+- "verdict": exatamente um destes: "excelente", "solido", "regular", "alerta" — o julgamento geral da execução do treino
+- "headline": uma frase curta (máx. 10 palavras) que resume o treino, tipo manchete
+- "reading": 2-3 frases interpretando o que os números dizem sobre a execução. Cite números reais. Explique o PORQUÊ, não repita a tabela
+- "highlights": 1-3 pontos positivos concretos e específicos
+- "watchouts": 0-2 pontos de atenção. Tom técnico e de observação, nunca culpa. Se não houver nada relevante, devolva lista vazia
+- "nextStep": 1 recomendação concreta para o PRÓXIMO treino, coerente com o que aconteceu neste
+- Interprete a deriva cardíaca assim: abaixo de 5% = boa durabilidade aeróbica; 5-10% = base ainda em construção; acima de 10% = o esforço foi longo/intenso demais para a base atual
+- Interprete a distribuição de zonas com a lógica 80/20: rodagem fácil deve ficar majoritariamente em Z1-Z2; se um treino que era para ser leve teve muito Z3+, aponte isso
+- Se faltarem dados (sem FC, sem GPS), diga o que não dá para avaliar em vez de inventar
+- Responda em português brasileiro
+- NÃO use markdown, comece a resposta direto com {`
+
+  const prompt = weekContext ? `${briefing}\n\n## Contexto da semana\n${weekContext}` : briefing
+
+  const text = await callClaude({
+    model: 'claude-sonnet-4-6',
+    maxTokens: 1024,
+    system,
+    messages: [{ role: 'user', content: prompt }],
+    apiKey,
+  })
+  if (!text) return null
+  return extractJSON(text)
+}
+
+const SESSION_KINDS = ['easy', 'long', 'quality', 'strength', 'rest', 'race']
+const PACE_KEYS = ['easy', 'marathon', 'threshold', 'interval', 'repetition']
+
+async function handleTrainingPlan(payload, apiKey) {
+  const { briefing, startDate, days = 14, userName } = payload ?? {}
+  if (!briefing || !startDate) return null
+
+  const system = `Você é o Coach IA do The Rise Plan montando um bloco de ${days} dias de treino${userName ? ` para ${userName}` : ''}.
+Os números do atleta abaixo (condicionamento, fadiga, forma, carga, ritmos) já foram calculados dos dados reais dele — use-os, não invente outros.
+
+Responda APENAS com JSON puro, sem markdown, sem crases, sem texto antes ou depois, no formato exato:
+{"focus":"string","sessions":[{"date":"YYYY-MM-DD","kind":"string","title":"string","description":"string","targetMin":number,"targetKm":number,"targetPaceKey":"string","why":"string"}]}
+
+Regras:
+- Gere EXATAMENTE ${days} dias corridos, começando em ${startDate}, um objeto por dia, sem pular nem repetir data
+- "kind": exatamente um de ${SESSION_KINDS.join(', ')}
+- "targetPaceKey": exatamente um de ${PACE_KEYS.join(', ')}, ou omita quando não se aplica (força, descanso)
+- "targetKm": omita quando não se aplica (força, descanso, ou treino guiado por tempo)
+- Em dia de descanso use kind "rest", targetMin 0 e uma descrição do que fazer de recuperação (sono, mobilidade, caminhada leve)
+- "description": instrução concreta e executável — aquecimento, blocos, recuperação entre blocos, volta à calma. Nada de "corra confortável" solto
+- "why": uma frase dizendo o que ESSA sessão treina e por que está nesse dia
+- "focus": uma frase resumindo a intenção do bloco inteiro
+- RESPEITE os dias disponíveis informados: fora deles, use "rest" ou uma sessão bem curta
+- Distribua a intensidade em 80/20: a grande maioria do volume em ritmo fácil, no máximo 2 sessões de qualidade por semana, nunca em dias consecutivos
+- Progrida o volume no máximo 10% por semana em relação à carga atual do atleta
+- Se a forma (TSB) estiver muito negativa ou o ACWR alto, comece o bloco com uma semana mais leve antes de progredir
+- Se houver prova marcada, oriente o bloco para ela e reduza o volume nos últimos 7 dias antes dela
+- Responda em português brasileiro
+- NÃO use markdown, comece a resposta direto com {`
+
+  const text = await callClaude({
+    model: 'claude-sonnet-4-6',
+    maxTokens: 8192,
+    system,
+    messages: [{ role: 'user', content: briefing }],
+    apiKey,
+  })
+  if (!text) return null
+
+  const raw = extractJSON(text)
+  if (!raw || !Array.isArray(raw.sessions)) return null
+
+  // Normaliza no servidor: o cliente confia neste formato para renderizar e
+  // para as regras de adaptação, então nada mal formado pode passar.
+  const sessions = raw.sessions
+    .filter(s => /^\d{4}-\d{2}-\d{2}$/.test(String(s?.date ?? '')))
+    .map(s => {
+      const kind = SESSION_KINDS.includes(s.kind) ? s.kind : 'easy'
+      const targetMin = kind === 'rest' ? 0 : Math.max(0, Math.round(Number(s.targetMin) || 30))
+      const targetKm = Number(s.targetKm)
+      return {
+        date: s.date,
+        kind,
+        title: String(s.title ?? '').trim() || 'Sessão',
+        description: String(s.description ?? '').trim(),
+        targetMin,
+        why: String(s.why ?? '').trim(),
+        ...(Number.isFinite(targetKm) && targetKm > 0 ? { targetKm: Math.round(targetKm * 10) / 10 } : {}),
+        ...(PACE_KEYS.includes(s.targetPaceKey) ? { targetPaceKey: s.targetPaceKey } : {}),
+      }
+    })
+
+  if (sessions.length === 0) return null
+
+  return { focus: String(raw.focus ?? '').trim() || 'Bloco de treino', sessions }
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -309,6 +412,8 @@ export default async function handler(req, res) {
     else if (type === 'parse-workout') result = await handleParseWorkout(payload, apiKey)
     else if (type === 'reflection')  result = await handleReflection(payload, apiKey)
     else if (type === 'weekly-review') result = await handleWeeklyReview(payload, apiKey)
+    else if (type === 'workout-summary') result = await handleWorkoutSummary(payload, apiKey)
+    else if (type === 'training-plan') result = await handleTrainingPlan(payload, apiKey)
     else return res.status(400).json({ error: `Unknown type: ${type}` })
 
     return res.status(200).json({ result })
