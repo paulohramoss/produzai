@@ -3,6 +3,7 @@
 // são derivados aqui — quem chama só precisa do essencial.
 
 import { estimateCalories, type EffortLevel } from './calories'
+import { sanitizeExercises } from './exercises'
 import { calcPace, formatDuration, friendlyDate } from './performance'
 import type { ManualWorkout } from '../store/useWorkoutStore'
 
@@ -54,6 +55,8 @@ export interface WorkoutDraft {
   hr?: number | string
   /** "YYYY-MM-DD". Ausente ou inválida vira hoje; futura é puxada para hoje. */
   date?: string
+  /** Lista de exercícios do treino de força; saneada aqui antes de persistir. */
+  exercises?: unknown
   /**
    * Peso do atleta, para o cálculo de calorias. Passado por quem chama em vez
    * de lido de um store aqui dentro: este módulo é puro de propósito, o que
@@ -95,6 +98,7 @@ export function buildWorkout(draft: WorkoutDraft): Omit<ManualWorkout, 'id'> {
 
   const rawDate = normalizeDate(draft.date)
   const name = draft.name?.trim() || DEFAULT_NAMES[type] || 'Atividade'
+  const exercises = sanitizeExercises(draft.exercises)
 
   return {
     type,
@@ -109,5 +113,8 @@ export function buildWorkout(draft: WorkoutDraft): Omit<ManualWorkout, 'id'> {
     elev: 0,
     effort,
     source: 'manual',
+    // Chave omitida quando não há exercícios: o Firestore rejeita `undefined`,
+    // e um array vazio só ocuparia espaço no documento de todos os treinos.
+    ...(exercises.length > 0 ? { exercises } : {}),
   }
 }

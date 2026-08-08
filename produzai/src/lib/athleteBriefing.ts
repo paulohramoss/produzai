@@ -12,8 +12,12 @@ import type { TrainingPlan } from './plan'
 import { maxHrOf, restingHrOf, ageOf } from './athleteProfile'
 import { buildLoadSeries, computeAcwr, computeMonotony, computeReadiness, describeLoadForAI } from './trainingLoad'
 import { estimateFitness, describeFitnessForAI } from './fitness'
+import { buildStrengthProgress, describeStrengthForAI } from './exercises'
 import { describePlanForAI, todayKey } from './plan'
 import { recoveryDeviation, describeRecovery } from './recovery'
+
+/** Mesma janela da série de carga: 90 dias cobrem um mesociclo inteiro. */
+const STRENGTH_WINDOW_DAYS = 90
 
 export interface BriefingInput {
   workouts: ManualWorkout[]
@@ -58,6 +62,14 @@ export function buildAthleteBriefing(input: BriefingInput): string {
   if (fitness) {
     sections.push(`### Condicionamento estimado\n${describeFitnessForAI(fitness)}`)
   }
+
+  // Carga por exercício: é o que permite o Coach falar de força pelo peso real
+  // ("o supino está travado em 25kg há 3 semanas") em vez de só por volume.
+  const strength = describeStrengthForAI(
+    buildStrengthProgress(workouts, { today, days: STRENGTH_WINDOW_DAYS }),
+    { days: STRENGTH_WINDOW_DAYS },
+  )
+  if (strength) sections.push(`### Progressão de carga\n${strength}`)
 
   if (readiness.confidence >= 2) {
     const drivers = readiness.drivers.map(d => `${d.impact === 'up' ? '↑' : '↓'} ${d.text}`).join(' · ')

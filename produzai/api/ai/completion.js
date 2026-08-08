@@ -6,7 +6,7 @@
 import { verifyToken } from './_auth.js'
 import { rateLimit } from './_rateLimit.js'
 
-async function callClaude({ model, maxTokens, system, messages, apiKey }) {
+async function callClaude({ model, maxTokens, system, messages, apiKey, outputConfig }) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -18,6 +18,7 @@ async function callClaude({ model, maxTokens, system, messages, apiKey }) {
       model,
       max_tokens: maxTokens,
       ...(system ? { system } : {}),
+      ...(outputConfig ? { output_config: outputConfig } : {}),
       messages,
     }),
   })
@@ -156,27 +157,103 @@ Regras:
 
 const WORKOUT_TYPES = ['Corrida', 'Caminhada', 'Academia', 'Ciclismo', 'Natação', 'Futebol', 'Outro']
 const WORKOUT_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+/** Duração típica por tipo — o palpite quando nem o texto nem a imagem dizem o tempo. */
+const WORKOUT_DEFAULT_DURATION = {
+  Corrida: 40, Caminhada: 40, Academia: 60, Ciclismo: 60, Natação: 45, Futebol: 60, Outro: 45,
+}
+/** Espelha MAX_EXERCISES de src/lib/exercises.ts — o cliente saneia de novo ao salvar. */
+const WORKOUT_MAX_EXERCISES = 40
+
+/**
+ * A planilha escreve "27,5" e o modelo às vezes devolve assim, como texto.
+ * Só aceita número puro: "5X5" e "PB" viram NaN (e depois 0) em vez de virarem
+ * carga inventada — carga errada no histórico estraga a progressão.
+ */
+function toNumber(raw) {
+  if (typeof raw === 'number') return raw
+  if (typeof raw !== 'string') return NaN
+  const cleaned = raw.trim().replace(',', '.')
+  return /^\d+(\.\d+)?$/.test(cleaned) ? Number(cleaned) : NaN
+}
+
+/** Corta no último espaço antes do limite, para não partir palavra ao meio. */
+function clampText(raw, max) {
+  const text = String(raw ?? '').trim()
+  if (!text) return ''
+  if (text.length <= max) return text
+  const cut = text.slice(0, max)
+  const lastSpace = cut.lastIndexOf(' ')
+  return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd() + '…'
+}
+
+/** Poda a lista antes de devolver: nome obrigatório, campos curtos, teto de linhas. */
+function normalizeExercises(raw) {
+  if (!Array.isArray(raw)) return []
+  const out = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    // Uma linha de planilha emenda exercício e prescrição, então o nome tem folga.
+    const name = clampText(item.name, 90)
+    if (!name) continue
+    const sets = Math.round(toNumber(item.sets))
+    const loadKg = toNumber(item.loadKg)
+    const note = clampText(item.note, 80)
+    out.push({
+      name,
+      sets: Number.isFinite(sets) && sets > 0 ? Math.min(sets, 20) : 0,
+      reps: clampText(item.reps, 32),
+      loadKg: Number.isFinite(loadKg) && loadKg > 0 ? Math.min(Math.round(loadKg * 2) / 2, 500) : 0,
+      ...(note ? { note } : {}),
+    })
+    if (out.length >= WORKOUT_MAX_EXERCISES) break
+  }
+  return out
+}
+
+/** Aceita só "YYYY-MM-DD" real e nunca no futuro; qualquer outra coisa vira `today`. */
+function normalizeWorkoutDate(raw, today) {
+  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return today
+  const [y, m, d] = raw.split('-').map(Number)
+  const parsed = new Date(y, m - 1, d)
+  if (parsed.getFullYear() !== y || parsed.getMonth() !== m - 1 || parsed.getDate() !== d) return today
+  return raw > today ? today : raw
+}
 
 async function handleParseWorkout(payload, apiKey) {
-  const { transcript, image } = payload ?? {}
+  const { transcript, image, today } = payload ?? {}
   const described = String(transcript ?? '').trim()
   const hasImage = Boolean(image?.data) && WORKOUT_IMAGE_TYPES.includes(image?.mediaType)
   // Sem texto e sem imagem não há o que extrair.
   if (!described && !hasImage) return null
 
-  const system = `Você extrai dados estruturados de um treino descrito em português brasileiro — por texto falado/digitado ou por uma foto (print de relógio esportivo, painel de esteira, tela do Strava/Garmin Connect, ou foto do visor de um aparelho).
+  const hoje = /^\d{4}-\d{2}-\d{2}$/.test(String(today)) ? today : new Date().toISOString().slice(0, 10)
+
+  const system = `Você extrai dados estruturados de um treino a partir de português brasileiro — texto falado/digitado, uma foto, ou os dois juntos.
+
+A foto pode ser:
+- print de relógio esportivo, painel de esteira ou tela do Strava/Garmin Connect;
+- foto de uma PLANILHA ou PRESCRIÇÃO de treino (tabela com lista de exercícios, séries, repetições e cargas), inclusive foto de tela de computador, torta, com reflexo ou parcialmente cortada.
 
 Responda APENAS com JSON puro, sem markdown, sem crases, sem texto antes ou depois, no formato exato:
-{"type":"string","name":"string","durationMin":number,"dist":number,"effort":number,"hr":number}
+{"type":"string","name":"string","date":"YYYY-MM-DD","durationMin":number,"dist":number,"effort":number,"hr":number,"exercises":[{"name":"string","sets":number,"reps":"string","loadKg":number,"note":"string"}]}
 
-Regras:
-- "type": exatamente um destes valores: ${WORKOUT_TYPES.join(', ')} — escolha o mais próximo do que foi descrito
-- "name": nome curto para o treino (ex: "Corrida matinal", "Treino de pernas"); se não houver nome específico, gere um razoável a partir do tipo
-- "durationMin": duração em minutos (converta horas se falado em horas); se não mencionado, estime com base no tipo e na distância, ou use 30
-- "dist": distância em km (0 se não aplicável, ex: musculação). Se a tela mostrar milhas, converta para km
-- "effort": grau de esforço percebido de 1 a 5 (1=leve, 2=moderado, 3=intenso, 4=muito intenso, 5=máximo); se não mencionado, deduza do ritmo/FC ou use 3
-- "hr": frequência cardíaca média em bpm, 0 se não mencionado
-- Se for uma imagem, leia os números do visor: tempo, distância, pace/velocidade e frequência cardíaca média. Ignore dados que não sejam do treino
+Regra geral: PREENCHA TODOS OS CAMPOS. Nunca devolva campo vazio ou nulo — quando o dado não estiver explícito, deduza o valor mais provável a partir do restante do que foi enviado.
+
+- "type": exatamente um destes valores: ${WORKOUT_TYPES.join(', ')}. Planilha de musculação/força/preventivos com exercícios e cargas = "Academia", mesmo que o título cite outro esporte. Treino de campo com bola = "Futebol".
+- "name": nome curto e específico do treino. Se a imagem tiver título ou identificação (ex: "TREINO A", "Preventivos futebol", "Semana 01"), use-a — ex: "Treino A — Preventivos futebol". Sem título, gere um nome a partir do tipo e do conteúdo (ex: "Treino de pernas", "Corrida matinal").
+- "date": data do treino. Hoje é ${hoje}. Converta expressões relativas ("hoje", "ontem", "sexta passada") e datas escritas na imagem (ex: "03/8" no ano corrente vira ${hoje.slice(0, 4)}-08-03). Se a imagem mostrar um PERÍODO de programa (ex: "início 03/8 até 18/09"), isso é a validade do plano e NÃO a data da sessão: use ${hoje}. Sem qualquer indício, use ${hoje}. Nunca devolva data futura.
+- "durationMin": duração em minutos. Converta horas. Numa planilha de força, estime pela carga de trabalho: conte os exercícios e multiplique as séries por ~2,5 min (execução + pausa), somando aquecimento e o HIIT/condicionamento quando aparecerem. Sem qualquer base, use a duração típica do tipo (Academia 60, Corrida 40, Futebol 60).
+- "dist": distância em km. 0 quando não se aplica (musculação, futebol). Converta milhas para km.
+- "effort": esforço percebido de 1 a 5 (1=leve, 2=moderado, 3=intenso, 4=muito intenso, 5=máximo). Deduza do ritmo, da FC, do volume de séries, da presença de HIIT ou de palavras como "acelerado", "sem pausa", "carga alta". Na dúvida use 3.
+- "hr": frequência cardíaca média em bpm. Só preencha se aparecer de fato (visor, relógio, fala); caso contrário 0 — não invente FC a partir de uma planilha.
+- "exercises": UMA ENTRADA POR EXERCÍCIO, na ordem em que aparecem, quando houver lista de exercícios (planilha, prescrição, ou fala do tipo "fiz supino 3x10 com 40kg"). Array vazio [] em treino de cardio puro. Máximo ${WORKOUT_MAX_EXERCISES} entradas.
+  - "name": nome do exercício como está escrito, sem a prescrição junto — "Cadeira extensora", "Agachamento taça + panturrilha", "Supino reto máquina". Corrija apenas caixa e acento ("MESA FLEXORA" vira "Mesa flexora").
+  - "sets": número de séries (coluna "SÉRIES"). 0 se não houver.
+  - "reps": repetições como texto, do jeito que a planilha diz — "15", "10 a 12", "20 cada perna", "30s", "20x". "" se não houver.
+  - "loadKg": carga em kg, só quando for número (27,5 vira 27.5). Use 0 para peso corporal, para carga não informada e para siglas ("PB", "5X5") — nesse caso ponha o texto original em "note". Não confunda a coluna de carga com a de séries ou repetições.
+  - "note": observação daquela linha que não cabe nos outros campos — "sem pausa", "acelerado", "carga alta + cadência baixa", "PB". "" quando não houver.
+  - Uma linha que descreve duas coisas emendadas ("ABD supra 15 repetições + 30s prancha ventral") é UM exercício só, com o texto inteiro no nome.
+- Numa planilha, ignore o que não descreve a sessão: cabeçalhos de coluna, nomes de professor, numeração de semanas, legendas, alternâncias tipo "ÍMPAR/PARES" (mantenha essas como parte do nome do exercício se estiverem coladas nele).
 - NÃO use markdown, comece a resposta direto com {`
 
   const content = []
@@ -191,24 +268,39 @@ Regras:
     text: described || 'Extraia os dados deste treino a partir da imagem.',
   })
 
-  const text = await callClaude({
-    model: 'claude-haiku-4-5-20251001',
-    maxTokens: 512,
-    system,
-    messages: [{ role: 'user', content }],
-    apiKey,
-  })
+  // Ler planilha fotografada é OCR denso: só o texto vai no modelo rápido.
+  const text = hasImage
+    ? await callClaude({
+        model: 'claude-opus-5',
+        // Uma planilha cheia sai com ~20 linhas de exercício; o raciocínio do
+        // modelo divide esse teto com a resposta, daí a folga.
+        maxTokens: 8192,
+        outputConfig: { effort: 'medium' },
+        system,
+        messages: [{ role: 'user', content }],
+        apiKey,
+      })
+    : await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 1536,
+        system,
+        messages: [{ role: 'user', content }],
+        apiKey,
+      })
   if (!text) return null
   const raw = extractJSON(text)
   if (!raw) return null
 
+  const type = WORKOUT_TYPES.includes(raw.type) ? raw.type : 'Outro'
   return {
-    type: WORKOUT_TYPES.includes(raw.type) ? raw.type : 'Outro',
+    type,
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Atividade',
-    durationMin: Math.max(1, Math.round(Number(raw.durationMin) || 30)),
+    date: normalizeWorkoutDate(raw.date, hoje),
+    durationMin: Math.max(1, Math.round(Number(raw.durationMin) || WORKOUT_DEFAULT_DURATION[type])),
     dist: Math.max(0, Number(raw.dist) || 0),
     effort: Math.min(5, Math.max(1, Math.round(Number(raw.effort) || 3))),
     hr: Math.max(0, Math.round(Number(raw.hr) || 0)),
+    exercises: normalizeExercises(raw.exercises),
   }
 }
 

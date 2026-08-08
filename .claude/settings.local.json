@@ -43,7 +43,11 @@
       "Bash(node --input-type=module -e ' *)",
       "Bash(git checkout *)",
       "Bash(rm -rf node_modules/.tmp)",
-      "Bash(echo \"--- TSC exit: $? ---\")"
+      "Bash(echo \"--- TSC exit: $? ---\")",
+      "Bash(find ~ -maxdepth 4 \\\\\\( -iname \"*.jpg\" -o -iname \"*.jpeg\" -o -iname \"*.png\" -o -iname \"*.webp\" \\\\\\) -newermt \"-45 days\" -size +80k 2>/dev/null | grep -viE \"node_modules|/\\\\.cache|/\\\\.local/share/Trash|icons?/|/\\\\.config\" | head -25)",
+      "Read(//home/ramoslenda/Imagens/**)",
+      "Bash(cd ~/Downloads && ls -la IMG_4507.jpg Treino_A_Preventivos_Futebol.pdf 2>/dev/null && file IMG_4507.jpg)",
+      "Read(//home/ramoslenda/Downloads/**)"
     ]
   }
 }

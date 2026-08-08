@@ -3,6 +3,8 @@
 
 import { auth } from './firebase'
 import { readCoachStream, type ChatToolUse } from './coachStream'
+import { todayISO } from './workouts'
+import type { WorkoutExercise } from './exercises'
 import type { ManualWorkout } from '../store/useWorkoutStore'
 import type { WebDietData } from '../store/useWebDietStore'
 import type { HabitDef } from '../store/useHabitsStore'
@@ -131,24 +133,28 @@ async function callCompletion<T>(type: string, payload: unknown): Promise<T | nu
 export interface ParsedWorkout {
   type: string
   name: string
+  /** "YYYY-MM-DD" — o servidor já garante data válida e nunca futura. */
+  date: string
   durationMin: number
   dist: number
   effort: 1 | 2 | 3 | 4 | 5
   hr: number
+  /** Lista de exercícios lida da planilha ou da fala; vazia em cardio puro. */
+  exercises: WorkoutExercise[]
 }
 
 export async function parseWorkoutFromSpeech(transcript: string): Promise<ParsedWorkout | null> {
   if (!transcript.trim()) return null
-  return callCompletion('parse-workout', { transcript })
+  return callCompletion('parse-workout', { transcript, today: todayISO() })
 }
 
-/** Print do relógio, painel da esteira ou tela do app — mesmo extrator, entrada visual. */
+/** Print do relógio, painel da esteira ou foto da planilha — mesmo extrator, entrada visual. */
 export async function parseWorkoutFromImage(
   image: { mediaType: string; data: string },
   transcript = '',
 ): Promise<ParsedWorkout | null> {
   if (!image.data) return null
-  return callCompletion('parse-workout', { image, transcript })
+  return callCompletion('parse-workout', { image, transcript, today: todayISO() })
 }
 
 // ── Macros estimation ─────────────────────────────────────────────────────────

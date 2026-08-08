@@ -22,6 +22,8 @@ import { useSpeechToText } from '../../lib/useSpeechToText'
 import {
   ACTIVITY_TYPES, DEFAULT_NAMES, DEFAULT_EFFORT, buildWorkout, usesDistance, todayISO,
 } from '../../lib/workouts'
+import { ExerciseEditor, ExerciseSummary } from '../components/ExerciseFields'
+import type { WorkoutExercise } from '../../lib/exercises'
 import { WorkoutInsightPanel } from '../components/WorkoutInsightPanel'
 import { TrainingLoadSection } from '../components/TrainingLoadSection'
 import { FitnessSection } from '../components/FitnessSection'
@@ -106,6 +108,7 @@ export function Treino({ setPage: _setPage }: Props) {
     dist: '',
     effort: DEFAULT_EFFORT as EffortLevel,
     hr: '',
+    exercises: [] as WorkoutExercise[],
   })
 
   const weekStart = (() => {
@@ -145,7 +148,7 @@ export function Treino({ setPage: _setPage }: Props) {
   })
 
   function openModal() {
-    setForm({ type: 'Corrida', name: '', date: todayISO(), durationMin: '', dist: '', effort: DEFAULT_EFFORT, hr: '' })
+    setForm({ type: 'Corrida', name: '', date: todayISO(), durationMin: '', dist: '', effort: DEFAULT_EFFORT, hr: '', exercises: [] })
     setShowTemplates(false)
     setShowMore(false)
     setDictation('')
@@ -202,16 +205,25 @@ export function Treino({ setPage: _setPage }: Props) {
       )
       return
     }
-    setForm(f => ({
-      ...f,
+    setForm({
       type: parsed.type,
       name: parsed.name,
+      date: parsed.date,
       durationMin: String(parsed.durationMin),
       dist: parsed.dist > 0 ? String(parsed.dist) : '',
       effort: parsed.effort,
       hr: parsed.hr > 0 ? String(parsed.hr) : '',
-    }))
-    toast.success(photo ? '📷 Treino lido da foto! Revise e salve.' : '🎤 Treino preenchido! Revise e salve.')
+      exercises: parsed.exercises,
+    })
+    // Nome, data, esforço e FC ficam recolhidos por padrão — abre para o usuário
+    // ver (e corrigir) tudo o que a IA preencheu, não só tipo e duração.
+    setShowMore(true)
+    const read = [
+      `${parsed.durationMin}min`,
+      parsed.dist > 0 ? `${parsed.dist}km` : '',
+      parsed.exercises.length > 0 ? `${parsed.exercises.length} exercícios` : '',
+    ].filter(Boolean).join(' · ')
+    toast.success(`${photo ? '📷' : '🎤'} ${parsed.name} · ${read} — revise e salve.`)
   }
 
   function handleSubmit() {
@@ -225,6 +237,7 @@ export function Treino({ setPage: _setPage }: Props) {
       dist: usesDistance(form.type) ? form.dist : 0,
       effort: form.effort,
       hr: form.hr,
+      exercises: form.exercises,
       weightKg: athlete.weightKg,
     })
     add(workout)
@@ -423,6 +436,8 @@ export function Treino({ setPage: _setPage }: Props) {
                     </div>
                   ))}
                 </div>
+
+                <ExerciseSummary workout={a} workouts={workouts} />
 
                 <button
                   onClick={() => setOpenInsightId(id => (id === a.id ? null : a.id))}
@@ -670,6 +685,15 @@ export function Treino({ setPage: _setPage }: Props) {
                 </div>
               )}
             </div>
+
+            {/* Exercícios: série, repetição e carga — com a carga da última vez */}
+            <ExerciseEditor
+              exercises={form.exercises}
+              onChange={exercises => setForm(f => ({ ...f, exercises }))}
+              workouts={workouts}
+              date={form.date}
+              accent={typeColor(form.type)}
+            />
 
             {/* Detalhes opcionais */}
             <div style={{ marginBottom: 14 }}>
