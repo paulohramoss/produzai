@@ -36,3 +36,8 @@ Chapinha-Programa*.pdf
 Chapinha_Resist*.pdf
 PROGRAMA DE TREINAMENTO.png
 PROJETO 42KM - atletadeeliteacademy.pdf
+key.json
+*.json.key
+
+# Artefatos do QA (prints e relatório)
+qa/artifacts

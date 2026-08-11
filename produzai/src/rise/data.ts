@@ -47,6 +47,25 @@ export const T = {
   weight: { regular: 400, medium: 500, semibold: 600, bold: 700, extrabold: 800 },
 } as const
 
+// ── Safe area ────────────────────────────────────────────────────────────────
+// O index.html declara `viewport-fit=cover`, então o app recebe a tela inteira
+// do aparelho — inclusive a faixa do notch e a da barra de gestos. Sem estes
+// recuos o cabeçalho fica embaixo do relógio e o rodapé embaixo da barrinha.
+// `safeInset` nunca fica menor que o recuo de design: em aparelho sem notch o
+// env() vale 0 e o `max()` devolve o valor mínimo.
+
+/** Recuo do lado, respeitando um mínimo. Ex.: safeInset('bottom', 80). */
+export const safeInset = (
+  side: 'top' | 'bottom' | 'left' | 'right',
+  min: number,
+) => `max(${min}px, env(safe-area-inset-${side}))`
+
+/** Recuo do lado somado a um valor fixo. Ex.: safePlus('bottom', 80). */
+export const safePlus = (
+  side: 'top' | 'bottom' | 'left' | 'right',
+  base: number,
+) => `calc(${base}px + env(safe-area-inset-${side}))`
+
 // ── Typography ───────────────────────────────────────────────────────────────
 // Archivo is the display face (titles + signature numbers); Open Sans the body.
 // The display look comes from the EXPANDED width axis (wdth 112) — spread

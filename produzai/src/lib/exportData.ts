@@ -1,5 +1,6 @@
 import type { ManualWorkout } from '../store/useWorkoutStore'
 import type { WebDietData } from '../store/useWebDietStore'
+import { todayKey } from './date'
 
 function download(content: string, filename: string) {
   const bom = '﻿'
@@ -12,7 +13,7 @@ function download(content: string, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-function today() { return new Date().toISOString().slice(0, 10) }
+const today = todayKey
 
 export function exportWorkoutsCSV(workouts: ManualWorkout[]) {
   const rows = [

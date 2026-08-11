@@ -30,10 +30,6 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   attachment?: ChatAttachment
-  /** Presente no turno do assistente que pediu ferramentas. */
-  toolUses?: ChatToolUse[]
-  /** Presente no turno de usuário que devolve o resultado delas. */
-  toolResults?: ChatToolResult[]
 }
 
 export interface CoachContext {
@@ -43,6 +39,29 @@ export interface CoachContext {
   wd: WebDietData | null
   habitDefs: HabitDef[]
   userName?: string
+  /** Dados corporais — dão ao Coach números do usuário em vez de médias. */
+  body?: CoachBodyContext
+  tdee?: number | null
+  /** Check-in de prontidão de hoje, quando já registrado. */
+  readiness?: CoachReadinessContext
+  /** Sequência de dias fechados, para o Coach reconhecer consistência. */
+  dayStreak?: number
+  /** Carga interna e razão aguda:crônica — evita mandar puxar em semana de pico. */
+  load?: {
+    acute: number
+    chronic: number
+    acwr: number | null
+    zone: string
+    headline: string
+  }
+  /** Plano da semana e aderência, para o Coach falar do que vem, não só do que passou. */
+  plan?: {
+    sessions: string[]
+    adherencePct: number
+    matched: number
+    planned: number
+    next?: string
+  }
 }
 
 export interface OnboardingContext {

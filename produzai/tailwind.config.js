@@ -6,7 +6,7 @@
      • src/rise/data.ts (C) → JS color object                ← canonical for inline styles
      • this file            → Tailwind utilities
 
-   Palette is BLACK + ORANGE (athlete/Strava energy). There is intentionally
+   Palette is BLACK + ORANGE (athlete energy). There is intentionally
    no indigo/violet here anymore — that was legacy drift.
    ─────────────────────────────────────────────────────────────────────────── */
 export default {
@@ -47,7 +47,7 @@ export default {
         accent:  '#A78BFA',
         pink:    '#F472B6',
         danger:  '#EF4444',
-        strava:  '#FC4C02',
+        running: '#FC4C02',
       },
       // Type scale — mirrors T.text in data.ts (px = real values in use)
       fontSize: {

@@ -1,14 +1,20 @@
 import type { ManualWorkout } from '../store/useWorkoutStore'
-import type { MentalEntry } from './db'
+import type { DailyData, MentalEntry } from './db'
 import type { ComplianceStatus, DietCompliance } from '../store/useWebDietStore'
 import { parseDurationToMinutes } from './performance'
 import { pearson } from './patterns'
+import { computeReadiness } from './readiness'
+import { cycleStateFor, PHASE_LABEL, PHASE_SCORE, type CycleData, type CyclePhase } from './cycle'
 
 export interface DayFactors {
   sleepHours: number | null
   dietStatus: ComplianceStatus | null
   trainingMinutes: number
   moodEnergyAvg: number | null
+  /** Prontidão registrada de manhã, 0 a 100 — null quando não houve check-in. */
+  readinessScore: number | null
+  /** Fase do ciclo menstrual — null quando o acompanhamento está desligado. */
+  cyclePhase: CyclePhase | null
 }
 
 export interface DayPerformance {
@@ -48,12 +54,15 @@ function moodEnergyScore(avg: number): number {
 }
 
 export function computeDayScore(f: DayFactors): number | null {
-  const hasData = f.sleepHours != null || f.dietStatus != null || f.moodEnergyAvg != null || f.trainingMinutes > 0
+  const hasData = f.sleepHours != null || f.dietStatus != null || f.moodEnergyAvg != null
+    || f.readinessScore != null || f.trainingMinutes > 0
   if (!hasData) return null
   const parts: number[] = []
   if (f.sleepHours != null) parts.push(sleepScore(f.sleepHours))
   if (f.dietStatus != null) parts.push(dietScore(f.dietStatus))
   if (f.moodEnergyAvg != null) parts.push(moodEnergyScore(f.moodEnergyAvg))
+  if (f.readinessScore != null) parts.push(f.readinessScore)
+  if (f.cyclePhase != null) parts.push(PHASE_SCORE[f.cyclePhase])
   parts.push(trainingScore(f.trainingMinutes))
   return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length)
 }
@@ -69,8 +78,13 @@ export function buildWeekPerformance(
   mentalHistory: Record<string, MentalEntry>,
   compliance: DietCompliance[],
   workouts: ManualWorkout[],
+  dailyHistory: Record<string, DailyData> = {},
+  cycle: CycleData | null = null,
 ): DayPerformance[] {
   const complianceByDate = new Map(compliance.map(c => [c.date, c.status]))
+  const readinessHistory = Object.values(dailyHistory)
+    .map(d => d.readiness)
+    .filter((r): r is NonNullable<typeof r> => Boolean(r))
   const minutesByDate = new Map<string, number>()
   for (const w of workouts) {
     const minutes = parseDurationToMinutes(w.time) ?? 0
@@ -83,11 +97,18 @@ export function buildWeekPerformance(
     if (mental?.mood > 0) moods.push(mental.mood)
     if (mental?.energy > 0) moods.push(mental.energy)
 
+    // O check-in de prontidão é a fonte preferida do sono — é onde o usuário
+    // registra ao acordar. O campo da página Mental fica como retaguarda para
+    // quem já usava o app antes da prontidão existir.
+    const readiness = dailyHistory[date]?.readiness ?? null
+
     const factors: DayFactors = {
-      sleepHours: mental?.sleepHours ?? null,
+      sleepHours: readiness?.sleepHours ?? mental?.sleepHours ?? null,
       dietStatus: complianceByDate.get(date) ?? null,
       trainingMinutes: minutesByDate.get(date) ?? 0,
       moodEnergyAvg: moods.length ? moods.reduce((a, b) => a + b, 0) / moods.length : null,
+      readinessScore: readiness ? computeReadiness(readiness, readinessHistory).score : null,
+      cyclePhase: cycle?.enabled ? (cycleStateFor(date, cycle)?.phase ?? null) : null,
     }
 
     return { date, weekday: weekdayOf(date), score: computeDayScore(factors), factors }
@@ -98,8 +119,10 @@ function describeDay(day: DayPerformance): string {
   const { factors } = day
   const parts: string[] = []
   parts.push(factors.sleepHours != null ? `dormiu ${factors.sleepHours}h` : 'sono não registrado')
+  if (factors.readinessScore != null) parts.push(`prontidão ${factors.readinessScore}/100`)
   parts.push(factors.trainingMinutes > 0 ? `treinou ${factors.trainingMinutes}min` : 'não treinou')
   parts.push(factors.dietStatus != null ? DIET_LABELS[factors.dietStatus] : 'dieta não registrada')
+  if (factors.cyclePhase != null) parts.push(`fase ${PHASE_LABEL[factors.cyclePhase].toLowerCase()}`)
   return parts.join(', ')
 }
 
@@ -128,7 +151,7 @@ export function diagnoseWeek(days: DayPerformance[]): WeekDiagnosis {
 }
 
 export interface FactorCorrelation {
-  factor: 'sono' | 'treino' | 'dieta'
+  factor: 'sono' | 'treino' | 'dieta' | 'ciclo'
   corr: number
   text: string
 }
@@ -150,6 +173,10 @@ export function findStrongestFactor(days: DayPerformance[]): FactorCorrelation |
   const dietPairs = withScore.filter(d => d.factors.dietStatus != null)
   const dietCorr = pearson(dietPairs.map(d => dietScore(d.factors.dietStatus!)), dietPairs.map(d => d.score))
   if (dietCorr !== null) candidates.push({ factor: 'dieta', corr: dietCorr, text: 'consistência da dieta' })
+
+  const cyclePairs = withScore.filter(d => d.factors.cyclePhase != null)
+  const cycleCorr = pearson(cyclePairs.map(d => PHASE_SCORE[d.factors.cyclePhase!]), cyclePairs.map(d => d.score))
+  if (cycleCorr !== null) candidates.push({ factor: 'ciclo', corr: cycleCorr, text: 'fase do ciclo menstrual' })
 
   if (candidates.length === 0) return null
   return candidates.reduce((a, b) => (Math.abs(b.corr) > Math.abs(a.corr) ? b : a))

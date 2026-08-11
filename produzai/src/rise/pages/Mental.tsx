@@ -8,7 +8,6 @@ import { toast } from '../../lib/toast'
 import { userStorage } from '../../lib/userStorage'
 import { LayoutContext } from '../LayoutContext'
 import { hasApiKey, generateReflectionQuestion, fallbackReflectionQuestion } from '../../lib/anthropic'
-import { useSpeechToText } from '../../lib/useSpeechToText'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -16,11 +15,11 @@ function dateSeed(dateKey: string): number {
   return Number(dateKey.replace(/-/g, ''))
 }
 
-const MOODS       = ['😞', '😕', '😐', '🙂', '😄']
+const MOODS = ['😞', '😕', '😐', '🙂', '😄']
 const MOOD_LABELS = ['Ruim', 'Regular', 'Ok', 'Bom', 'Ótimo']
 const MOOD_COLORS = [C.red, '#F97316', '#EAB308', C.green, '#22C55E']
 
-const todayKey = () => new Date().toISOString().slice(0, 10)
+const todayKey = localTodayKey
 
 const EMPTY: MentalEntry = { mood: 0, energy: 0, gratitude: ['', '', ''], note: '' }
 
@@ -41,9 +40,9 @@ export function Mental({ setPage: _s }: Props) {
   const { isMobile } = useContext(LayoutContext)
   const today = todayKey()
 
-  const [entry,   setEntry]   = useState<MentalEntry>({ ...EMPTY })
+  const [entry, setEntry] = useState<MentalEntry>({ ...EMPTY })
   const [history, setHistory] = useState<{ date: string; mood: number }[]>([])
-  const [loaded,  setLoaded]  = useState(false)
+  const [loaded, setLoaded] = useState(false)
   const [savedNote, setSavedNote] = useState(false)
   const [reflectionLoading, setReflectionLoading] = useState(false)
   const [savedReflection, setSavedReflection] = useState(false)
@@ -52,11 +51,7 @@ export function Mental({ setPage: _s }: Props) {
   useEffect(() => {
     async function load() {
       // Histórico: últimos 7 dias
-      const dates: string[] = []
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(); d.setDate(d.getDate() - i)
-        dates.push(d.toISOString().slice(0, 10))
-      }
+      const dates = lastNDays(7)
 
       if (user) {
         const [cloudEntry, cloudHistory] = await Promise.all([
@@ -83,10 +78,10 @@ export function Mental({ setPage: _s }: Props) {
       setReflectionLoading(true)
       const daily = user ? await getDaily(today) : null
       const habitsTotal = daily?.habits?.length ?? 0
-      const habitsDone  = daily?.habits?.filter(h => h.done).length ?? 0
-      const focusItems  = (daily?.focus ?? []).filter(f => f.text.trim())
-      const focusTotal  = focusItems.length
-      const focusDone   = focusItems.filter(f => f.done).length
+      const habitsDone = daily?.habits?.filter(h => h.done).length ?? 0
+      const focusItems = (daily?.focus ?? []).filter(f => f.text.trim())
+      const focusTotal = focusItems.length
+      const focusDone = focusItems.filter(f => f.done).length
 
       let question: string | null = null
       if (hasApiKey()) {
@@ -105,7 +100,7 @@ export function Mental({ setPage: _s }: Props) {
     }
     gen()
     return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded])
 
   const persist = (next: MentalEntry) => {
@@ -165,9 +160,9 @@ export function Mental({ setPage: _s }: Props) {
     })
   })
 
-  const hasMood   = entry.mood > 0
+  const hasMood = entry.mood > 0
   const hasEnergy = entry.energy > 0
-  const hasSleep  = entry.sleepHours != null
+  const hasSleep = entry.sleepHours != null
 
   function sleepFeedback(hours: number): string {
     if (hours < 6) return 'Pouco sono — priorize descansar hoje'
@@ -175,8 +170,8 @@ export function Mental({ setPage: _s }: Props) {
     if (hours <= 9) return 'Faixa ideal 💤'
     return 'Sono bem longo'
   }
-  const weekAvg   = Math.round(history.filter(h => h.mood > 0).reduce((s, h) => s + h.mood, 0) / Math.max(history.filter(h => h.mood > 0).length, 1))
-  const streak    = history.slice().reverse().findIndex(h => h.mood === 0)
+  const weekAvg = Math.round(history.filter(h => h.mood > 0).reduce((s, h) => s + h.mood, 0) / Math.max(history.filter(h => h.mood > 0).length, 1))
+  const streak = history.slice().reverse().findIndex(h => h.mood === 0)
   const streakDays = streak === -1 ? 7 : streak
 
   if (!loaded) {
@@ -353,10 +348,10 @@ export function Mental({ setPage: _s }: Props) {
             <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', marginBottom: 12 }}>
               {history.map((h, i) => {
                 const isToday = i === 6
-                const col     = h.mood > 0 ? MOOD_COLORS[h.mood - 1] : C.border
-                const ht      = h.mood > 0 ? h.mood * 14 + 10 : 8
-                const days    = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
-                const dow     = new Date(h.date + 'T12:00:00').getDay()
+                const col = h.mood > 0 ? MOOD_COLORS[h.mood - 1] : C.border
+                const ht = h.mood > 0 ? h.mood * 14 + 10 : 8
+                const days = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
+                const dow = new Date(h.date + 'T12:00:00').getDay()
                 return (
                   <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                     <div style={{ fontSize: T.text.base }}>{h.mood > 0 ? MOODS[h.mood - 1] : '—'}</div>

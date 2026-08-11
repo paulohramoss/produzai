@@ -154,64 +154,6 @@ Regras:
   return extractJSON(text)
 }
 
-const WORKOUT_TYPES = ['Corrida', 'Caminhada', 'Academia', 'Ciclismo', 'Natação', 'Futebol', 'Outro']
-const WORKOUT_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-
-async function handleParseWorkout(payload, apiKey) {
-  const { transcript, image } = payload ?? {}
-  const described = String(transcript ?? '').trim()
-  const hasImage = Boolean(image?.data) && WORKOUT_IMAGE_TYPES.includes(image?.mediaType)
-  // Sem texto e sem imagem não há o que extrair.
-  if (!described && !hasImage) return null
-
-  const system = `Você extrai dados estruturados de um treino descrito em português brasileiro — por texto falado/digitado ou por uma foto (print de relógio esportivo, painel de esteira, tela do Strava/Garmin Connect, ou foto do visor de um aparelho).
-
-Responda APENAS com JSON puro, sem markdown, sem crases, sem texto antes ou depois, no formato exato:
-{"type":"string","name":"string","durationMin":number,"dist":number,"effort":number,"hr":number}
-
-Regras:
-- "type": exatamente um destes valores: ${WORKOUT_TYPES.join(', ')} — escolha o mais próximo do que foi descrito
-- "name": nome curto para o treino (ex: "Corrida matinal", "Treino de pernas"); se não houver nome específico, gere um razoável a partir do tipo
-- "durationMin": duração em minutos (converta horas se falado em horas); se não mencionado, estime com base no tipo e na distância, ou use 30
-- "dist": distância em km (0 se não aplicável, ex: musculação). Se a tela mostrar milhas, converta para km
-- "effort": grau de esforço percebido de 1 a 5 (1=leve, 2=moderado, 3=intenso, 4=muito intenso, 5=máximo); se não mencionado, deduza do ritmo/FC ou use 3
-- "hr": frequência cardíaca média em bpm, 0 se não mencionado
-- Se for uma imagem, leia os números do visor: tempo, distância, pace/velocidade e frequência cardíaca média. Ignore dados que não sejam do treino
-- NÃO use markdown, comece a resposta direto com {`
-
-  const content = []
-  if (hasImage) {
-    content.push({
-      type: 'image',
-      source: { type: 'base64', media_type: image.mediaType, data: image.data },
-    })
-  }
-  content.push({
-    type: 'text',
-    text: described || 'Extraia os dados deste treino a partir da imagem.',
-  })
-
-  const text = await callClaude({
-    model: 'claude-haiku-4-5-20251001',
-    maxTokens: 512,
-    system,
-    messages: [{ role: 'user', content }],
-    apiKey,
-  })
-  if (!text) return null
-  const raw = extractJSON(text)
-  if (!raw) return null
-
-  return {
-    type: WORKOUT_TYPES.includes(raw.type) ? raw.type : 'Outro',
-    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Atividade',
-    durationMin: Math.max(1, Math.round(Number(raw.durationMin) || 30)),
-    dist: Math.max(0, Number(raw.dist) || 0),
-    effort: Math.min(5, Math.max(1, Math.round(Number(raw.effort) || 3))),
-    hr: Math.max(0, Math.round(Number(raw.hr) || 0)),
-  }
-}
-
 async function handleReflection(payload, apiKey) {
   const {
     habitsDone = 0,

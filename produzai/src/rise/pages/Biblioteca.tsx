@@ -106,8 +106,8 @@ export function Biblioteca({ setPage: _s }: Props) {
   return (
     <>
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], padding: 28, maxWidth: 440, width: '100%', position: 'relative' }}>
+        <div className="rise-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }}>
+          <div className="rise-modal" style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], padding: 'clamp(20px, 6vw, 28px)', maxWidth: 440, width: '100%', position: 'relative' }}>
             <button onClick={() => setModal(false)} style={{ position: 'absolute', top: 14, right: 16, background: 'transparent', border: 'none', color: C.muted, fontSize: T.text['5xl'], cursor: 'pointer' }}>×</button>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.extrabold, fontSize: 17, marginBottom: 18, ...displayStyle }}><BookOpen size={20} color={C.orange} /> Adicionar Livro</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

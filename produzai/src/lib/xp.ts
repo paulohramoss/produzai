@@ -1,4 +1,5 @@
 import type { ManualWorkout } from '../store/useWorkoutStore'
+import { toLocalISO } from './date'
 
 // ── Week utilities ─────────────────────────────────────────────────────────────
 
@@ -53,10 +54,6 @@ export function computeXP(workouts: ManualWorkout[]): number {
 }
 
 // ── Streak ────────────────────────────────────────────────────────────────────
-
-function toLocalISO(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 export function computeStreak(workouts: ManualWorkout[]): number {
   if (workouts.length === 0) return 0

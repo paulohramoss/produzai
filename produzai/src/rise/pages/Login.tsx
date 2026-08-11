@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { T, C, displayStyle } from '../data'
+import { T, C, displayStyle, safeInset } from '../data'
 import { useAuthStore } from '../../store/useAuthStore'
 import { PolicyOverlay } from '../components/ConsentModal'
 
@@ -70,14 +70,16 @@ export function Login() {
   const canSubmit = mode === 'login' || consentChecked
 
   return (
-    <div style={{
-      minHeight: '100vh',
+    <div className="rise-screen" style={{
       background: C.bg,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: 'system-ui, sans-serif',
-      padding: 20,
+      paddingTop:    safeInset('top', 20),
+      paddingBottom: safeInset('bottom', 20),
+      paddingLeft:   safeInset('left', 16),
+      paddingRight:  safeInset('right', 16),
     }}>
       <div style={{ width: '100%', maxWidth: 420 }}>
 
@@ -94,7 +96,7 @@ export function Login() {
         </div>
 
         {/* Card */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], padding: 32 }}>
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], padding: 'clamp(20px, 6vw, 32px)' }}>
           <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold, marginBottom: 24, color: C.text }}>
             {mode === 'login' ? 'Entrar na conta' : 'Criar conta'}
           </div>

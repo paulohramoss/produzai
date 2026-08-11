@@ -1,25 +1,33 @@
 import { useState, useEffect, useContext, useRef } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { Bell, Dumbbell, MessageSquare, Sun, Utensils, Zap } from 'lucide-react'
+import { MessageSquare, Sun, Utensils, Zap } from 'lucide-react'
 import { Card, Bar } from '../primitives'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
-import { getDaily } from '../../lib/db'
-import { toast } from '../../lib/toast'
+import { getDaily, getDailyHistory, type DailyData, type ReadinessEntry } from '../../lib/db'
 import { LayoutContext } from '../LayoutContext'
 import { DailyChecklist, type DailyChecklistHandle } from '../components/DailyChecklist'
 import { computeScore, type Habit, type FocusItem } from '../../lib/dailyScore'
+import { todayKey as localTodayKey, yesterdayKey, lastNDays } from '../../lib/date'
+import { ReadinessCard } from '../components/ReadinessCard'
+import { StreakCard } from '../components/StreakCard'
+import { NextSessionCard } from '../components/NextSessionCard'
+import { computeDayStreak, pendingIdsFor } from '../../lib/streaks'
 import { OneThingMode, type OneThing } from '../components/OneThingMode'
-import {
-  notificationsSupported, requestPermission, loadPrefs, savePrefs, applyPrefs,
-  type NotifPrefs,
-} from '../../lib/notifications'
+import { RemindersCard } from '../components/RemindersCard'
+import { WaterCard } from '../components/WaterCard'
+import { CycleCard } from '../components/CycleCard'
+import { formatLiters } from '../../lib/hydration'
+import { useReminderPrefs, useReminderScheduler } from '../../lib/useReminders'
 
 interface Props { setPage: (p: Page) => void }
 
+/** Janela de histórico usada pelas sequências — cobre streaks longas sem pesar. */
+const STREAK_WINDOW_DAYS = 60
+
 export function Hoje({ setPage }: Props) {
-  const todayKey   = new Date().toISOString().slice(0, 10)
+  const todayKey   = localTodayKey()
   const wd         = useWebDietStore(s => s.data)
   const user       = useAuthStore(s => s.user)
   const habitDefs  = useHabitsStore(s => s.defs)
@@ -27,23 +35,22 @@ export function Hoje({ setPage }: Props) {
 
   const [habits,        setHabits]        = useState<Habit[]>([])
   const [focus,         setFocus]         = useState<FocusItem[]>([])
-  const [notifPrefs,    setNotifPrefs]    = useState<NotifPrefs>(loadPrefs)
   const [missedYesterday, setMissedYesterday] = useState<Habit[]>([])
   const [showMissed,    setShowMissed]    = useState(true)
   const [oneThingOpen,  setOneThingOpen]  = useState(false)
+  const [readiness,     setReadiness]     = useState<ReadinessEntry | null>(null)
+  const [history,       setHistory]       = useState<Record<string, DailyData>>({})
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [waterMl,       setWaterMl]       = useState(0)
   const checklistRef = useRef<DailyChecklistHandle>(null)
 
-  // Apply saved notification schedule on mount
-  useEffect(() => {
-    if (notifPrefs.enabled) applyPrefs(notifPrefs)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const [reminderPrefs, setReminderPrefs] = useReminderPrefs(user?.uid)
 
   // Lembrete gentil: hábitos que ficaram pra depois ontem, com o "porquê"
   useEffect(() => {
     async function loadYesterday() {
       if (!user) return
-      const yKey = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      const yKey = yesterdayKey()
       const cloud = await getDaily(yKey)
       if (!cloud?.habits) { setMissedYesterday([]); return }
       const missed = cloud.habits
@@ -54,12 +61,30 @@ export function Hoje({ setPage }: Props) {
     loadYesterday()
   }, [user, todayKey, habitDefs])
 
+  // Histórico dos últimos 60 dias: alimenta as sequências e traz a prontidão de hoje.
+  useEffect(() => {
+    async function load() {
+      if (!user) { setHistoryLoading(false); return }
+      const days = await getDailyHistory(lastNDays(STREAK_WINDOW_DAYS))
+      setHistory(days)
+      setReadiness(days[todayKey]?.readiness ?? null)
+      setHistoryLoading(false)
+    }
+    load()
+  }, [user, todayKey])
+
+  // O checklist é a fonte viva do dia: espelhamos no histórico para a sequência
+  // reagir na hora em que o hábito é marcado, sem esperar uma nova leitura.
+  function syncHistoryToday(next: Habit[]) {
+    setHistory(prev => ({ ...prev, [todayKey]: { ...prev[todayKey], habits: next } }))
+  }
+
   // Modo "uma coisa": próxima ação mais importante — primeiro foco pendente,
   // senão o primeiro hábito pendente, senão tudo concluído
   function nextThing(): OneThing {
     const f = focus.find(x => x.text.trim() && !x.done)
     if (f) return { kind: 'focus', id: f.id, icon: '🎯', text: f.text }
-    const h = habits.find(x => !x.done)
+    const h = habits.find(x => !x.done && pendingIds.has(x.id))
     if (h) return { kind: 'habit', id: h.id, icon: h.icon, text: h.label, why: h.why }
     return { kind: 'done', id: '', icon: '🎉', text: '' }
   }
@@ -69,13 +94,35 @@ export function Hoje({ setPage }: Props) {
     else checklistRef.current?.toggleHabit(id)
   }
 
+  // Hábito de frequência com a meta da semana já batida não é pendência hoje —
+  // é justamente o dia de descanso planejado.
+  const pendingIds = pendingIdsFor(habitDefs, history, todayKey)
+  const dayStreak = computeDayStreak(habitDefs, history)
+
   const doneHabits = habits.filter(h => h.done).length
   const totalFocus = focus.filter(f => f.text).length
   const doneFocus  = focus.filter(f => f.done && f.text).length
   const meals      = [...(wd?.meals ?? [])].sort((a, b) => a.time.localeCompare(b.time))
   const doneMeals  = meals.filter(m => m.done)
+  const waterGoalMl = useWebDietStore(s => s.waterGoalMl)
+
+  // O agendador consulta este estado na hora do disparo: um lembrete de hábito
+  // já marcado, ou de sequência num dia já fechado, não chega a tocar.
+  useReminderScheduler(
+    reminderPrefs,
+    habitDefs.map(d => ({ id: d.id, icon: d.icon, label: d.label })),
+    todayKey,
+    () => ({
+      pendingHabitIds: habits.filter(h => !h.done && pendingIds.has(h.id)).map(h => h.id),
+      anythingLogged: habits.some(h => h.done)
+        || focus.some(f => f.done && f.text.trim())
+        || readiness !== null,
+      streakDays: dayStreak.count,
+      dayComplete: dayStreak.todayComplete,
+    }),
+  )
   const calEaten   = doneMeals.reduce((s, m) => s + m.cal, 0)
-  const score      = computeScore(habits, focus)
+  const score      = computeScore(habits, focus, pendingIds)
   const dateStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
@@ -112,17 +159,35 @@ export function Hoje({ setPage }: Props) {
           <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base }}>
             ✅ {doneHabits}/{habits.length} hábitos
           </div>
+          {dayStreak.count > 0 && (
+            <div style={{ background: `${C.orange}22`, borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base, color: C.orange, fontWeight: T.weight.bold }}>
+              🔥 {dayStreak.count} {dayStreak.count === 1 ? 'dia' : 'dias'}
+            </div>
+          )}
           {wd && (
             <div style={{ background: C.card2, borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base }}>
               🥗 {calEaten}/{wd.goals.cal} kcal
             </div>
           )}
+          <div style={{
+            background: waterMl >= waterGoalMl && waterMl > 0 ? `${C.green}22` : C.card2,
+            borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base,
+            color: waterMl >= waterGoalMl && waterMl > 0 ? C.green : undefined,
+            fontWeight: waterMl >= waterGoalMl && waterMl > 0 ? T.weight.bold : undefined,
+          }}>
+            💧 {formatLiters(waterMl)}/{formatLiters(waterGoalMl)}L
+          </div>
           {score > 0 && (
             <div style={{ background: `${C.orange}22`, borderRadius: T.radius.sm, padding: '5px 11px', fontSize: T.text.base, color: C.orange, fontWeight: T.weight.bold }}>
               ⚡ {score} pts
             </div>
           )}
         </div>
+      </div>
+
+      {/* Prontidão: primeira coisa do dia, antes de decidir o treino */}
+      <div style={{ marginBottom: 16 }}>
+        <ReadinessCard entry={readiness} onSaved={setReadiness} />
       </div>
 
       {/* Lembrete gentil: o que ficou pra depois ontem */}
@@ -158,23 +223,23 @@ export function Hoje({ setPage }: Props) {
             ref={checklistRef}
             date={todayKey}
             editable
-            onStateChange={s => { setHabits(s.habits); setFocus(s.focus) }}
+            onStateChange={s => { setHabits(s.habits); setFocus(s.focus); syncHistoryToday(s.habits) }}
           />
         </div>
 
         {/* ── Right ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          {/* Treino hoje */}
-          <Card onClick={() => setPage('treino')}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.xl, ...displayStyle }}><Dumbbell size={17} /> Treino</div>
-              <span onClick={e => { e.stopPropagation(); setPage('treino') }} style={{ fontSize: T.text.sm, color: C.orange, cursor: 'pointer' }}>+ Registrar</span>
-            </div>
-            <div style={{ fontSize: T.text.md, color: C.muted, textAlign: 'center', padding: '16px 0' }}>
-              Clique para registrar seu treino de hoje
-            </div>
-          </Card>
+          <StreakCard defs={habitDefs} history={history} loading={historyLoading} />
+
+          {/* Água: o gesto mais repetido do dia mora no check-in, não na Dieta */}
+          <WaterCard onChange={setWaterMl} />
+
+          {/* Ciclo — só renderiza quando a usuária ligou o acompanhamento */}
+          <CycleCard />
+
+          {/* Próximo treino do plano */}
+          <NextSessionCard setPage={setPage} />
 
           {/* Refeições */}
           <Card>
@@ -229,52 +294,7 @@ export function Hoje({ setPage }: Props) {
             </Card>
           )}
 
-          {/* Notificações */}
-          {notificationsSupported() && (
-            <Card style={{ border: `1px solid ${notifPrefs.enabled ? C.blue + '44' : C.border}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: notifPrefs.enabled ? 12 : 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, ...displayStyle }}><Bell size={17} /> Lembrete diário</div>
-                <button
-                  onClick={async () => {
-                    if (!notifPrefs.enabled) {
-                      const perm = await requestPermission()
-                      if (perm !== 'granted') { toast.error('Permissão de notificação negada'); return }
-                    }
-                    const next = { ...notifPrefs, enabled: !notifPrefs.enabled }
-                    setNotifPrefs(next)
-                    savePrefs(next)
-                    applyPrefs(next)
-                    toast.success(next.enabled ? '🔔 Lembrete ativado!' : '🔕 Lembrete desativado')
-                  }}
-                  style={{
-                    background: notifPrefs.enabled ? C.blue : C.card2,
-                    border: `1px solid ${notifPrefs.enabled ? C.blue : C.border2}`,
-                    borderRadius: T.radius.xs, padding: '4px 10px', fontSize: T.text.sm, fontWeight: T.weight.bold,
-                    color: notifPrefs.enabled ? '#fff' : C.muted, cursor: 'pointer',
-                  }}
-                >
-                  {notifPrefs.enabled ? 'Ativo' : 'Ativar'}
-                </button>
-              </div>
-              {notifPrefs.enabled && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: T.text.base, color: C.muted }}>Horário:</span>
-                  <input
-                    type="time"
-                    value={`${String(notifPrefs.hour).padStart(2, '0')}:${String(notifPrefs.minute).padStart(2, '0')}`}
-                    onChange={e => {
-                      const [h, m] = e.target.value.split(':').map(Number)
-                      const next = { ...notifPrefs, hour: h, minute: m }
-                      setNotifPrefs(next)
-                      savePrefs(next)
-                      applyPrefs(next)
-                    }}
-                    style={{ background: C.card2, border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '5px 8px', color: C.text, fontSize: T.text.md, outline: 'none', colorScheme: 'dark' }}
-                  />
-                </div>
-              )}
-            </Card>
-          )}
+          <RemindersCard prefs={reminderPrefs} onChange={setReminderPrefs} />
         </div>
       </div>
     </div>

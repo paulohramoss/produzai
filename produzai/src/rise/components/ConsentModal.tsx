@@ -3,7 +3,7 @@
 // Blocks access to the app until the user explicitly accepts.
 
 import { useState } from 'react';
-import { T, C } from '../data';
+import { T, C, safeInset } from '../data';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export function ConsentModal() {
@@ -22,14 +22,17 @@ export function ConsentModal() {
 
   return (
     <div
+      className="rise-screen"
       style={{
-        minHeight: '100vh',
         background: C.bg,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontFamily: 'system-ui, sans-serif',
-        padding: '20px 16px',
+        paddingTop:    safeInset('top', 20),
+        paddingBottom: safeInset('bottom', 20),
+        paddingLeft:   safeInset('left', 16),
+        paddingRight:  safeInset('right', 16),
       }}
     >
       <div style={{ width: '100%', maxWidth: 500 }}>
@@ -60,7 +63,7 @@ export function ConsentModal() {
             background: C.card,
             border: `1px solid ${C.border}`,
             borderRadius: T.radius['4xl'],
-            padding: 28,
+            padding: 'clamp(20px, 6vw, 28px)',
           }}
         >
           <div
@@ -228,7 +231,10 @@ export function PolicyOverlay({ onClose }: { onClose: () => void }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 16,
+        paddingTop:    safeInset('top', 16),
+        paddingBottom: safeInset('bottom', 16),
+        paddingLeft:   safeInset('left', 16),
+        paddingRight:  safeInset('right', 16),
       }}
     >
       <div
@@ -238,7 +244,7 @@ export function PolicyOverlay({ onClose }: { onClose: () => void }) {
           borderRadius: T.radius['3xl'],
           width: '100%',
           maxWidth: 600,
-          maxHeight: '90vh',
+          maxHeight: 'calc(100dvh - 48px)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -326,7 +332,13 @@ export function PrivacyPolicyText() {
         <li>
           <strong style={{ color: C.text }}>Saúde e biometria:</strong> peso,
           fotos de progresso físico, treinos realizados (distância, calorias,
-          tempo), plano alimentar, macronutrientes consumidos
+          tempo), observações e dor relatada nos treinos, plano alimentar,
+          macronutrientes consumidos
+        </li>
+        <li>
+          <strong style={{ color: C.text }}>Ciclo menstrual (opcional):</strong>{' '}
+          datas de início da menstruação e duração do ciclo — coletadas apenas se
+          você ligar o acompanhamento no Perfil, e apagadas ao desligá-lo
         </li>
         <li>
           <strong style={{ color: C.text }}>Comportamentais:</strong> hábitos
@@ -376,6 +388,15 @@ export function PrivacyPolicyText() {
       <p style={p}>
         Todos os operadores estão contratualmente obrigados a proteger seus
         dados.
+      </p>
+      <p style={p}>
+        Se você gerar um{' '}
+        <strong style={{ color: C.text }}>link para o treinador</strong> no
+        Perfil, um resumo dos seus últimos 14 dias (treinos, observações e dor,
+        prontidão, hidratação e adesão à dieta) fica acessível a qualquer pessoa
+        que tenha o endereço, sem senha. O compartilhamento parte só de você e
+        pode ser revogado a qualquer momento — dados do ciclo menstrual nunca
+        entram nesse resumo.
       </p>
 
       <h2 style={h2}>4. Retenção</h2>

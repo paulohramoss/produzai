@@ -14,7 +14,11 @@ function todayInfo() {
 }
 
 export function buildSystemPrompt(data) {
-  const { workouts = [], weekWorkouts = [], wd = null, habitDefs = [], userName } = data ?? {}
+  const {
+    workouts = [], weekWorkouts = [], wd = null, habitDefs = [], userName,
+    body = null, tdee = null, readiness = null, dayStreak = null,
+    load = null, plan = null,
+  } = data ?? {}
 
   const weekKm = Math.round(weekWorkouts.reduce((s, w) => s + (w.dist || 0), 0) * 10) / 10
   const weekCal = weekWorkouts.reduce((s, w) => s + (w.cal || 0), 0)
@@ -54,6 +58,26 @@ ${nutrition}
 
 ### Hábitos do usuário
 ${habitsSection}
+${dayStreak ? `- Sequência atual de dias fechados: ${dayStreak}` : ''}
+
+### Corpo
+${bodySection}
+
+### Prontidão de hoje
+${readinessSection}
+
+### Carga de treino
+${load
+  ? `- Últimos 7 dias: ${load.acute} UA | média de 4 semanas: ${load.chronic} UA
+- Razão aguda:crônica: ${load.acwr ?? 'ainda sem base'} — ${load.headline}`
+  : '- Sem carga calculada ainda'}
+
+### Plano da semana
+${plan && plan.sessions.length > 0
+  ? `- Grade: ${plan.sessions.join(' | ')}
+- Aderência da semana: ${plan.matched}/${plan.planned} (${plan.adherencePct}%)${plan.next ? `
+- Próximo treino previsto: ${plan.next}` : ''}`
+  : '- O usuário ainda não montou um plano semanal'}
 
 ${TRAINING_KNOWLEDGE}
 
@@ -65,14 +89,7 @@ ${TRAINING_KNOWLEDGE}
 - Use marcadores (•) para listas, não use markdown pesado
 - Quando falar de números, use os dados reais do usuário
 - Se o usuário não tiver dados suficientes, incentive-o a registrar mais
-- Ao sugerir treinos, planos semanais ou progressões, baseie-se na metodologia da seção "Base de conhecimento de treinamento" acima, adaptando ao nível e objetivo do usuário
-
-## Registrando treinos pelo chat
-- Quando o usuário contar que FEZ um treino ("corri 8km em 45min", "acabei de treinar perna", "joguei bola ontem"), chame a ferramenta registrar_treino em vez de mandar ele abrir a tela de treino
-- Preencha os campos que ele deu e estime o resto de forma razoável — não faça um interrogatório antes de registrar. Se algo importante ficar muito impreciso, registre mesmo assim e confirme depois em uma frase
-- Depois de registrar, comente o treino: relacione com a semana dele, com a meta, com o histórico. É isso que ele quer ouvir, não um "registrado com sucesso"
-- Nunca chame a ferramenta para treinos futuros, planos que você sugeriu ou atividades que ele só cogitou fazer
-- Se ele mandar uma foto de relógio, esteira ou app de corrida, leia os números e registre da mesma forma`
+- Ao sugerir treinos, planos semanais ou progressões, baseie-se na metodologia da seção "Base de conhecimento de treinamento" acima, adaptando ao nível e objetivo do usuário`
 }
 
 export function onboardingSystemPrompt(userName) {

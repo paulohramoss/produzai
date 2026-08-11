@@ -260,8 +260,8 @@ export function DietaModal({ onClose }: Props) {
     setGoals(g => ({ ...g, [k]: +v || 0 }))
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], width: '100%', maxWidth: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div className="rise-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
         {/* Header */}
         <div style={{ padding: '22px 24px 16px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
           <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 18, background: 'transparent', border: 'none', color: C.muted, fontSize: T.text['5xl'], cursor: 'pointer', lineHeight: 1 }}>×</button>

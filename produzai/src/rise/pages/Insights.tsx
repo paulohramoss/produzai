@@ -10,11 +10,13 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { useHabitsStore, type HabitDef } from '../../store/useHabitsStore'
 import { useWorkoutStore, type ManualWorkout } from '../../store/useWorkoutStore'
 import { useWebDietStore } from '../../store/useWebDietStore'
+import { useCycleStore } from '../../store/useCycleStore'
 import {
   getDailyHistory, getMentalHistory, getWeeklyReviews, saveWeeklyReview,
   type DailyData, type MentalEntry, type WeeklyReview,
 } from '../../lib/db'
 import { analyzePatterns, type PatternInsight } from '../../lib/patterns'
+import { lastNDays } from '../../lib/date'
 import { getWeekBuckets, aggregateWellbeingByWeek, compareTrainingVsRestDays } from '../../lib/performance'
 import { buildWeekPerformance, diagnoseWeek, findStrongestFactor } from '../../lib/performanceScore'
 import { hasApiKey, generateWeeklyReview } from '../../lib/anthropic'
@@ -31,14 +33,7 @@ const TONE_COLOR: Record<PatternInsight['tone'], string> = {
   attention: C.orange,
 }
 
-function lastDates(n: number): string[] {
-  const dates: string[] = []
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i)
-    dates.push(d.toISOString().slice(0, 10))
-  }
-  return dates
-}
+const lastDates = lastNDays
 
 function getISOWeekKey(date: Date): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
@@ -99,7 +94,16 @@ export function Insights({ setPage }: Props) {
   const habitDefs = useHabitsStore(s => s.defs)
   const workouts = useWorkoutStore(s => s.workouts)
   const dietCompliance = useWebDietStore(s => s.compliance)
+  const cycleEnabled      = useCycleStore(s => s.enabled)
+  const cycleStarts       = useCycleStore(s => s.starts)
+  const cycleAvgLength    = useCycleStore(s => s.avgLength)
+  const cyclePeriodLength = useCycleStore(s => s.periodLength)
   const { isMobile } = useContext(LayoutContext)
+
+  const cycle = useMemo(
+    () => ({ enabled: cycleEnabled, starts: cycleStarts, avgLength: cycleAvgLength, periodLength: cyclePeriodLength }),
+    [cycleEnabled, cycleStarts, cycleAvgLength, cyclePeriodLength],
+  )
 
   const [loaded, setLoaded] = useState(false)
   const [dailyHistory, setDailyHistory] = useState<Record<string, DailyData>>({})
@@ -127,8 +131,8 @@ export function Insights({ setPage }: Props) {
   const insights = analyzePatterns({ dailyHistory, mentalHistory, habitDefs, workouts })
 
   const weekPerformance = useMemo(
-    () => buildWeekPerformance(lastDates(7), mentalHistory, dietCompliance, workouts),
-    [mentalHistory, dietCompliance, workouts],
+    () => buildWeekPerformance(lastDates(7), mentalHistory, dietCompliance, workouts, dailyHistory, cycle),
+    [mentalHistory, dietCompliance, workouts, dailyHistory, cycle],
   )
   const weekDiagnosis = useMemo(() => diagnoseWeek(weekPerformance), [weekPerformance])
   const strongestFactor = useMemo(() => findStrongestFactor(weekPerformance), [weekPerformance])
@@ -271,7 +275,7 @@ export function Insights({ setPage }: Props) {
           </>
         ) : (
           <div style={{ fontSize: T.text.md, color: C.muted, textAlign: 'center', padding: '20px 0' }}>
-            Registre sono (na página Mental), dieta e treinos por alguns dias para ver seu espelho de performance.
+            Faça o check-in de prontidão na página Hoje e registre dieta e treinos por alguns dias para ver seu espelho de performance.
           </div>
         )}
       </Card>

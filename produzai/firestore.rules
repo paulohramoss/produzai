@@ -61,6 +61,18 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Link read-only do treinador: `coachShares/{token}` guarda um RESUMO
+    // publicado pelo atleta — nunca uma chave para users/{uid}. A leitura é
+    // aberta porque o treinador não tem conta; o token de 160 bits na URL é o
+    // segredo. Só o dono grava, e apagar o documento revoga o link na hora.
+    match /coachShares/{token} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+                            && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+
     // Tudo mais negado
     match /{document=**} {
       allow read, write: if false;

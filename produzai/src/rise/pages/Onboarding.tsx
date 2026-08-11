@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
-import { T, C, displayStyle } from '../data'
-import { CheckCircle2, Gem, Target, Utensils } from 'lucide-react'
+import { T, C, displayStyle, safeInset } from '../data'
+import { CheckCircle2, Gem, Scale, Target, Utensils } from 'lucide-react'
 import { Tag } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
 import { saveProfile, saveDaily } from '../../lib/db'
+import { todayKey } from '../../lib/date'
+import { OnboardingBody } from '../components/OnboardingBody'
+import { EMPTY_BODY_DRAFT, draftToBody, draftMacros, type BodyDraft } from '../../lib/bodyDraft'
+import type { BodyInput } from '../../lib/body'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
 import { toast } from '../../lib/toast'
@@ -28,6 +32,28 @@ export function Onboarding() {
   return <ConversationalOnboarding onSwitchToQuick={() => setMode('quick')} />
 }
 
+/** Campos corporais com valor, prontos para o Firestore (que rejeita null/undefined). */
+function cleanBody(body: BodyInput): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(body)) {
+    if (v !== null && v !== undefined) out[k] = v
+  }
+  return out
+}
+
+/** Espelha o corpo recém-informado no store para o app já usar sem recarregar. */
+function applyBodyToStore(body: BodyInput) {
+  useAuthStore.setState(s => ({
+    body: {
+      weightKg:      body.weightKg      ?? s.body.weightKg,
+      heightCm:      body.heightCm      ?? s.body.heightCm,
+      birthDate:     body.birthDate     ?? s.body.birthDate,
+      sex:           body.sex           ?? s.body.sex,
+      activityLevel: body.activityLevel ?? s.body.activityLevel,
+    },
+  }))
+}
+
 // ── Onboarding conversacional ───────────────────────────────────────────────
 
 function openingMessage(firstName: string): string {
@@ -48,6 +74,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
   const [generating, setGenerating] = useState(false)
   const [plan, setPlan]             = useState<OnboardingPlan | null>(null)
   const [excluded, setExcluded]     = useState<Set<number>>(new Set())
+  const [bodyDraft, setBodyDraft]   = useState<BodyDraft>(EMPTY_BODY_DRAFT)
   const [saving, setSaving]         = useState(false)
 
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -126,11 +153,14 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
       }))
 
     if (habits.length > 0) setHabitDefs(habits)
-    if (plan.macros && plan.macros.cal > 0) setupDiet(plan.macros)
+    // Macros calculados a partir do corpo do usuário ganham do palpite da IA —
+    // um vem do gasto energético dele, o outro de uma conversa.
+    const computed = draftMacros(bodyDraft)
+    if (computed) setupDiet({ cal: computed.cal, prot: computed.prot, carb: computed.carb, fat: computed.fat })
+    else if (plan.macros && plan.macros.cal > 0) setupDiet(plan.macros)
 
     if (plan.focusSuggestion) {
-      const todayKey = new Date().toISOString().slice(0, 10)
-      saveDaily(todayKey, {
+      saveDaily(todayKey(), {
         focus: [
           { id: '1', text: plan.focusSuggestion, done: false },
           { id: '2', text: '', done: false },
@@ -139,13 +169,16 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
       })
     }
 
+    const body = draftToBody(bodyDraft)
     await saveProfile({
       onboardingDone: true,
       createdAt: Date.now(),
       goals: plan.goals,
       values: plan.values,
       onboardingSummary: plan.summary,
+      ...cleanBody(body),
     })
+    applyBodyToStore(body)
     setOnboardingDone(true)
     toast.success(`🚀 Bem-vindo ao The Rise Plan, ${firstName}!`)
   }
@@ -153,9 +186,13 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
   const inputDisabled = streaming || generating
 
   return (
-    <div style={{
-      minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column',
-      alignItems: 'center', fontFamily: 'system-ui, sans-serif', padding: '20px 16px',
+    <div className="rise-screen" style={{
+      background: C.bg, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', fontFamily: 'system-ui, sans-serif',
+      paddingTop:    safeInset('top', 20),
+      paddingBottom: safeInset('bottom', 20),
+      paddingLeft:   safeInset('left', 16),
+      paddingRight:  safeInset('right', 16),
     }}>
       <div style={{ width: '100%', maxWidth: 620 }}>
 
@@ -269,9 +306,25 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
                   Responda pelo menos uma vez para liberar o seu plano.
                 </div>
               )}
-              <span onClick={onSwitchToQuick} style={{ fontSize: T.text.base, color: C.muted, cursor: 'pointer', textDecoration: 'underline' }}>
-                Prefiro o modo rápido (sem conversa)
-              </span>
+              <button
+                onClick={onSwitchToQuick}
+                style={{
+                  width: '100%', padding: '12px', borderRadius: T.radius.lg,
+                  border: `1.5px solid ${C.border2}`, background: C.card2,
+                  color: C.text, fontSize: T.text.lg, fontWeight: T.weight.semibold,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = C.orange
+                  e.currentTarget.style.color = C.orange
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = C.border2
+                  e.currentTarget.style.color = C.text
+                }}
+              >
+                ⚡ Prefiro o modo rápido (sem conversa)
+              </button>
             </div>
           </>
         ) : (
@@ -279,6 +332,8 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
             plan={plan}
             excluded={excluded}
             toggleHabit={toggleHabit}
+            bodyDraft={bodyDraft}
+            setBodyDraft={patch => setBodyDraft(d => ({ ...d, ...patch }))}
             saving={saving}
             onBack={() => setPlan(null)}
             onConfirm={confirmPlan}
@@ -291,10 +346,12 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
 
 // ── Tela de revisão do plano gerado ─────────────────────────────────────────
 
-function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: {
+function PlanReview({ plan, excluded, toggleHabit, bodyDraft, setBodyDraft, saving, onBack, onConfirm }: {
   plan: OnboardingPlan
   excluded: Set<number>
   toggleHabit: (i: number) => void
+  bodyDraft: BodyDraft
+  setBodyDraft: (patch: Partial<BodyDraft>) => void
   saving: boolean
   onBack: () => void
   onConfirm: () => void
@@ -373,8 +430,19 @@ function PlanReview({ plan, excluded, toggleHabit, saving, onBack, onConfirm }: 
         </div>
       )}
 
-      {/* Macros */}
-      {plan.macros && plan.macros.cal > 0 && (
+      {/* Corpo — destrava gasto calórico real, macros e contexto para o Coach */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 4, ...displayStyle }}>
+          <Scale size={17} /> Seus dados corporais
+        </div>
+        <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 12, lineHeight: 1.5 }}>
+          Opcional, mas é o que transforma estimativa em número seu.
+        </div>
+        <OnboardingBody draft={bodyDraft} setDraft={setBodyDraft} />
+      </div>
+
+      {/* Macros sugeridos pela IA — só aparecem quando o cálculo pelo corpo não existe */}
+      {!draftMacros(bodyDraft) && plan.macros && plan.macros.cal > 0 && (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius.xl, padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.bold, fontSize: T.text.lg, marginBottom: 12, ...displayStyle }}><Utensils size={17} /> Metas nutricionais sugeridas</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
@@ -452,13 +520,28 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
   // Step 0 — objetivos
   const [selectedGoals, setSelectedGoals] = useState<string[]>([])
 
-  // Step 1 — metas nutricionais
-  const [macros, setMacros] = useState({ cal: 2000, prot: 150, carb: 200, fat: 60 })
+  // Step 1 — corpo e metas nutricionais. Os macros começam num valor genérico e
+  // são sobrescritos assim que o corpo permite calcular o gasto real.
+  const [bodyDraft, setBodyDraft] = useState<BodyDraft>(EMPTY_BODY_DRAFT)
+  const [manualMacros, setManualMacros] = useState({ cal: 2000, prot: 150, carb: 200, fat: 60 })
+  const [macrosTouched, setMacrosTouched] = useState(false)
+  const suggestion = draftMacros(bodyDraft)
+
+  // Enquanto o usuário não mexer nos sliders, eles seguem o cálculo pelo corpo.
+  // Assim que ele arrasta um, o valor manual passa a mandar.
+  const macros = !macrosTouched && suggestion
+    ? { cal: suggestion.cal, prot: suggestion.prot, carb: suggestion.carb, fat: suggestion.fat }
+    : manualMacros
+
+  function setMacro(key: 'cal' | 'prot' | 'carb' | 'fat', value: number) {
+    setManualMacros({ ...macros, [key]: value })
+    setMacrosTouched(true)
+  }
 
   // Step 2 — hábitos
   const [selectedHabits, setSelectedHabits] = useState<string[]>(['agua', 'treino', 'leitura', 'proteina'])
 
-  const STEPS = ['Seus objetivos', 'Nutrição', 'Hábitos diários']
+  const STEPS = ['Seus objetivos', 'Corpo e nutrição', 'Hábitos diários']
   const firstName = user?.displayName?.split(' ')[0] || 'atleta'
 
   function toggleGoal(id: string) {
@@ -480,20 +563,24 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
     setHabitDefs(habits)
     // Marca onboarding como concluído no Firestore
     const goals = GOALS_OPTIONS.filter(g => selectedGoals.includes(g.id)).map(g => g.label)
-    await saveProfile({ onboardingDone: true, createdAt: Date.now(), goals })
+    const body = draftToBody(bodyDraft)
+    await saveProfile({ onboardingDone: true, createdAt: Date.now(), goals, ...cleanBody(body) })
+    applyBodyToStore(body)
     setOnboardingDone(true)
     toast.success(`🚀 Bem-vindo ao The Rise Plan, ${firstName}!`)
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
+    <div className="rise-screen" style={{
       background: C.bg,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: 'system-ui, sans-serif',
-      padding: 20,
+      paddingTop:    safeInset('top', 20),
+      paddingBottom: safeInset('bottom', 20),
+      paddingLeft:   safeInset('left', 16),
+      paddingRight:  safeInset('right', 16),
     }}>
       <div style={{ width: '100%', maxWidth: 520 }}>
 
@@ -573,8 +660,16 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
         {/* ── STEP 1: Nutrição ── */}
         {step === 1 && (
           <div className="fade-in">
-            <div style={{ fontWeight: T.weight.bold, fontSize: 17, marginBottom: 6 }}>Metas nutricionais diárias</div>
+            <div style={{ fontWeight: T.weight.bold, fontSize: 17, marginBottom: 6 }}>Seu peso e suas metas</div>
             <div style={{ fontSize: T.text.md, color: C.muted, marginBottom: 20 }}>Você pode ajustar depois na página de Dieta</div>
+
+            <div style={{ marginBottom: 16 }}>
+              <OnboardingBody draft={bodyDraft} setDraft={patch => setBodyDraft(d => ({ ...d, ...patch }))} />
+            </div>
+
+            <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 10 }}>
+              {suggestion ? 'Ajuste fino, se quiser:' : 'Ou defina na mão:'}
+            </div>
 
             <div style={{
               background: '#1A1A1A', borderRadius: T.radius.lg, padding: 16, marginBottom: 20,
@@ -596,7 +691,7 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
                   <input
                     type="range" min={min} max={max} step={s}
                     value={macros[k]}
-                    onChange={e => setMacros(m => ({ ...m, [k]: +e.target.value }))}
+                    onChange={e => setMacro(k, +e.target.value)}
                     style={{ width: '100%', accentColor: color }}
                   />
                 </div>

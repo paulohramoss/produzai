@@ -20,12 +20,26 @@ import { setUserStorageUid } from '../lib/userStorage'
 import {
   setDbUid, getProfile, getWorkouts, getDiet, getHydration,
   saveProfile, deleteAllUserData,
-  getCoachConversations, saveCoachConversations,
 } from '../lib/db'
+import { todayKey } from '../lib/date'
 import { useWorkoutStore } from './useWorkoutStore'
 import { useWebDietStore } from './useWebDietStore'
 import { useHabitsStore } from './useHabitsStore'
 import { useCoachStore } from './useCoachStore'
+import { usePlanStore } from './usePlanStore'
+import { useCycleStore } from './useCycleStore'
+
+export interface BodyProfile {
+  weightKg:      number | null
+  heightCm:      number | null
+  birthDate:     string | null
+  sex:           'masculino' | 'feminino' | null
+  activityLevel: ActivityLevel | null
+}
+
+const EMPTY_BODY: BodyProfile = {
+  weightKg: null, heightCm: null, birthDate: null, sex: null, activityLevel: null,
+}
 
 interface AuthState {
   user:              User | null
@@ -36,6 +50,15 @@ interface AuthState {
   initialized:       boolean
   onboardingDone:    boolean
   consentAccepted:   boolean
+  /** Dados corporais — cada campo é null enquanto o usuário não informa. */
+  body:              BodyProfile
+  /** Histórico de pesagens, em ordem crescente de data. */
+  weightLog:         WeightEntry[]
+  /** Atualiza um ou mais campos corporais no perfil. */
+  setBody:           (patch: Partial<BodyProfile>) => Promise<void>
+  /** Registra a pesagem do dia (substitui a do mesmo dia) e atualiza o peso atual. */
+  logWeight:         (kg: number, date?: string) => Promise<void>
+  removeWeightEntry: (date: string) => Promise<void>
   login:             (email: string, password: string) => Promise<void>
   loginWithGoogle:   () => Promise<void>
   register:          (name: string, email: string, password: string) => Promise<void>
@@ -71,46 +94,13 @@ async function loadFirestoreData() {
   }
 
   await useHabitsStore.getState().loadFromCloud()
-  await loadCoachConversations()
+  useCoachStore.persist.rehydrate()
 }
 
-// Histórico do Coach: local e nuvem são unidos, nunca substituídos, para que
-// nenhuma conversa se perca — nem a que só existe neste aparelho, nem a que só
-// existe na nuvem (localStorage limpo, outro navegador, aba anônima).
-async function loadCoachConversations() {
-  await useCoachStore.persist.rehydrate()
-  const read = await getCoachConversations()
-  if (!read.ok) return   // falha de leitura: mantém o local intacto e não toca na nuvem
-
-  if (read.items === null) {
-    // Ainda não sincronizado neste usuário — sobe o que houver localmente.
-    const local = useCoachStore.getState().conversations
-    if (local.length > 0) saveCoachConversations(local)
-    return
-  }
-
-  useCoachStore.getState().mergeConversations(read.items)
-
-  // Devolve para a nuvem se o local tinha algo que ela não tinha.
-  const merged = useCoachStore.getState().conversations
-  const cloudUpdatedAt = new Map(read.items.map(c => [c.id, c.updatedAt]))
-  const needsPush = merged.length !== read.items.length
-    || merged.some(c => cloudUpdatedAt.get(c.id) !== c.updatedAt)
-  if (needsPush) saveCoachConversations(merged)
-}
-
-// Zera apenas o estado em memória ao sair.
-//
-// A ORDEM IMPORTA: o middleware `persist` do zustand grava em disco a cada
-// setState, então limpar os stores com o uid ainda ativo escrevia o estado
-// vazio por cima do histórico salvo do usuário — era assim que a conversa com o
-// Coach sumia. Soltando o uid antes, o userStorage ignora essas escritas.
-function clearSessionState() {
-  setUserStorageUid('')
-  setDbUid('')
+function clearStores() {
   useWorkoutStore.setState({ workouts: [] })
   useWebDietStore.setState({ data: null })
-  useCoachStore.setState({ conversations: [], activeId: null })
+  useCoachStore.setState({ messages: [] })
 }
 
 function firebaseErrorMsg(e: unknown): string {
@@ -130,7 +120,7 @@ function firebaseErrorMsg(e: unknown): string {
   }
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user:            null,
   displayName:     null,
   photoURL:        null,
@@ -139,6 +129,44 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialized:     false,
   onboardingDone:  false,
   consentAccepted: false,
+  body:            EMPTY_BODY,
+  weightLog:       [],
+
+  setBody: async (patch) => {
+    const body = { ...get().body, ...patch }
+    set({ body })
+    // O Firestore rejeita `undefined`; null significa "informado como vazio",
+    // então só mandamos o que tem valor de verdade.
+    const toSave: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(patch)) {
+      if (v !== null && v !== undefined) toSave[k] = v
+    }
+    if (Object.keys(toSave).length > 0) await saveProfile(toSave)
+  },
+
+  logWeight: async (kg, date = todayKey()) => {
+    const next = [...get().weightLog.filter(e => e.date !== date), { date, kg }]
+      .sort((a, b) => a.date.localeCompare(b.date))
+    set({ weightLog: next })
+    await saveWeightLog(next)
+    // O peso "atual" do perfil é sempre a pesagem mais recente registrada.
+    const latest = next[next.length - 1]
+    if (latest.date === date || latest.kg !== get().body.weightKg) {
+      set(s => ({ body: { ...s.body, weightKg: latest.kg } }))
+      await saveProfile({ weightKg: latest.kg })
+    }
+  },
+
+  removeWeightEntry: async (date) => {
+    const next = get().weightLog.filter(e => e.date !== date)
+    set({ weightLog: next })
+    await saveWeightLog(next)
+    const latest = next[next.length - 1]
+    if (latest) {
+      set(s => ({ body: { ...s.body, weightKg: latest.kg } }))
+      await saveProfile({ weightKg: latest.kg })
+    }
+  },
 
   login: async (email, password) => {
     set({ loading: true, error: null })
@@ -164,10 +192,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null })
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, password)
-      await updateProfile(user, { displayName: name.trim() || email.split('@')[0] })
-      // Record consent immediately after account creation (checkbox was required)
-      setDbUid(user.uid)
-      await saveProfile({ consentAt: Date.now() })
+      // A conta já existe daqui pra frente: nenhuma falha de perfil pode
+      // devolver o usuário para o formulário de cadastro.
+      try {
+        await updateProfile(user, { displayName: name.trim() || email.split('@')[0] })
+        // Record consent immediately after account creation (checkbox was required)
+        setDbUid(user.uid)
+        await saveProfile({ consentAt: Date.now() })
+      } catch (e) {
+        console.error('[auth] cadastro criado, mas o perfil inicial falhou', e)
+      }
+      set({ consentAccepted: true, loading: false })
     } catch (e) {
       set({ error: firebaseErrorMsg(e), loading: false })
     }
@@ -242,10 +277,25 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (user) {
         setUserStorageUid(user.uid)
         setDbUid(user.uid)
-        const [profile] = await Promise.all([
-          getProfile(),
-          loadFirestoreData(),
-        ])
+
+        // A carga da nuvem NUNCA pode impedir a entrada: se o Firestore falhar
+        // (offline, regra negada, doc inexistente logo após o cadastro), o
+        // `set` abaixo ainda precisa rodar — senão `user` fica null, `loading`
+        // fica true e a tela de login trava no "Aguarde...".
+        let profile: Awaited<ReturnType<typeof getProfile>> = null
+        let weightLog: WeightEntry[] = []
+        try {
+          const [p, w] = await Promise.all([
+            getProfile(),
+            getWeightLog(),
+            loadFirestoreData(),
+          ])
+          profile = p
+          weightLog = w
+        } catch (e) {
+          console.error('[auth] falha ao carregar dados do usuário', e)
+        }
+
         set({
           user,
           displayName:     user.displayName,
@@ -253,10 +303,22 @@ export const useAuthStore = create<AuthState>((set) => ({
           loading:         false,
           initialized:     true,
           onboardingDone:  profile?.onboardingDone ?? false,
-          consentAccepted: !!(profile?.consentAt),
+          // O cadastro já grava o consentimento, mas a escrita é assíncrona e
+          // pode não estar visível nesta leitura — não peça consentimento de novo.
+          consentAccepted: !!(profile?.consentAt) || get().consentAccepted,
+          body: {
+            weightKg:      profile?.weightKg ?? null,
+            heightCm:      profile?.heightCm ?? null,
+            birthDate:     profile?.birthDate ?? null,
+            sex:           profile?.sex ?? null,
+            activityLevel: profile?.activityLevel ?? null,
+          },
+          weightLog,
         })
       } else {
-        clearSessionState()
+        clearStores()
+        setUserStorageUid('')
+        setDbUid('')
         set({ user: null, loading: false, initialized: true, onboardingDone: false, consentAccepted: false })
       }
     })

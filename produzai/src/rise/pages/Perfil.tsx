@@ -1,4 +1,4 @@
-import { useState, useRef, useContext, useEffect } from 'react'
+import { useState, useRef, useContext } from 'react'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../lib/firebase'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -8,7 +8,9 @@ import { User } from 'lucide-react'
 import { Card, Avatar } from '../primitives'
 import { LayoutContext } from '../LayoutContext'
 import { PolicyOverlay } from '../components/ConsentModal'
-import { getStravaStatus, goToStravaConnect, disconnectStrava, type StravaStatus } from '../../lib/strava'
+import { CorpoSection } from '../components/CorpoSection'
+import { CycleSettingsCard } from '../components/CycleSettingsCard'
+import { CoachShareCard } from '../components/CoachShareCard'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -57,27 +59,6 @@ export function Perfil({ setPage }: Props) {
   const [deletePass, setDeletePass]   = useState('')
   const [deleteError, setDeleteError] = useState('')
   const [policyOpen, setPolicyOpen]   = useState(false)
-
-  // ── Strava ──────────────────────────────────────────────────────────────────
-  const [stravaStatus, setStravaStatus]   = useState<StravaStatus>({ connected: false })
-  const [stravaLoading, setStravaLoading] = useState(true)
-  const [disconnecting, setDisconnecting] = useState(false)
-
-  useEffect(() => {
-    getStravaStatus().then(s => { setStravaStatus(s); setStravaLoading(false) })
-  }, [])
-
-  async function handleDisconnectStrava() {
-    setDisconnecting(true)
-    const ok = await disconnectStrava()
-    setDisconnecting(false)
-    if (ok) {
-      setStravaStatus({ connected: false })
-      toast.success('Strava desconectado')
-    } else {
-      toast.error('Erro ao desconectar do Strava')
-    }
-  }
 
   const isEmailUser  = user?.providerData.some(p => p.providerId === 'password') ?? false
   const isGoogleUser = user?.providerData.some(p => p.providerId === 'google.com') ?? false
@@ -250,6 +231,18 @@ export function Perfil({ setPage }: Props) {
         </div>
       </Section>
 
+      <CorpoSection />
+
+      {/* ── Ciclo menstrual (opt-in) ──────────────────────────────────────── */}
+      <Section title="Ciclo menstrual">
+        <CycleSettingsCard />
+      </Section>
+
+      {/* ── Link do treinador ─────────────────────────────────────────────── */}
+      <Section title="Compartilhar com treinador">
+        <CoachShareCard />
+      </Section>
+
       {/* ── Conta ─────────────────────────────────────────────────────────── */}
       <Section title="Conta">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -285,60 +278,6 @@ export function Perfil({ setPage }: Props) {
             </div>
           </div>
         </div>
-      </Section>
-
-      {/* ── Integrações ───────────────────────────────────────────────────── */}
-      <Section title="Integrações">
-        {stravaLoading ? (
-          <div style={{ fontSize: T.text.md, color: C.muted }}>Verificando conexão...</div>
-        ) : stravaStatus.connected ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
-              background: C.card2, border: `2px solid ${C.running}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {stravaStatus.athlete?.profile ? (
-                <img src={stravaStatus.athlete.profile} alt="Strava" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: 20 }}>🏃</span>
-              )}
-            </div>
-            <div style={{ flex: 1, minWidth: 140 }}>
-              <div style={{ fontSize: T.text.md, fontWeight: T.weight.bold, color: C.text }}>
-                {stravaStatus.athlete?.name || 'Conta Strava'}
-              </div>
-              <div style={{ fontSize: T.text.sm, color: C.running, fontWeight: T.weight.semibold }}>● Conectado</div>
-            </div>
-            <button
-              onClick={handleDisconnectStrava}
-              disabled={disconnecting}
-              style={{
-                background: 'transparent', border: `1px solid ${C.border2}`, borderRadius: T.radius.md,
-                padding: '9px 16px', color: C.muted, fontSize: T.text.md, fontWeight: T.weight.semibold,
-                cursor: disconnecting ? 'default' : 'pointer', whiteSpace: 'nowrap',
-              }}
-            >
-              {disconnecting ? '...' : 'Desconectar'}
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 200, fontSize: T.text.base, color: C.muted, lineHeight: 1.6 }}>
-              Conecte sua conta Strava para importar suas atividades automaticamente e ver pace, distância e frequência cardíaca reais na página de Treino.
-            </div>
-            <button
-              onClick={goToStravaConnect}
-              style={{
-                background: C.running, border: 'none', borderRadius: T.radius.md,
-                padding: '10px 18px', color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold,
-                cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8,
-              }}
-            >
-              🏃 Conectar com Strava
-            </button>
-          </div>
-        )}
       </Section>
 
       {/* ── Alterar senha ─────────────────────────────────────────────────── */}

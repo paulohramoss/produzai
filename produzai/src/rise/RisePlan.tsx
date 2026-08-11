@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { LayoutDashboard, Sun, Dumbbell, Brain, Bot, Menu } from "lucide-react";
-import { T, C, NAV_GROUPS, type Page } from "./data";
+import { T, C, NAV_GROUPS, safeInset, safePlus, type Page } from "./data";
 import { Dashboard }    from "./pages/Dashboard";
 import { Treino }       from "./pages/Treino";
 import { Dieta }        from "./pages/Dieta";
@@ -20,15 +20,6 @@ import { ConsentModal } from "./components/ConsentModal";
 import { Toaster }      from "./components/Toaster";
 import { useAuthStore } from "../store/useAuthStore";
 import { LayoutContext } from "./LayoutContext";
-import { toast } from "../lib/toast";
-
-const STRAVA_REDIRECT_MESSAGES: Record<string, { type: "success" | "error" | "info"; text: string }> = {
-  connected:     { type: "success", text: "🏃 Strava conectado com sucesso!" },
-  denied:        { type: "info",    text: "Conexão com o Strava cancelada" },
-  missing_scope: { type: "error",   text: "Autorize o acesso às atividades para conectar o Strava" },
-  invalid_state: { type: "error",   text: "Sessão do Strava expirou, tente novamente" },
-  error:         { type: "error",   text: "Erro ao conectar com o Strava" },
-};
 
 const RISE_IMPLEMENTED: Page[] = [
   "dashboard", "hoje", "historico", "treino", "dieta", "agenda",
@@ -49,9 +40,7 @@ const SIDEBAR_ICON = 62;
 
 export function RisePlan() {
   const { user, displayName, photoURL, logout, onboardingDone, consentAccepted } = useAuthStore();
-  const [page, setPage]         = useState<Page>(() => (
-    new URLSearchParams(window.location.search).get("strava") ? "perfil" : "dashboard"
-  ));
+  const [page, setPage]         = useState<Page>("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
   const [windowW, setWindowW]   = useState(window.innerWidth);
 
@@ -59,14 +48,6 @@ export function RisePlan() {
     const handler = () => setWindowW(window.innerWidth);
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
-  }, []);
-
-  useEffect(() => {
-    const status = new URLSearchParams(window.location.search).get("strava");
-    if (!status) return;
-    const msg = STRAVA_REDIRECT_MESSAGES[status];
-    if (msg) toast[msg.type](msg.text);
-    window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
   const isMobile = windowW < 768;
@@ -100,9 +81,8 @@ export function RisePlan() {
 
   return (
     <LayoutContext.Provider value={{ isMobile, isTablet, menuOpen, setMenuOpen }}>
-      <div style={{
+      <div className="rise-screen" style={{
         display: "flex",
-        minHeight: "100vh",
         background: C.bg,
         color: C.text,
         fontFamily: "system-ui,sans-serif",
@@ -129,7 +109,8 @@ export function RisePlan() {
           borderRight: `1px solid ${C.border}`,
           display: "flex",
           flexDirection: "column",
-          padding: "20px 0",
+          paddingTop: safeInset("top", 20),
+          paddingBottom: safeInset("bottom", 20),
           flexShrink: 0,
           overflowY: "auto",
           overflowX: "hidden",
@@ -138,7 +119,9 @@ export function RisePlan() {
             position: "fixed" as const,
             top: 0,
             left: 0,
+            // 100dvh acompanha a barra do navegador; 100vh fica de fallback.
             height: "100vh",
+            maxHeight: "100dvh",
             width: SIDEBAR_FULL,
             zIndex: 50,
             transform: menuOpen ? "translateX(0)" : `translateX(-${SIDEBAR_FULL}px)`,
@@ -283,9 +266,11 @@ export function RisePlan() {
           overflowY: "auto",
           minWidth: 0,
           paddingTop:    isMobile ? 0   : isTablet ? 24 : 28,
-          paddingLeft:   isMobile ? 16  : isTablet ? 20 : 28,
-          paddingRight:  isMobile ? 16  : isTablet ? 20 : 28,
-          paddingBottom: isMobile ? 80  : isTablet ? 24 : 28,
+          paddingLeft:   safeInset("left",  isMobile ? 16 : isTablet ? 20 : 28),
+          paddingRight:  safeInset("right", isMobile ? 16 : isTablet ? 20 : 28),
+          // No celular o rodapé fixo (64px) mais a barra de gestos comem o fim
+          // da página: sem esta folga o último card fica inalcançável.
+          paddingBottom: isMobile ? safePlus("bottom", 80) : isTablet ? 24 : 28,
         }}>
           {/* Top bar — mobile only */}
           {isMobile && (
@@ -296,7 +281,8 @@ export function RisePlan() {
               display: "flex",
               alignItems: "center",
               gap: 12,
-              padding: "12px 0 14px",
+              paddingTop: safePlus("top", 12),
+              paddingBottom: 14,
               marginBottom: 8,
               background: C.bg,
               borderBottom: `1px solid ${C.border}`,
