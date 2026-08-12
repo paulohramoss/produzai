@@ -3,5 +3,11 @@
   "outputDirectory": "produzai/dist",
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/push/cron",
+      "schedule": "0 11 * * *"
+    }
   ]
 }
