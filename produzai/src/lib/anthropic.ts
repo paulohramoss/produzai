@@ -30,6 +30,29 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   attachment?: ChatAttachment
+  /** Presente no turno do assistente que pediu ferramentas. */
+  toolUses?: ChatToolUse[]
+  /** Presente no turno de usuário que devolve o resultado delas. */
+  toolResults?: ChatToolResult[]
+}
+
+export interface CoachBodyContext {
+  weightKg?: number | null
+  heightCm?: number | null
+  age?: number | null
+  sex?: string | null
+  /** Frase pronta, ex: "descendo 0.4 kg/semana nos últimos 28 dias". */
+  weightTrend?: string
+}
+
+export interface CoachReadinessContext {
+  score: number
+  headline: string
+  sleepHours: number
+  sleepQuality: number
+  soreness: number
+  drive: number
+  restingHr?: number
 }
 
 export interface CoachContext {

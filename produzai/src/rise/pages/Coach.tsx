@@ -8,7 +8,19 @@ import { useHabitsStore } from '../../store/useHabitsStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useCoachStore } from '../../store/useCoachStore'
 import { exportAllCSV, exportWorkoutsCSV, exportDietCSV } from '../../lib/exportData'
-import { streamCoach, type ChatMessage, type ChatAttachment } from '../../lib/anthropic'
+import {
+  streamCoach,
+  type ChatMessage, type ChatAttachment, type ChatToolUse, type ChatToolResult,
+} from '../../lib/anthropic'
+import { buildWorkout, type WorkoutDraft } from '../../lib/workouts'
+import { ageFromBirthDate, computeTdee, weightTrend } from '../../lib/body'
+import { computeDayStreak } from '../../lib/streaks'
+import { computeReadiness } from '../../lib/readiness'
+import { computeTrainingLoad } from '../../lib/trainingLoad'
+import { nextSession, weekAdherence, WEEKDAY_SHORT } from '../../lib/weekPlan'
+import { usePlanStore } from '../../store/usePlanStore'
+import { getDailyHistory, type DailyData, type ReadinessEntry } from '../../lib/db'
+import { lastNDays, todayKey } from '../../lib/date'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 
@@ -52,10 +64,31 @@ export function Coach({ setPage }: Props) {
   const wd        = useWebDietStore(s => s.data)
   const habitDefs = useHabitsStore(s => s.defs)
   const user      = useAuthStore(s => s.user)
+  const weightKg  = useAuthStore(s => s.body.weightKg)
+  const body      = useAuthStore(s => s.body)
+  const weightLog = useAuthStore(s => s.weightLog)
+  const planSessions = usePlanStore(s => s.sessions)
 
-  const messages    = useCoachStore(s => s.messages)
-  const setMessages = useCoachStore(s => s.setMessages)
-  const clearCoach  = useCoachStore(s => s.clear)
+  const conversations       = useCoachStore(s => s.conversations)
+  const activeId            = useCoachStore(s => s.activeId)
+  const startNewConv        = useCoachStore(s => s.startNew)
+  const setActiveConv       = useCoachStore(s => s.setActive)
+  const setConvMessages     = useCoachStore(s => s.setMessages)
+  const removeConversation  = useCoachStore(s => s.removeConversation)
+
+  const activeConversation = conversations.find(c => c.id === activeId) ?? null
+  const messages = activeConversation?.messages ?? EMPTY_MESSAGES
+  const sortedConversations = useMemo(
+    () => [...conversations].sort((a, b) => b.updatedAt - a.updatedAt),
+    [conversations],
+  )
+
+  // Histórico recente: dá ao Coach a prontidão de hoje e a sequência de dias.
+  const [dailyHistory, setDailyHistory] = useState<Record<string, DailyData>>({})
+  useEffect(() => {
+    if (!user) return
+    getDailyHistory(lastNDays(45)).then(setDailyHistory)
+  }, [user])
 
   const [showExport, setShowExport] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
@@ -148,7 +181,112 @@ export function Coach({ setPage }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamText])
 
+  // Nunca deixa a página sem sessão aberta: se nenhuma conversa estiver ativa
+  // (entrada na página, ou histórico que acabou de chegar da nuvem), reabre a
+  // mais recente em vez de mostrar um chat vazio.
+  useEffect(() => {
+    if (activeId === null && sortedConversations.length > 0) {
+      setActiveConv(sortedConversations[0].id)
+    }
+  }, [activeId, sortedConversations, setActiveConv])
+
+  // ── Ferramentas do Coach ──────────────────────────────────────────────────
+  // O histórico de treinos vive no cliente, então quem executa a ferramenta
+  // somos nós — o servidor só declara o contrato dela.
+  function runTool(use: ChatToolUse): ChatToolResult {
+    if (use.name !== 'registrar_treino') {
+      return { id: use.id, content: `Ferramenta desconhecida: ${use.name}`, isError: true }
+    }
+    try {
+      const workout = buildWorkout({ ...(use.input as WorkoutDraft), weightKg })
+      addWorkout(workout)
+      toast.success(`🏋 ${workout.name} registrado`)
+      return {
+        id: use.id,
+        content: JSON.stringify({
+          registrado: true,
+          tipo: workout.type,
+          nome: workout.name,
+          data: workout.rawDate,
+          duracao: workout.time,
+          distanciaKm: workout.dist,
+          pace: workout.pace,
+          calorias: workout.cal,
+        }),
+      }
+    } catch {
+      return { id: use.id, content: 'Não foi possível registrar o treino.', isError: true }
+    }
+  }
+
   // ── Send ──────────────────────────────────────────────────────────────────
+  async function runTurn(convId: string, history: ChatMessage[], round: number): Promise<void> {
+    setStreamText('')
+
+    let full = ''
+    let toolUses: ChatToolUse[] = []
+    let failed = false
+
+    // Contexto sempre do estado atual: um treino registrado na volta anterior
+    // precisa aparecer aqui para o Coach comentar em cima do número certo.
+    const current = useWorkoutStore.getState().workouts
+
+    await streamCoach(
+      history,
+      {
+        type: 'coach',
+        workouts: current,
+        weekWorkouts: current.filter(w => {
+          const [y, m, d] = w.rawDate.split('-').map(Number)
+          return new Date(y, m - 1, d) >= weekStart
+        }),
+        wd,
+        habitDefs,
+        userName: user?.displayName || undefined,
+        body: bodyContext,
+        tdee: computeTdee(body),
+        readiness: readinessContext,
+        dayStreak,
+        load: loadContext,
+        plan: planContext,
+      },
+      chunk => { full += chunk; setStreamText(full) },
+      uses => { toolUses = uses },
+      err => {
+        toast.error('Erro no Coach: ' + err)
+        failed = true
+      },
+    )
+
+    setStreamText('')
+    if (failed) {
+      setStreaming(false)
+      return
+    }
+
+    let next: ChatMessage[] = [
+      ...history,
+      { role: 'assistant', content: full, ...(toolUses.length > 0 ? { toolUses } : {}) },
+    ]
+    setConvMessages(convId, next)
+
+    if (toolUses.length === 0) {
+      setStreaming(false)
+      return
+    }
+
+    // Todo tool_use precisa de um tool_result, mesmo no teto de rodadas —
+    // um pedido sem resposta invalidaria as próximas mensagens da conversa.
+    next = [...next, { role: 'user', content: '', toolResults: toolUses.map(runTool) }]
+    setConvMessages(convId, next)
+
+    if (round >= MAX_TOOL_ROUNDS) {
+      setStreaming(false)
+      return
+    }
+    await runTurn(convId, next, round + 1)
+  }
+
   async function send(text: string) {
     const trimmed = text.trim()
     if ((!trimmed && !attachment) || streaming) return
@@ -365,40 +503,81 @@ export function Coach({ setPage }: Props) {
           )}
 
           {/* Messages */}
-          {messages.map((msg, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+          {messages.map((msg, i) => {
+            // O turno que devolve o resultado da ferramenta é protocolo, não conversa.
+            if (isToolResultMessage(msg)) return null
+            const registered = msg.toolUses?.filter(t => t.name === 'registrar_treino') ?? []
+            const hasBubble = Boolean(msg.content.trim() || msg.attachment)
+
+            return (
               <div
+                key={i}
                 style={{
-                  maxWidth: '82%',
-                  padding: '10px 14px',
-                  borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  background: msg.role === 'user' ? C.orange : C.card2,
-                  color: msg.role === 'user' ? '#fff' : C.text,
-                  fontSize: T.text.md,
-                  lineHeight: 1.65,
-                  whiteSpace: 'pre-wrap',
+                  display: 'flex', flexDirection: 'column', gap: 6,
+                  alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
                 }}
               >
-                {msg.attachment && (
-                  <div style={{ marginBottom: msg.content ? 8 : 0 }}>
-                    {msg.attachment.mediaType.startsWith('image/') && msg.attachment.data ? (
-                      <img
-                        src={`data:${msg.attachment.mediaType};base64,${msg.attachment.data}`}
-                        alt={msg.attachment.name}
-                        style={{ maxWidth: '100%', maxHeight: 200, borderRadius: T.radius.md, display: 'block' }}
-                      />
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,.15)', borderRadius: T.radius.sm, padding: '6px 10px' }}>
-                        <span style={{ fontSize: T.text.lg }}>📄</span>
-                        <span style={{ fontSize: T.text.base }}>{msg.attachment.name}</span>
+                {hasBubble && (
+                  <div
+                    style={{
+                      maxWidth: '82%',
+                      padding: '10px 14px',
+                      borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                      background: msg.role === 'user' ? C.orange : C.card2,
+                      color: msg.role === 'user' ? '#fff' : C.text,
+                      fontSize: T.text.md,
+                      lineHeight: 1.65,
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {msg.attachment && (
+                      <div style={{ marginBottom: msg.content ? 8 : 0 }}>
+                        {msg.attachment.mediaType.startsWith('image/') && msg.attachment.data ? (
+                          <img
+                            src={`data:${msg.attachment.mediaType};base64,${msg.attachment.data}`}
+                            alt={msg.attachment.name}
+                            style={{ maxWidth: '100%', maxHeight: 200, borderRadius: T.radius.md, display: 'block' }}
+                          />
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,.15)', borderRadius: T.radius.sm, padding: '6px 10px' }}>
+                            <span style={{ fontSize: T.text.lg }}>📄</span>
+                            <span style={{ fontSize: T.text.base }}>{msg.attachment.name}</span>
+                          </div>
+                        )}
                       </div>
                     )}
+                    {msg.content}
                   </div>
                 )}
-                {msg.content}
+
+                {registered.map(use => {
+                  const w = buildWorkout({ ...(use.input as WorkoutDraft), weightKg })
+                  return (
+                    <div
+                      key={use.id}
+                      onClick={() => setPage('treino')}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                        background: `${C.purple}18`, border: `1px solid ${C.purple}55`,
+                        borderRadius: T.radius.md, padding: '8px 12px', maxWidth: '82%',
+                      }}
+                    >
+                      <span style={{ fontSize: T.text.xl }}>🏋</span>
+                      <div>
+                        <div style={{ fontSize: T.text.base, fontWeight: T.weight.bold, color: C.text }}>
+                          {w.name} · {w.date}
+                        </div>
+                        <div style={{ fontSize: T.text.sm, color: C.muted }}>
+                          {[w.time, w.dist > 0 ? `${w.dist} km` : null, `${w.cal} kcal`]
+                            .filter(Boolean).join(' · ')} — registrado no seu treino
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {/* Streaming bubble */}
           {streaming && (
@@ -511,6 +690,76 @@ export function Coach({ setPage }: Props) {
           </div>
         </div>
       </Card>
+
+      {/* Histórico de conversas */}
+      {showHistory && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowHistory(false) }}
+          className="rise-overlay"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 24, width: '100%', maxWidth: 460, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: T.text['2xl'], fontWeight: T.weight.extrabold }}>Conversas anteriores</div>
+              <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 22, lineHeight: 1 }}>×</button>
+            </div>
+
+            <button
+              onClick={handleStartNew}
+              style={{ width: '100%', background: C.orange, border: 'none', borderRadius: T.radius.md, padding: '10px', color: '#fff', fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer', marginBottom: 14, flexShrink: 0 }}
+            >
+              + Nova conversa
+            </button>
+
+            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {sortedConversations.map(c => (
+                <div
+                  key={c.id}
+                  onClick={() => { setActiveConv(c.id); setShowHistory(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: T.radius.md, cursor: 'pointer',
+                    background: c.id === activeId ? `${C.orange}18` : C.card2,
+                    border: `1px solid ${c.id === activeId ? C.orange + '44' : C.border}`,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: T.text.md, fontWeight: T.weight.semibold, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {c.title}
+                    </div>
+                    <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 2 }}>
+                      {formatConversationDate(c.updatedAt)} · {c.messages.length} mensagens
+                    </div>
+                  </div>
+                  {confirmDeleteId === c.id ? (
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleRemoveConversation(c.id) }}
+                        style={{ background: C.red, border: 'none', borderRadius: T.radius.xs, padding: '4px 10px', color: '#fff', fontSize: T.text.sm, fontWeight: T.weight.bold, cursor: 'pointer' }}
+                      >
+                        Excluir
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setConfirmDeleteId(null) }}
+                        style={{ background: 'none', border: `1px solid ${C.border2}`, borderRadius: T.radius.xs, padding: '4px 10px', color: C.muted, fontSize: T.text.sm, cursor: 'pointer' }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={e => { e.stopPropagation(); handleRemoveConversation(c.id) }}
+                      title="Excluir conversa"
+                      style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: 4, flexShrink: 0 }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

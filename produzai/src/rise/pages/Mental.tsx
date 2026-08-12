@@ -8,6 +8,8 @@ import { toast } from '../../lib/toast'
 import { userStorage } from '../../lib/userStorage'
 import { LayoutContext } from '../LayoutContext'
 import { hasApiKey, generateReflectionQuestion, fallbackReflectionQuestion } from '../../lib/anthropic'
+import { todayKey as localTodayKey, lastNDays } from '../../lib/date'
+import { useSpeechToText } from '../../lib/useSpeechToText'
 
 interface Props { setPage: (p: Page) => void }
 

@@ -20,6 +20,9 @@ import { setUserStorageUid } from '../lib/userStorage'
 import {
   setDbUid, getProfile, getWorkouts, getDiet, getHydration,
   saveProfile, deleteAllUserData,
+  getCoachConversations, saveCoachConversations,
+  getWeightLog, saveWeightLog,
+  type ActivityLevel, type WeightEntry,
 } from '../lib/db'
 import { todayKey } from '../lib/date'
 import { useWorkoutStore } from './useWorkoutStore'
@@ -94,13 +97,51 @@ async function loadFirestoreData() {
   }
 
   await useHabitsStore.getState().loadFromCloud()
-  useCoachStore.persist.rehydrate()
+  usePlanStore.persist.rehydrate()
+  await usePlanStore.getState().loadFromCloud()
+  await useCycleStore.getState().load()
+  await loadCoachConversations()
 }
 
-function clearStores() {
+// Histórico do Coach: local e nuvem são unidos, nunca substituídos, para que
+// nenhuma conversa se perca — nem a que só existe neste aparelho, nem a que só
+// existe na nuvem (localStorage limpo, outro navegador, aba anônima).
+async function loadCoachConversations() {
+  await useCoachStore.persist.rehydrate()
+  const read = await getCoachConversations()
+  if (!read.ok) return   // falha de leitura: mantém o local intacto e não toca na nuvem
+
+  if (read.items === null) {
+    // Ainda não sincronizado neste usuário — sobe o que houver localmente.
+    const local = useCoachStore.getState().conversations
+    if (local.length > 0) saveCoachConversations(local)
+    return
+  }
+
+  useCoachStore.getState().mergeConversations(read.items)
+
+  // Devolve para a nuvem se o local tinha algo que ela não tinha.
+  const merged = useCoachStore.getState().conversations
+  const cloudUpdatedAt = new Map(read.items.map(c => [c.id, c.updatedAt]))
+  const needsPush = merged.length !== read.items.length
+    || merged.some(c => cloudUpdatedAt.get(c.id) !== c.updatedAt)
+  if (needsPush) saveCoachConversations(merged)
+}
+
+// Zera apenas o estado em memória ao sair.
+//
+// A ORDEM IMPORTA: o middleware `persist` do zustand grava em disco a cada
+// setState, então limpar os stores com o uid ainda ativo escrevia o estado
+// vazio por cima do histórico salvo do usuário — era assim que a conversa com o
+// Coach sumia. Soltando o uid antes, o userStorage ignora essas escritas.
+function clearSessionState() {
+  setUserStorageUid('')
+  setDbUid('')
   useWorkoutStore.setState({ workouts: [] })
   useWebDietStore.setState({ data: null })
-  useCoachStore.setState({ messages: [] })
+  usePlanStore.setState({ sessions: [] })
+  useCoachStore.setState({ conversations: [], activeId: null })
+  useCycleStore.getState().reset()
 }
 
 function firebaseErrorMsg(e: unknown): string {
@@ -316,10 +357,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           weightLog,
         })
       } else {
-        clearStores()
-        setUserStorageUid('')
-        setDbUid('')
-        set({ user: null, loading: false, initialized: true, onboardingDone: false, consentAccepted: false })
+        clearSessionState()
+        set({
+          user: null, loading: false, initialized: true,
+          onboardingDone: false, consentAccepted: false,
+          body: EMPTY_BODY, weightLog: [],
+        })
       }
     })
     return unsub

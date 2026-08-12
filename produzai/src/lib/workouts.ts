@@ -4,7 +4,9 @@
 
 import { estimateCalories, type EffortLevel } from './calories'
 import { calcPace, formatDuration, friendlyDate } from './performance'
+import { todayKey } from './date'
 import type { ManualWorkout } from '../store/useWorkoutStore'
+import type { Exercise } from './strength'
 
 export const ACTIVITY_TYPES = ['Corrida', 'Caminhada', 'Academia', 'Ciclismo', 'Natação', 'Futebol', 'Outro']
 
@@ -39,11 +41,8 @@ export function usesDistance(type: string): boolean {
 /** Esforço assumido quando ninguém escolhe: moderado. */
 export const DEFAULT_EFFORT: EffortLevel = 2
 
-export function todayISO(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
+/** Data de hoje no fuso local — fonte única em lib/date.ts. */
+export const todayISO = todayKey
 
 export interface WorkoutDraft {
   type?: string
@@ -54,7 +53,21 @@ export interface WorkoutDraft {
   hr?: number | string
   /** "YYYY-MM-DD". Ausente ou inválida vira hoje; futura é puxada para hoje. */
   date?: string
+  /** Peso do usuário em kg — sem ele o gasto calórico cai no peso de referência. */
+  weightKg?: number | null
+  /** Exercícios de força, quando houver. Séries vazias são descartadas. */
+  exercises?: Exercise[]
+  /** Como o treino foi, em texto livre. */
+  notes?: string
+  /** Dor sentida, 1 a 5. Zero, vazio ou fora da faixa = sem dor a relatar. */
+  painLevel?: number | string
+  /** Onde doeu. Ignorado sem painLevel. */
+  painArea?: string
 }
+
+/** Nota longa demais só atrapalha a leitura (do usuário e do Coach). */
+const MAX_NOTES = 500
+const MAX_PAIN_AREA = 60
 
 function normalizeDate(raw?: string): string {
   const today = todayISO()
@@ -89,6 +102,12 @@ export function buildWorkout(draft: WorkoutDraft): Omit<ManualWorkout, 'id'> {
 
   const rawDate = normalizeDate(draft.date)
   const name = draft.name?.trim() || DEFAULT_NAMES[type] || 'Atividade'
+  const exercises = sanitizeExercises(draft.exercises)
+
+  const notes = draft.notes?.trim().slice(0, MAX_NOTES) ?? ''
+  const rawPain = Math.round(Number(draft.painLevel))
+  const painLevel = Number.isFinite(rawPain) && rawPain >= 1 ? Math.min(5, rawPain) : 0
+  const painArea = draft.painArea?.trim().slice(0, MAX_PAIN_AREA) ?? ''
 
   return {
     type,
@@ -98,10 +117,28 @@ export function buildWorkout(draft: WorkoutDraft): Omit<ManualWorkout, 'id'> {
     dist,
     pace: calcPace(durationMin, dist),
     time: formatDuration(durationMin),
-    cal: estimateCalories(type, durationMin, effort),
+    cal: estimateCalories(type, durationMin, effort, draft.weightKg),
     hr,
     elev: 0,
     effort,
     source: 'manual',
+    ...(exercises.length > 0 ? { exercises } : {}),
+    ...(notes ? { notes } : {}),
+    ...(painLevel > 0 ? { painLevel } : {}),
+    ...(painLevel > 0 && painArea ? { painArea } : {}),
   }
+}
+
+/** Limpa o que o usuário deixou pela metade: exercício sem nome ou sem série útil. */
+function sanitizeExercises(raw?: Exercise[]): Exercise[] {
+  if (!raw) return []
+  return raw
+    .map(e => ({
+      name: e.name.trim(),
+      sets: e.sets.filter(s => Number(s.reps) > 0).map(s => ({
+        reps: Math.min(999, Math.round(Number(s.reps))),
+        weightKg: Math.max(0, Math.min(1000, Number(s.weightKg) || 0)),
+      })),
+    }))
+    .filter(e => e.name.length > 0 && e.sets.length > 0)
 }

@@ -39,6 +39,26 @@ export function buildSystemPrompt(data) {
     ? habitDefs.map(h => `  • ${h.icon} ${h.label}`).join('\n')
     : '  Sem hábitos configurados'
 
+  const bodyLines = [
+    body?.weightKg ? `- Peso: ${body.weightKg} kg` : null,
+    body?.heightCm ? `- Altura: ${body.heightCm} cm` : null,
+    body?.age ? `- Idade: ${body.age} anos` : null,
+    body?.sex ? `- Sexo: ${body.sex}` : null,
+    body?.weightTrend ? `- Tendência de peso: ${body.weightTrend}` : null,
+    tdee ? `- Gasto energético estimado (TDEE): ${tdee} kcal/dia` : null,
+  ].filter(Boolean)
+
+  const bodySection = bodyLines.length > 0
+    ? bodyLines.join('\n')
+    : '- O usuário ainda não registrou dados corporais'
+
+  const readinessSection = readiness
+    ? `- Score de prontidão: ${readiness.score}/100 — ${readiness.headline}
+- Sono: ${readiness.sleepHours}h (qualidade ${readiness.sleepQuality}/5)
+- Dor muscular: ${readiness.soreness}/5 | Disposição: ${readiness.drive}/5${readiness.restingHr ? `
+- Frequência cardíaca de repouso: ${readiness.restingHr} bpm` : ''}`
+    : '- Sem check-in de prontidão hoje'
+
   const today = todayInfo()
 
   return `Você é o Coach IA do Rise Plan, um assistente pessoal de saúde, performance e desenvolvimento humano.
@@ -89,7 +109,18 @@ ${TRAINING_KNOWLEDGE}
 - Use marcadores (•) para listas, não use markdown pesado
 - Quando falar de números, use os dados reais do usuário
 - Se o usuário não tiver dados suficientes, incentive-o a registrar mais
-- Ao sugerir treinos, planos semanais ou progressões, baseie-se na metodologia da seção "Base de conhecimento de treinamento" acima, adaptando ao nível e objetivo do usuário`
+- Ao sugerir treinos, planos semanais ou progressões, baseie-se na metodologia da seção "Base de conhecimento de treinamento" acima, adaptando ao nível e objetivo do usuário
+- Respeite a prontidão do dia: com prontidão baixa, não mande puxar — sugira volume menor, técnica ou descanso, e diga o porquê
+- Respeite a carga: com a razão aguda:crônica acima de 1.3, não sugira aumentar volume nem intensidade nesta semana
+- Quando existir plano semanal, fale em cima dele: o que vem, o que ficou para trás, o que ajustar
+- Se faltarem dados do corpo, diga uma vez que preencher peso, altura, idade e sexo no Perfil deixa suas contas de caloria e macro específicas, e siga ajudando com o que tem
+
+## Registrando treinos pelo chat
+- Quando o usuário contar que FEZ um treino ("corri 8km em 45min", "acabei de treinar perna", "joguei bola ontem"), chame a ferramenta registrar_treino em vez de mandar ele abrir a tela de treino
+- Preencha os campos que ele deu e estime o resto de forma razoável — não faça um interrogatório antes de registrar. Se algo importante ficar muito impreciso, registre mesmo assim e confirme depois em uma frase
+- Depois de registrar, comente o treino: relacione com a semana dele, com a meta, com o histórico. É isso que ele quer ouvir, não um "registrado com sucesso"
+- Nunca chame a ferramenta para treinos futuros, planos que você sugeriu ou atividades que ele só cogitou fazer
+- Se ele mandar uma foto de relógio, esteira ou app de corrida, leia os números e registre da mesma forma`
 }
 
 export function onboardingSystemPrompt(userName) {
