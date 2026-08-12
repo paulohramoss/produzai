@@ -15,6 +15,15 @@ const EMPTY_MEAL: Omit<WebDietMeal, 'id'> = {
   time: '', name: '', cal: 0, prot: 0, carb: 0, fat: 0, done: false, items: [],
 }
 
+// Quantas colunas couberem na largura do contêiner, nunca mais estreitas que o
+// mínimo. Em quatro colunas fixas, num aparelho de 320px cada campo de macro
+// ficava com 6px úteis — nem o "0" do placeholder cabia — e todos os rótulos
+// quebravam em duas linhas.
+const MACRO_COLS = 'repeat(auto-fit, minmax(96px, 1fr))'
+
+// Hora e Nome: em 320px o "Café da manhã" não cabia na coluna do Nome.
+const MEAL_HEAD_COLS = 'repeat(auto-fit, minmax(132px, 1fr))'
+
 const inputStyle = {
   background: C.card,
   border: `1px solid ${C.border2}`,
@@ -96,7 +105,7 @@ function MealFormBlock({ form, onChange, onAppendItems, onSubmit, onCancel, subm
 
   return (
     <div style={{ background: C.card2, borderRadius: T.radius.lg, padding: 16, border: `1px solid ${C.border2}` }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 10, marginBottom: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: MEAL_HEAD_COLS, gap: 10, marginBottom: 10 }}>
         <div>
           <label style={labelStyle}>Hora</label>
           <input type="text" placeholder="07:00" value={form.time} onChange={e => onChange('time', e.target.value)} style={inputStyle} />
@@ -122,7 +131,7 @@ function MealFormBlock({ form, onChange, onAppendItems, onSubmit, onCancel, subm
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             type="text"
-            placeholder="3 ovos mexidos, Aveia 60g, Banana"
+            placeholder="Ovos, aveia"
             value={itemsToString(form.items)}
             onChange={e => onChange('items', e.target.value)}
             onBlur={calcIfChanged}
@@ -144,7 +153,7 @@ function MealFormBlock({ form, onChange, onAppendItems, onSubmit, onCancel, subm
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: MACRO_COLS, gap: 10, marginBottom: 12 }}>
         {([
           { k: 'cal', l: 'Kcal', c: C.orange },
           { k: 'prot', l: 'Prot (g)', c: C.blue },
@@ -303,7 +312,7 @@ export function DietaModal({ onClose }: Props) {
           {/* Goals */}
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontSize: T.text.sm, color: C.muted, fontWeight: T.weight.bold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>Metas diárias</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: MACRO_COLS, gap: 10, marginBottom: 12 }}>
               {([
                 { k: 'cal', l: 'Calorias', u: 'kcal', c: C.orange },
                 { k: 'prot', l: 'Proteína', u: 'g', c: C.blue },

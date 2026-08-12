@@ -59,6 +59,13 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 }
 
+// Duas colunas quando cabem, uma quando não cabem. O corte é a largura do
+// contêiner, não a da janela: dentro do modal sobra bem menos que a tela, e o
+// `isMobile` do layout é um único corte em 768px — largo demais para separar um
+// 320 de um 414. Com 120px de mínimo, "DISTÂNCIA (KM)" e "FC MÉDIA (BPM)" cabem
+// em uma linha e os placeholders não truncam.
+const FORM_COLS = 'repeat(auto-fit, minmax(120px, 1fr))'
+
 const labelStyle: React.CSSProperties = {
   fontSize: T.text.sm,
   color: C.muted,
@@ -670,7 +677,7 @@ export function Treino({ setPage }: Props) {
             </div>
 
             {/* Essencial: duração e, em cardio, distância. O resto é derivado. */}
-            <div style={{ display: 'grid', gridTemplateColumns: usesDistance(form.type) ? '1fr 1fr' : '1fr', gap: 14, marginBottom: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: usesDistance(form.type) ? FORM_COLS : '1fr', gap: 14, marginBottom: 12 }}>
               <div>
                 <label style={labelStyle}>Duração (min) *</label>
                 <input
@@ -721,7 +728,7 @@ export function Treino({ setPage }: Props) {
               </button>
 
               {showMore && (
-                <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: FORM_COLS, gap: 14 }}>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={labelStyle}>Nome</label>
                     <input

@@ -7,7 +7,7 @@
 // (largura mínima intrínseca sem `min-width: 0`) e modais sem teto de altura
 // deixavam o botão de confirmar fora da tela em aparelho baixo.
 
-import { openSession, seededUser } from '../lib/app.mjs'
+import { openSession, seededUser, uidFor } from '../lib/app.mjs'
 
 const PHONE = { width: 320, height: 568 }   // o menor aparelho em uso
 const PHONE_TALL = { width: 390, height: 844 }
@@ -57,6 +57,61 @@ const openModalBox = () => {
   if (!panel) return null
   const r = panel.getBoundingClientRect()
   return { top: Math.round(r.top), bottom: Math.round(r.bottom), vh: window.innerHeight }
+}
+
+/**
+ * Campos que cabem na caixa mas não no texto: rótulo quebrado em duas linhas ou
+ * placeholder cortado. Nada disso estoura a largura da página, então passa
+ * batido por `overflowProbe` — foi assim que "DISTÂNCIA (KM)" em duas linhas e
+ * "ex: 5.2" virando "ex:" ficaram no ar por meses num aparelho de 320px.
+ */
+const fieldTextFits = () => {
+  const ruler = document.createElement('canvas').getContext('2d')
+  const ruim = []
+
+  const larguraDoTexto = (texto, cs) => {
+    ruler.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+    const espaco = parseFloat(cs.letterSpacing)
+    return ruler.measureText(texto).width + (Number.isNaN(espaco) ? 0 : espaco * texto.length)
+  }
+
+  // O <label> pode envolver o campo; nesse caso o texto está num filho.
+  const rotuloDe = (el) => {
+    const host = (el.id && document.querySelector(`label[for="${el.id}"]`))
+      || el.closest('label')
+      || (el.previousElementSibling?.tagName === 'LABEL' ? el.previousElementSibling : null)
+    if (!host) return null
+    if (!host.contains(el)) return host
+    return [...host.children].find(c => !c.contains(el) && c.textContent.trim()) ?? null
+  }
+
+  const campos = [...document.querySelectorAll(
+    'input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), select',
+  )].filter(el => el.getBoundingClientRect().width > 0)
+
+  for (const el of campos) {
+    const cs = getComputedStyle(el)
+    const r = el.getBoundingClientRect()
+
+    const rot = rotuloDe(el)
+    if (rot) {
+      const rcs = getComputedStyle(rot)
+      const alturaLinha = parseFloat(rcs.lineHeight) || parseFloat(rcs.fontSize) * 1.2
+      const linhas = Math.round(rot.getBoundingClientRect().height / alturaLinha)
+      if (linhas > 1) ruim.push(`rótulo "${rot.textContent.trim()}" em ${linhas} linhas`)
+    }
+
+    // Chrome reserva espaço interno para os spinners de input[type=number].
+    const util = r.width
+      - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0)
+      - (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0)
+      - (el.type === 'number' ? 16 : 0)
+
+    if (el.placeholder && larguraDoTexto(el.placeholder, cs) > util) {
+      ruim.push(`placeholder "${el.placeholder}" cortado (cabe ${Math.round(util)}px)`)
+    }
+  }
+  return ruim
 }
 
 const PAGES = ['Dashboard', 'Hoje', 'Histórico', 'Treino', 'Dieta', 'Agenda', 'Projetos', 'Mental', 'Biblioteca', 'Insights', 'Coach', 'Galeria']
@@ -137,6 +192,67 @@ export default {
       `${fontesModal.length} campo(s)`,
     )
 
+    // Cardio mostra "Distância (km)" ao lado de "Duração"; o bloco de detalhes
+    // traz "FC média (bpm)" ao lado de "Data". São os dois pares que já
+    // apertaram rótulo e placeholder num aparelho de 320px.
+    const textoModal = await page.evaluate(fieldTextFits)
+    check(
+      `modal de treino @${PHONE.width}px: rótulo em uma linha e placeholder inteiro`,
+      textoModal.length === 0,
+      textoModal.join(' | '),
+    )
+
+    await page.getByRole('button', { name: /Nome, data, esforço e FC/ }).click()
+    await page.waitForTimeout(400)
+    const textoDetalhes = await page.evaluate(fieldTextFits)
+    check(
+      `detalhes do treino @${PHONE.width}px: rótulo em uma linha e placeholder inteiro`,
+      textoDetalhes.length === 0,
+      textoDetalhes.join(' | '),
+    )
+
     await s.shot('01-modal-treino-320')
+
+    // ── Dieta: quatro colunas de macro no mesmo aparelho estreito ───────────
+    // O modal só monta quando já existe plano (`editOpen && wd`), então a dieta
+    // vem semeada — sem isso o check passaria sem nunca ter aberto o modal.
+    const comDieta = seededUser({
+      email: 'dieta@qa.dev',
+      docs: {
+        [`users/${uidFor('dieta@qa.dev')}/data/diet`]: {
+          goals: { cal: 2400, prot: 180, carb: 240, fat: 70 },
+          meals: [{ id: 'm1', time: '07:00', name: 'Café da manhã', cal: 500, prot: 30, carb: 60, fat: 15, done: false, items: ['Ovos'] }],
+        },
+      },
+    })
+    const sd = track(await openSession(browser, { baseUrl, scenarioSlug: slug, viewport: PHONE, user: comDieta }))
+
+    await sd.page.getByRole('button', { name: 'Mais páginas' }).click()
+    await sd.page.waitForTimeout(300)
+    await sd.page.getByRole('button', { name: 'Dieta', exact: true }).first().click()
+    await sd.page.waitForTimeout(900)
+    await sd.page.getByRole('button', { name: /Editar plano/ }).first().click()
+    await sd.page.waitForTimeout(700)
+
+    const camposDieta = await sd.page.evaluate(
+      () => document.querySelectorAll('.rise-overlay input, .rise-modal input').length,
+    )
+    const textoDieta = await sd.page.evaluate(fieldTextFits)
+    check(
+      `modal de dieta @${PHONE.width}px: rótulo em uma linha e placeholder inteiro`,
+      camposDieta > 0 && textoDieta.length === 0,
+      camposDieta === 0 ? 'modal não abriu — check inválido' : textoDieta.join(' | '),
+    )
+
+    // O painel da Dieta não usa `.rise-modal`, então não herda o teto de altura
+    // que mantém o botão de salvar alcançável — vale medir.
+    const caixaDieta = await sd.page.evaluate(openModalBox)
+    check(
+      `modal de dieta cabe em ${PHONE.width}x${PHONE.height}`,
+      caixaDieta !== null && caixaDieta.top >= -1 && caixaDieta.bottom <= caixaDieta.vh + 1,
+      caixaDieta ? `top=${caixaDieta.top} bottom=${caixaDieta.bottom} vh=${caixaDieta.vh}` : 'painel não encontrado',
+    )
+
+    await sd.shot('02-modal-dieta-320')
   },
 }
