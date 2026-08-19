@@ -17,7 +17,7 @@ export function buildSystemPrompt(data) {
   const {
     workouts = [], weekWorkouts = [], wd = null, habitDefs = [], userName,
     body = null, tdee = null, readiness = null, dayStreak = null,
-    load = null, plan = null,
+    load = null, plan = null, journalEntries = [],
   } = data ?? {}
 
   const weekKm = Math.round(weekWorkouts.reduce((s, w) => s + (w.dist || 0), 0) * 10) / 10
@@ -99,6 +99,11 @@ ${plan && plan.sessions.length > 0
 - Próximo treino previsto: ${plan.next}` : ''}`
   : '- O usuário ainda não montou um plano semanal'}
 
+### Diário de treino recente (sentimentos, dores, motivação)
+${journalEntries.length > 0
+  ? journalEntries.map(j => `  • ${j.date}: ${j.text}`).join('\n')
+  : '  Sem registros recentes'}
+
 ${TRAINING_KNOWLEDGE}
 
 ## Como se comportar
@@ -114,6 +119,7 @@ ${TRAINING_KNOWLEDGE}
 - Respeite a carga: com a razão aguda:crônica acima de 1.3, não sugira aumentar volume nem intensidade nesta semana
 - Quando existir plano semanal, fale em cima dele: o que vem, o que ficou para trás, o que ajustar
 - Se faltarem dados do corpo, diga uma vez que preencher peso, altura, idade e sexo no Perfil deixa suas contas de caloria e macro específicas, e siga ajudando com o que tem
+- Use o diário de treino para perceber sinais de cansaço, dor recorrente ou queda de motivação e ajustar suas sugestões — sem fazer diagnóstico médico ou psicológico, apenas observando padrões com cuidado
 
 ## Registrando treinos pelo chat
 - Quando o usuário contar que FEZ um treino ("corri 8km em 45min", "acabei de treinar perna", "joguei bola ontem"), chame a ferramenta registrar_treino em vez de mandar ele abrir a tela de treino

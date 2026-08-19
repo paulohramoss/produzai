@@ -19,7 +19,7 @@ import { computeReadiness } from '../../lib/readiness'
 import { computeTrainingLoad } from '../../lib/trainingLoad'
 import { nextSession, weekAdherence, WEEKDAY_SHORT } from '../../lib/weekPlan'
 import { usePlanStore } from '../../store/usePlanStore'
-import { getDailyHistory, type DailyData, type ReadinessEntry } from '../../lib/db'
+import { getDailyHistory, getJournalHistory, type DailyData, type ReadinessEntry } from '../../lib/db'
 import { lastNDays, todayKey } from '../../lib/date'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
@@ -88,6 +88,21 @@ export function Coach({ setPage }: Props) {
   useEffect(() => {
     if (!user) return
     getDailyHistory(lastNDays(45)).then(setDailyHistory)
+  }, [user])
+
+  // Diário de treino recente: sentimentos, dores, motivação — para o Coach
+  // perceber sinais de cansaço ou queda de motivação nas respostas.
+  const [journalEntries, setJournalEntries] = useState<{ date: string; text: string }[]>([])
+  useEffect(() => {
+    if (!user) return
+    getJournalHistory(lastNDays(10)).then(hist => {
+      setJournalEntries(
+        Object.entries(hist)
+          .filter(([, e]) => e.text.trim())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, e]) => ({ date, text: e.text })),
+      )
+    })
   }, [user])
 
   const [showExport, setShowExport] = useState(false)
@@ -249,6 +264,7 @@ export function Coach({ setPage }: Props) {
         dayStreak,
         load: loadContext,
         plan: planContext,
+        journalEntries,
       },
       chunk => { full += chunk; setStreamText(full) },
       uses => { toolUses = uses },

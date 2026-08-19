@@ -18,7 +18,7 @@ function subRef(sub: string, id: string) {
 }
 // Monthly aggregation: users/{uid}/dailyMonthly/{yyyy-MM}
 // Reduces 35 getDoc calls to 1-2 reads for the Insights history window.
-function monthlyRef(sub: 'dailyMonthly' | 'mentalMonthly', ym: string) {
+function monthlyRef(sub: 'dailyMonthly' | 'mentalMonthly' | 'journalMonthly', ym: string) {
   return doc(db, 'users', currentUid, sub, ym)
 }
 
@@ -255,6 +255,49 @@ export async function getMentalHistory(dates: string[]): Promise<Record<string, 
     }
     return result
   } catch (e) { logDbError('getMentalHistory', e); return {} }
+}
+
+// ── Diário de treino ─────────────────────────────────────────────────────────
+
+export interface TrainingJournalEntry {
+  text: string
+  updatedAt: number
+}
+
+export async function getJournalEntry(date: string): Promise<TrainingJournalEntry | null> {
+  if (!currentUid) return null
+  try {
+    const snap = await getDoc(subRef('journal', date))
+    return snap.exists() ? (snap.data() as TrainingJournalEntry) : null
+  } catch (e) { logDbError('getJournalEntry', e); return null }
+}
+
+export async function saveJournalEntry(date: string, data: TrainingJournalEntry) {
+  if (!currentUid) return
+  const ym = date.slice(0, 7)
+  // TrainingJournalEntry is always a complete object, so top-level merge is safe
+  fireWrite(setDoc(monthlyRef('journalMonthly', ym), { [date]: data }, { merge: true }), 'saveJournalEntry/monthly')
+  fireWrite(setDoc(subRef('journal', date), data), 'saveJournalEntry/individual')
+}
+
+export async function getJournalHistory(dates: string[]): Promise<Record<string, TrainingJournalEntry>> {
+  if (!currentUid || dates.length === 0) return {}
+  try {
+    const months = [...new Set(dates.map(d => d.slice(0, 7)))]
+    const snaps = await Promise.all(months.map(ym => getDoc(monthlyRef('journalMonthly', ym))))
+    const result: Record<string, TrainingJournalEntry> = {}
+    for (const snap of snaps) {
+      if (snap.exists()) Object.assign(result, snap.data() as Record<string, TrainingJournalEntry>)
+    }
+    const missing = dates.filter(d => !result[d])
+    if (missing.length > 0) {
+      await Promise.all(missing.map(async d => {
+        const e = await getJournalEntry(d)
+        if (e) result[d] = e
+      }))
+    }
+    return result
+  } catch (e) { logDbError('getJournalHistory', e); return {} }
 }
 
 // ── Projects ─────────────────────────────────────────────────────────────────
@@ -669,6 +712,34 @@ export async function saveWeeklyReview(review: WeeklyReview) {
   } catch (e) { logDbError('saveWeeklyReview', e) }
 }
 
+// ── Diário de treino: insights ────────────────────────────────────────────────
+
+export interface JournalInsight {
+  weekKey: string      // "YYYY-Www" (ISO week)
+  generatedAt: number
+  riskLevel: 'baixo' | 'moderado' | 'alto'
+  summary: string
+  signals: string[]
+  recommendation: string
+}
+
+export async function getJournalInsights(): Promise<JournalInsight[]> {
+  if (!currentUid) return []
+  try {
+    const snap = await getDoc(dataRef('journalInsights'))
+    return snap.exists() ? ((snap.data().items as JournalInsight[]) ?? []) : []
+  } catch (e) { logDbError('getJournalInsights', e); return [] }
+}
+
+export async function saveJournalInsight(insight: JournalInsight) {
+  if (!currentUid) return
+  try {
+    const existing = await getJournalInsights()
+    const next = [insight, ...existing.filter(i => i.weekKey !== insight.weekKey)].slice(0, 26)
+    fireWrite(setDoc(dataRef('journalInsights'), { items: next }), 'saveJournalInsight')
+  } catch (e) { logDbError('saveJournalInsight', e) }
+}
+
 // ── Push subscription (Web Push VAPID) ───────────────────────────────────────
 
 export async function savePushSubscription(sub: PushSubscriptionJSON): Promise<void> {
@@ -695,7 +766,7 @@ export async function deleteAllUserData(uid: string): Promise<void> {
   const DATA_DOCS = [
     'profile', 'workouts', 'diet', 'projects', 'books',
     'habitDefs', 'progress', 'hydration', 'weeklyReviews', 'pushSubscription', 'friends',
-    'coachConversations', 'weightLog', 'weekPlan', 'reminderPrefs', 'cycle',
+    'coachConversations', 'weightLog', 'weekPlan', 'reminderPrefs', 'cycle', 'journalInsights',
   ]
 
   // O resumo do treinador vive fora de users/{uid} e ficaria público para sempre
@@ -709,18 +780,22 @@ export async function deleteAllUserData(uid: string): Promise<void> {
     ),
   )
 
-  const [dailySnap, mentalSnap, dailyMonthlySnap, mentalMonthlySnap] = await Promise.all([
+  const [dailySnap, mentalSnap, journalSnap, dailyMonthlySnap, mentalMonthlySnap, journalMonthlySnap] = await Promise.all([
     getDocs(collection(db, 'users', uid, 'daily')).catch(() => null),
     getDocs(collection(db, 'users', uid, 'mental')).catch(() => null),
+    getDocs(collection(db, 'users', uid, 'journal')).catch(() => null),
     getDocs(collection(db, 'users', uid, 'dailyMonthly')).catch(() => null),
     getDocs(collection(db, 'users', uid, 'mentalMonthly')).catch(() => null),
+    getDocs(collection(db, 'users', uid, 'journalMonthly')).catch(() => null),
   ])
 
   await Promise.all([
     ...(dailySnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
     ...(mentalSnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
+    ...(journalSnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
     ...(dailyMonthlySnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
     ...(mentalMonthlySnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
+    ...(journalMonthlySnap?.docs ?? []).map(({ ref }) => deleteDoc(ref).catch(() => {})),
     deleteDoc(doc(db, 'leaderboard', uid)).catch(() => {}),
   ])
 }

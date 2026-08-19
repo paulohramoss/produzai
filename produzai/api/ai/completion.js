@@ -274,6 +274,47 @@ Regras:
   return extractJSON(text)
 }
 
+const RISK_LEVELS = ['baixo', 'moderado', 'alto']
+
+async function handleJournalInsights(payload, apiKey) {
+  const { journalSummary } = payload ?? {}
+  if (!journalSummary || !String(journalSummary).trim()) return null
+
+  const system = `Você é um assistente de bem-estar do The Rise Plan, analisando o diário de treino do usuário — relatos de sentimentos, dores, motivação e cansaço — junto com o volume e a frequência de treinos recentes.
+
+Seu objetivo é identificar sinais de possível sobrecarga física ou mental para ajudar o usuário a ajustar o treino a tempo. Você NÃO é terapeuta nem médico e NÃO deve fazer diagnóstico clínico.
+
+Responda APENAS com JSON puro, sem markdown, sem crases, sem texto antes ou depois, no formato exato:
+{"riskLevel":"baixo|moderado|alto","summary":"string","signals":["string"],"recommendation":"string"}
+
+Regras:
+- "riskLevel": "baixo" se os relatos indicam energia e motivação estáveis; "moderado" se há sinais recorrentes de cansaço, dor ou queda de motivação; "alto" se há sinais fortes ou repetidos de exaustão, dor persistente, burnout ou sofrimento emocional relevante
+- "summary": 2-3 frases resumindo o que o diário revela sobre o estado físico e mental do usuário nesse período — tom acolhedor, direto, nunca alarmista
+- "signals": 2-5 sinais concretos observados nos relatos (cite o que foi dito, ex: "menção a dor no joelho em 3 dos últimos 5 registros")
+- "recommendation": 1-2 frases com uma sugestão prática — pode incluir ajuste no treino (descanso, redução de volume, troca de modalidade); se riskLevel for "alto" ou houver sinais de sofrimento emocional relevante, inclua com gentileza a sugestão de conversar com um profissional (médico, fisioterapeuta ou psicólogo)
+- NÃO faça diagnóstico médico ou psicológico, apenas observe padrões e sugira cautela
+- Responda em português brasileiro
+- NÃO use markdown, comece a resposta direto com {`
+
+  const text = await callClaude({
+    model: 'claude-sonnet-4-6',
+    maxTokens: 768,
+    system,
+    messages: [{ role: 'user', content: journalSummary }],
+    apiKey,
+  })
+  if (!text) return null
+  const raw = extractJSON(text)
+  if (!raw) return null
+
+  return {
+    riskLevel: RISK_LEVELS.includes(raw.riskLevel) ? raw.riskLevel : 'baixo',
+    summary: typeof raw.summary === 'string' ? raw.summary : '',
+    signals: Array.isArray(raw.signals) ? raw.signals.filter(s => typeof s === 'string') : [],
+    recommendation: typeof raw.recommendation === 'string' ? raw.recommendation : '',
+  }
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -309,6 +350,7 @@ export default async function handler(req, res) {
     else if (type === 'parse-workout') result = await handleParseWorkout(payload, apiKey)
     else if (type === 'reflection')  result = await handleReflection(payload, apiKey)
     else if (type === 'weekly-review') result = await handleWeeklyReview(payload, apiKey)
+    else if (type === 'journal-insights') result = await handleJournalInsights(payload, apiKey)
     else return res.status(400).json({ error: `Unknown type: ${type}` })
 
     return res.status(200).json({ result })
