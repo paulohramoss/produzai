@@ -22,9 +22,11 @@ import {
   saveProfile, deleteAllUserData,
   getCoachConversations, saveCoachConversations,
   getWeightLog, saveWeightLog,
-  type ActivityLevel, type WeightEntry,
+  lookupByInviteCode, addFriend, joinClub, getMyClubId,
+  type ActivityLevel, type WeightEntry, type UserProfile,
 } from '../lib/db'
 import { todayKey } from '../lib/date'
+import { getAttribution, attributionFields } from '../lib/attribution'
 import { useWorkoutStore } from './useWorkoutStore'
 import { useWebDietStore } from './useWebDietStore'
 import { useHabitsStore } from './useHabitsStore'
@@ -101,6 +103,42 @@ async function loadFirestoreData() {
   await usePlanStore.getState().loadFromCloud()
   await useCycleStore.getState().load()
   await loadCoachConversations()
+}
+
+/**
+ * Grava a origem do atleta e cumpre o que o link prometeu.
+ *
+ * Roda depois do primeiro login, não no clique: só aqui existe uid, e sem uid
+ * não há como consultar o código de convite nem entrar em clube. É idempotente
+ * — o perfil que já tem `attribution` não é tocado de novo, então voltar pelo
+ * mesmo link amanhã não reescreve a origem nem re-adiciona ninguém.
+ */
+async function applyAttribution(profile: UserProfile | null) {
+  const local = getAttribution()
+  if (!local || profile?.attribution) return
+
+  await saveProfile(attributionFields() as Partial<UserProfile>)
+
+  // ?ref=ABC123 — quem indicou entra na lista de amigos do indicado. A volta
+  // depende do outro lado: cada um só pode escrever na própria lista.
+  if (local.ref) {
+    try {
+      const referrer = await lookupByInviteCode(local.ref)
+      if (referrer && referrer.uid !== auth.currentUser?.uid) await addFriend(referrer.uid)
+    } catch (e) {
+      console.error('[auth] indicação não pôde ser aplicada', e)
+    }
+  }
+
+  // ?club=XXXXXX — o convite de clube entra direto, se a pessoa ainda não tem um.
+  const clubCode = new URLSearchParams(window.location.search).get('club')
+  if (clubCode && !(await getMyClubId())) {
+    try {
+      await joinClub(clubCode)
+    } catch (e) {
+      console.error('[auth] convite de clube não pôde ser aplicado', e)
+    }
+  }
 }
 
 // Histórico do Coach: local e nuvem são unidos, nunca substituídos, para que
@@ -336,6 +374,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         } catch (e) {
           console.error('[auth] falha ao carregar dados do usuário', e)
         }
+
+        // Não bloqueia a entrada: a origem é métrica, não requisito de acesso.
+        applyAttribution(profile).catch(e =>
+          console.error('[auth] falha ao registrar a origem', e),
+        )
 
         set({
           user,

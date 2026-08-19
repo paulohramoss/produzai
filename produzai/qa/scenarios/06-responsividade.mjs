@@ -114,7 +114,7 @@ const fieldTextFits = () => {
   return ruim
 }
 
-const PAGES = ['Dashboard', 'Hoje', 'Histórico', 'Treino', 'Dieta', 'Agenda', 'Projetos', 'Mental', 'Biblioteca', 'Insights', 'Coach', 'Galeria']
+const PAGES = ['Início', 'Hoje', 'Histórico', 'Treino', 'Dieta', 'Agenda', 'Projetos', 'Mental', 'Biblioteca', 'Insights', 'Coach', 'Galeria']
 
 export default {
   name: 'Responsividade no celular',
@@ -159,7 +159,13 @@ export default {
     for (const nome of PAGES) {
       await page.getByRole('button', { name: 'Mais páginas' }).click()
       await page.waitForTimeout(300)
-      await page.getByRole('button', { name: nome, exact: true }).first().click()
+      // Dentro da gaveta, as páginas secundárias ainda moram atrás de "Mais".
+      const item = page.getByRole('button', { name: nome, exact: true }).first()
+      if (!(await item.isVisible().catch(() => false))) {
+        await page.getByRole('button', { name: 'Mais', exact: true }).first().click()
+        await page.waitForTimeout(300)
+      }
+      await item.click()
       await page.waitForTimeout(800)
       const ov = await page.evaluate(overflowProbe)
       if (ov.scrollW > ov.vw + 1 || ov.bad.length) estouraram.push(`${nome}: ${JSON.stringify(ov.bad)}`)

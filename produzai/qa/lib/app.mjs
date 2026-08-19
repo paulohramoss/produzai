@@ -67,9 +67,20 @@ export class AppSession {
     await this.page.waitForTimeout(600)
   }
 
-  /** Clica um item do menu lateral e espera a página assentar. */
+  /**
+   * Clica um item do menu lateral e espera a página assentar.
+   *
+   * A barra abre só com as páginas do dia a dia; o resto mora atrás de "Mais".
+   * Um cenário não precisa saber disso — ele pede "Mental" e o vocabulário
+   * expande a seção se for preciso, que é o que a pessoa faz na tela.
+   */
   async open(pageName) {
-    await this.page.getByRole('button', { name: pageName, exact: true }).first().click()
+    const item = this.page.getByRole('button', { name: pageName, exact: true }).first()
+    if (!(await item.isVisible().catch(() => false))) {
+      await this.page.getByRole('button', { name: 'Mais', exact: true }).first().click()
+      await this.page.waitForTimeout(300)
+    }
+    await item.click()
     await this.page.waitForTimeout(1200)
   }
 
@@ -140,10 +151,28 @@ export async function openAnonymousSession(browser, { baseUrl, scenarioSlug, db 
   return session
 }
 
-/** Cadastro pela interface de verdade — usado pelo cenário de autenticação. */
+/**
+ * Cadastro pela interface de verdade — usado pelo cenário de autenticação.
+ *
+ * Começa na landing, que é onde o visitante de verdade cai: o formulário só
+ * aparece depois que ele clica para criar conta.
+ */
 export async function signUpThroughUi(page, { name, email, password = 'senha123' }) {
-  await page.getByRole('button', { name: 'Criar conta', exact: true }).click()
-  await page.getByPlaceholder('Seu nome').fill(name)
+  const cta = page.getByRole('button', { name: /Criar minha conta|Começar hoje/ }).first()
+  if (await cta.isVisible().catch(() => false)) {
+    await cta.click()
+    await page.waitForTimeout(600)
+  }
+  // Vindo da landing o formulário já abre em cadastro. Só quando ele abriu em
+  // modo login é que existe um alternador para clicar — e clicar no botão de
+  // enviar, que também se chama "Criar conta", travaria esperando um formulário
+  // vazio ficar habilitado.
+  const nameField = page.getByPlaceholder('Seu nome')
+  if (!(await nameField.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Criar conta', exact: true }).click()
+    await page.waitForTimeout(400)
+  }
+  await nameField.fill(name)
   await page.getByPlaceholder('seu@email.com').fill(email)
   await page.getByPlaceholder('Mínimo 6 caracteres').fill(password)
   await page.locator('input[type=checkbox]').check()

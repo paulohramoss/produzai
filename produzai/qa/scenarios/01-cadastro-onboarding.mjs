@@ -13,13 +13,21 @@ export default {
     const s = track(await openSession(browser, { baseUrl, scenarioSlug: slug, user: null }))
     const { page } = s
 
-    check('tela de login abre', await page.getByText('Entrar na conta').isVisible())
+    // Quem nunca logou cai na landing, não num formulário: a porta de entrada
+    // pública é o que existe antes da conta.
+    check('visitante cai na landing, não no formulário',
+      await page.getByText(/Pare de treinar/).first().isVisible())
+    check('a landing vende benefício, não módulo',
+      await page.getByText(/Sua próxima carga não precisa ser um chute/).isVisible())
+    await s.shot('00-landing')
 
     await signUpThroughUi(page, { name: 'Paula QA', email: `p${Date.now()}@qa.dev` })
 
-    // O sintoma do bug era exatamente este waitFor estourar.
-    await page.getByText('Vamos te conhecer').waitFor({ timeout: 10_000 })
+    // O padrão é o wizard de 3 passos. Cair numa conversa com a IA no primeiro
+    // minuto é o atrito que esta checagem existe para impedir de voltar.
+    await page.getByText('Vamos configurar seu plano em 3 passos rápidos').waitFor({ timeout: 10_000 })
     check('cadastro entra no app (não trava em "Aguarde...")', true)
+    check('o padrão do onboarding é o wizard de 3 passos, não o chat', true)
 
     const stuck = await page.getByRole('button', { name: 'Aguarde...' }).count()
     check('botão de cadastro não fica preso em "Aguarde..."', stuck === 0)
@@ -28,15 +36,10 @@ export default {
     const consentAgain = await page.getByText('Política de Privacidade').first().isVisible().catch(() => false)
     check('não pede consentimento outra vez após aceitar no cadastro', !consentAgain)
 
-    // Saída de escape do onboarding por conversa.
-    const quick = page.getByRole('button', { name: /Prefiro o modo rápido/ })
-    const box = await quick.boundingBox()
-    check('atalho do modo rápido é um botão visível de largura cheia', box.width > 400, `${Math.round(box.width)}px`)
-    await s.shot('01-onboarding-conversa')
-
-    await quick.click()
-    await page.getByText('Vamos configurar seu plano em 3 passos rápidos').waitFor({ timeout: 10_000 })
-    check('modo rápido abre o wizard de 3 passos', true)
+    // O chat continua disponível — virou escolha, deixou de ser pedágio.
+    check('quem prefere conversar ainda tem o atalho para a IA',
+      await page.getByText(/Prefiro conversar com a IA/).isVisible().catch(() => false))
+    await s.shot('01-onboarding-wizard')
 
     await page.getByText('Ter mais energia').click()
     await page.getByRole('button', { name: /Continuar/ }).click()

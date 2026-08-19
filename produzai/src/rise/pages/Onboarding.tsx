@@ -24,7 +24,13 @@ import {
 
 export function Onboarding() {
   const apiReady = hasApiKey()
-  const [mode, setMode] = useState<'chat' | 'quick'>(apiReady ? 'chat' : 'quick')
+  // O padrão é o wizard de 3 passos, NÃO o chat.
+  //
+  // Quem acabou de criar a conta quer treinar, não conversar: cair numa conversa
+  // com um bot no primeiro minuto é uma pergunta aberta ("me conta seu objetivo")
+  // onde deveria haver três toques e um botão. O chat continua a um clique de
+  // distância para quem prefere — só deixou de ser o pedágio de todo mundo.
+  const [mode, setMode] = useState<'chat' | 'quick'>('quick')
 
   if (mode === 'quick') {
     return <QuickOnboarding onSwitchToChat={apiReady ? () => setMode('chat') : undefined} />

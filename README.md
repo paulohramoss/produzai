@@ -1,25 +1,51 @@
 # The Rise Plan
 
-Plataforma web de performance pessoal — treino, dieta, hábitos, saúde mental e desenvolvimento. Interface dark com design system próprio, persistência em Firestore e Coach IA com streaming via Claude.
+**Pare de treinar no escuro.** Todo app registra treino; poucos fazem algo com o
+registro. O The Rise Plan transforma histórico em decisão: qual carga puxar hoje,
+o que comprar no mercado no sábado e quando o corpo está pedindo descanso.
+
+Web app dark, PWA, com persistência em Firestore e coach de IA que leu o seu
+histórico inteiro antes de responder.
 
 ---
 
-## Funcionalidades
+## O que o atleta ganha
+
+| | Promessa |
+|---|---|
+| **Treino** | Sua próxima carga não é um chute — a progressão sai do que você levantou de verdade |
+| **Dieta** | Você já sabe o que comer; aqui vira **lista de compras da semana**, agrupada por setor do mercado |
+| **Hoje** | Um lugar só para o dia de hoje: hábitos, foco e sequência, sem abrir mais nada |
+| **Coach IA** | Um treinador que cruza sono, dor e carga antes de mandar você treinar pesado |
+| **Desafio** | Temporada com data para acabar e prêmio de parceiro — placar que reinicia para todo mundo |
+| **Clube** | Grupo fechado com meta coletiva do mês. Sem feed, sem estranho |
+
+<details>
+<summary>Todos os módulos</summary>
 
 | Módulo | O que faz |
 |---|---|
-| **Dashboard** | Visão geral com KPIs, ranking global ao vivo e widgets de treino e dieta |
+| **Dashboard** | KPIs, desafio da temporada, clube, ranking global e widgets de treino e dieta |
 | **Hoje** | Check-in diário de hábitos customizáveis, foco do dia e resumo de refeições |
-| **Treino** | Registro manual de atividades com templates, estatísticas semanais e mensais |
-| **Dieta** | Plano alimentar com macros, refeições, check-in e templates prontos |
+| **Treino** | Registro de atividades com templates, progressão de carga, estatísticas e diário |
+| **Dieta** | Plano alimentar com macros, refeições, check-in e lista de compras gerada |
 | **Agenda** | Calendário de compromissos e tarefas |
 | **Projetos** | Gestão de projetos pessoais com progresso e prioridade |
 | **Mental** | Diário de humor, energia, gratidão e notas diárias com histórico |
 | **Biblioteca** | Tracker de leitura com status, rating e progresso por página |
-| **Coach IA** | Chat com streaming usando Claude — analisa dados reais do usuário e exporta CSV |
-| **Galeria** | Upload de fotos de progresso para Firebase Storage com comparação lado a lado |
+| **Insights** | Padrões cruzados entre treino, dieta, sono e humor |
+| **Galeria** | Fotos de progresso no Firebase Storage com comparação lado a lado |
 
-**Recursos transversais:** onboarding wizard · sidebar mobile com overlay · toast notifications · hábitos customizáveis · notificações de lembrete (browser) · ranking global via Firestore · exportação CSV
+A barra lateral mostra só **Início, Hoje, Treino, Dieta e Coach**; o resto vive
+atrás de "Mais" — profundidade é recompensa por ficar, não pedágio para entrar.
+
+</details>
+
+**Recursos transversais:** landing pública com Open Graph · atribuição de origem
+(UTM + link de indicação) · onboarding de 3 telas · PWA com push · toasts ·
+lembretes no navegador · exportação CSV · link read-only para o treinador
+
+---
 
 ---
 
@@ -191,6 +217,51 @@ A chave Anthropic é enviada diretamente do browser com o header `anthropic-dang
 
 ---
 
+## Operar um desafio
+
+O desafio é a única parte do app que o dono liga e desliga na mão — de propósito:
+data, prêmio e parceiro são decisão de negócio, não configuração de usuário.
+
+Para abrir uma temporada nova, edite **`produzai/challenge.json`**. É um arquivo
+só: o app (`src/lib/challenge.ts`) e o servidor que confere o placar
+(`api/challenge/sync.js`) leem o mesmo. Trocar o `id` zera o placar sem apagar o
+anterior — a coleção `challenges/{id}/entries` da temporada antiga fica para
+consulta.
+
+Depois, publique as regras uma vez: `firebase deploy --only firestore:rules`.
+
+### Como o placar resiste a fraude
+
+O cliente **não escreve** no placar; as regras negam. A única porta é
+`POST /api/challenge/sync`, e ele aplica duas travas:
+
+1. **Janela** — um dia só é confirmado se estiver a no máximo um dia do "hoje"
+   do servidor. Registrar agora um treino de cinco dias atrás não pontua, nunca.
+2. **Um por dia de servidor** — em cada data do relógio do servidor entra no
+   máximo um dia de desafio. Sem isso a folga de fuso (necessária, porque a data
+   do treino é local e o servidor só tem UTC) viraria brecha para reivindicar
+   hoje e amanhã na mesma visita.
+
+O efeito prático: para fechar 21 dias é preciso voltar ao app em 21 datas
+diferentes de calendário. Mover só o *cálculo* para o servidor não teria feito
+nada — os treinos moram em `users/{uid}/data/workouts`, documento do próprio
+usuário, que ele pode preencher com o que quiser. O que separa treino de
+invenção é o **momento** em que o registro chegou.
+
+O que isso **não** resolve: quem abre o app todo dia e registra um treino que não
+fez continua pontuando. Num app de registro manual esse é o teto — fechar mais
+exigiria prova externa (importação do Strava, foto com carimbo de tempo).
+
+Os ataques acima estão travados por teste: `npm test` roda
+`api/challenge/sync.test.mjs` sem precisar de rede nem Firestore.
+
+**Configuração obrigatória** para o placar funcionar em produção:
+`FIREBASE_SERVICE_ACCOUNT_B64` (a mesma do cron de push) e `FIREBASE_API_KEY`.
+Sem elas o endpoint responde 503 e o app mostra a contagem local rotulada como
+*não confirmada* — nunca um número que finge ser oficial.
+
+---
+
 ## Scripts
 
 | Comando | Descrição |
@@ -199,16 +270,35 @@ A chave Anthropic é enviada diretamente do browser com o header `anthropic-dang
 | `npm run build` | Build de produção em `dist/` |
 | `npm run preview` | Preview local do build |
 | `npm run lint` | Lint com ESLint + TypeScript |
+| `npm test` | Testes de unidade das funções serverless (`node --test`) — hoje, a regra do placar do desafio |
+| `npm run qa` | Cenários de navegador com os dublês do Firebase (`qa/`); `-- --headed` para assistir |
 
 ---
 
 ## Variáveis de ambiente
 
+Tudo com prefixo `VITE_` **vai para o bundle e é público** — só configuração,
+nunca segredo. As chaves de verdade ficam sem prefixo, no ambiente do servidor.
+
+### Cliente (públicas, entram no bundle)
+
 | Variável | Obrigatória | Descrição |
 |---|---|---|
-| `VITE_ANTHROPIC_API_KEY` | Coach IA | Chave da API Anthropic (`sk-ant-...`) |
 | `VITE_FIREBASE_API_KEY` | Sim | Chave pública do Firebase |
 | `VITE_FIREBASE_AUTH_DOMAIN` | Sim | `projeto.firebaseapp.com` |
 | `VITE_FIREBASE_PROJECT_ID` | Sim | ID do projeto Firebase |
 | `VITE_FIREBASE_STORAGE_BUCKET` | Galeria | `projeto.firebasestorage.app` |
 | `VITE_FIREBASE_APP_ID` | Sim | App ID do Firebase |
+| `VITE_SITE_URL` | Compartilhamento | Origem publicada (`https://...`) — vira URL absoluta das tags Open Graph |
+| `VITE_VAPID_PUBLIC_KEY` | Push | Chave pública VAPID, usada pelo navegador para se inscrever |
+
+### Servidor (segredos — configure no dashboard da Vercel)
+
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Coach IA | Chave da API Anthropic (`sk-ant-...`). **Sem prefixo `VITE_`** |
+| `FIREBASE_API_KEY` | Sim | Mesmo valor de `VITE_FIREBASE_API_KEY`, sem prefixo — valida os tokens em `api/*`. Sem ela toda chamada autenticada é rejeitada |
+| `FIREBASE_SERVICE_ACCOUNT_B64` | Desafio, push | Conta de serviço em base64. Sem ela o placar do desafio fica em 503 e o cron de push não envia |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Push | Par gerado por `npx web-push generate-vapid-keys` |
+| `VAPID_EMAIL` | Push | `mailto:seu@email.com` |
+| `CRON_SECRET` | Push | Segredo que a Vercel envia nas execuções agendadas |

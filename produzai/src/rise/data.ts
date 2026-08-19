@@ -112,25 +112,32 @@ export interface Activity {
 
 export interface Zone { z: string; pct: number; c: string }
 
-export const NAV_GROUPS: NavGroup[] = [
-  { label: 'INÍCIO', items: [
-    { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'hoje',       icon: Sun,             label: 'Hoje' },
-    { id: 'historico',  icon: History,         label: 'Histórico' },
-  ]},
-  { label: 'EXECUÇÃO', items: [
-    { id: 'treino',  icon: Dumbbell,    label: 'Treino' },
-    { id: 'dieta',   icon: Utensils,    label: 'Dieta' },
-    { id: 'agenda',  icon: CalendarDays, label: 'Agenda' },
+// ── Navegação ────────────────────────────────────────────────────────────────
+// Doze itens de uma vez é riqueza para quem já usa e paralisia para quem chegou
+// hoje. A barra abre com as PORTAS DIÁRIAS — as telas que alguém abre de manhã
+// e à noite — e guarda o resto atrás de "Mais". A profundidade continua toda
+// aqui; ela só deixou de ser pedágio de entrada.
+
+/** Sempre visível. O que o atleta usa todo dia. */
+export const NAV_PRIMARY: NavItem[] = [
+  { id: 'dashboard', icon: LayoutDashboard, label: 'Início' },
+  { id: 'hoje',      icon: Sun,             label: 'Hoje' },
+  { id: 'treino',    icon: Dumbbell,        label: 'Treino' },
+  { id: 'dieta',     icon: Utensils,        label: 'Dieta' },
+  { id: 'coach',     icon: Bot,             label: 'Coach' },
+]
+
+/** Atrás de "Mais" — recompensa por ficar, não requisito para começar. */
+export const NAV_MORE: NavGroup[] = [
+  { label: 'ACOMPANHAR', items: [
+    { id: 'historico', icon: History,      label: 'Histórico' },
+    { id: 'insights',  icon: TrendingUp,   label: 'Insights' },
+    { id: 'agenda',    icon: CalendarDays, label: 'Agenda' },
+    { id: 'galeria',   icon: Images,       label: 'Galeria' },
   ]},
   { label: 'CRESCIMENTO', items: [
-    { id: 'projetos',   icon: Target,      label: 'Projetos' },
-    { id: 'mental',     icon: Brain,       label: 'Mental' },
-    { id: 'biblioteca', icon: BookOpen,    label: 'Biblioteca' },
-    { id: 'insights',   icon: TrendingUp,  label: 'Insights' },
-  ]},
-  { label: 'SUPORTE', items: [
-    { id: 'coach',   icon: Bot,    label: 'Coach' },
-    { id: 'galeria', icon: Images, label: 'Galeria' },
+    { id: 'projetos',   icon: Target,   label: 'Projetos' },
+    { id: 'mental',     icon: Brain,    label: 'Mental' },
+    { id: 'biblioteca', icon: BookOpen, label: 'Biblioteca' },
   ]},
 ]

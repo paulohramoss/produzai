@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useContext } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
-import { BarChart3, ClipboardList, Utensils } from 'lucide-react'
+import { BarChart3, ClipboardList, Utensils, ShoppingCart } from 'lucide-react'
 import { Card, Tag, Bar, Dot } from '../primitives'
 import { useWebDietStore, type ComplianceStatus } from '../../store/useWebDietStore'
 import { DietaModal } from '../DietaModal'
 import { LayoutContext } from '../LayoutContext'
 import { parsePdfDiet, estimateMealMacros } from '../../lib/anthropic'
 import { WaterCard } from '../components/WaterCard'
+import { ShoppingListModal } from '../components/ShoppingListModal'
 import { todayKey as localTodayKey } from '../../lib/date'
 
 interface Props {
@@ -29,6 +30,7 @@ function dayLabel(dateStr: string) {
 
 export function Dieta({ setPage: _setPage }: Props) {
   const [editOpen, setEditOpen] = useState(false)
+  const [shoppingOpen, setShoppingOpen] = useState(false)
   const { isMobile } = useContext(LayoutContext)
 
   const wd          = useWebDietStore(s => s.data)
@@ -148,6 +150,8 @@ export function Dieta({ setPage: _setPage }: Props) {
       />
 
       <div>
+        {shoppingOpen && <ShoppingListModal onClose={() => setShoppingOpen(false)} />}
+
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
           <div>
@@ -155,6 +159,13 @@ export function Dieta({ setPage: _setPage }: Props) {
             <div style={{ fontSize: T.text.md, color: C.muted }}>Plano alimentar personalizado</div>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {wd && wd.meals.length > 0 && (
+              <button
+                onClick={() => setShoppingOpen(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: `${C.green}1F`, border: `1px solid ${C.green}55`, borderRadius: T.radius.sm, padding: "8px 14px", color: C.green, fontSize: T.text.md, fontWeight: T.weight.bold, cursor: "pointer" }}>
+                <ShoppingCart size={14} /> Lista de compras
+              </button>
+            )}
             <button
               onClick={() => fileInputRef.current?.click()}
               style={{ background: pdfBase64 ? `${C.blue}22` : C.card2, border: `1px solid ${pdfBase64 ? C.blue : C.border2}`, borderRadius: T.radius.sm, padding: "8px 14px", color: pdfBase64 ? C.blue : C.text, fontSize: T.text.md, fontWeight: T.weight.semibold, cursor: "pointer" }}>

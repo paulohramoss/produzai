@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { LayoutDashboard, Sun, Dumbbell, Brain, Bot, Menu } from "lucide-react";
-import { T, C, NAV_GROUPS, safeInset, safePlus, type Page } from "./data";
+import { LayoutDashboard, Sun, Dumbbell, Utensils, Menu, ChevronDown } from "lucide-react";
+import { T, C, NAV_PRIMARY, NAV_MORE, safeInset, safePlus, type Page, type NavItem } from "./data";
 import { Dashboard }    from "./pages/Dashboard";
 import { Treino }       from "./pages/Treino";
 import { Dieta }        from "./pages/Dieta";
@@ -26,14 +26,60 @@ const RISE_IMPLEMENTED: Page[] = [
   "projetos", "mental", "biblioteca", "coach", "galeria", "perfil", "insights",
 ];
 
-// Bottom navigation for mobile — 4 key pages + hamburger
+// Barra inferior do celular — o laço diário, mais o "Mais".
+// Espelha NAV_PRIMARY de propósito: a mesma resposta para "onde eu vou agora"
+// nos dois tamanhos de tela. O Coach fica um toque adiante, no menu, porque é
+// tela de dúvida pontual, não de rotina.
 const BOTTOM_NAV = [
   { id: "dashboard" as Page, icon: LayoutDashboard, label: "Início" },
   { id: "hoje"      as Page, icon: Sun,             label: "Hoje"  },
-  { id: "treino"   as Page, icon: Dumbbell,         label: "Treino" },
-  { id: "mental"   as Page, icon: Brain,            label: "Mental" },
-  { id: "coach"    as Page, icon: Bot,              label: "Coach"  },
+  { id: "treino"    as Page, icon: Dumbbell,        label: "Treino" },
+  { id: "dieta"     as Page, icon: Utensils,        label: "Dieta" },
 ];
+
+const MORE_PAGES = new Set<Page>(NAV_MORE.flatMap(g => g.items.map(i => i.id)));
+
+/** Um item da barra lateral. Mesma aparência no primário e dentro do "Mais". */
+function NavButton({ item, active, isTablet, onClick }: {
+  item: NavItem;
+  active: boolean;
+  isTablet: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={isTablet ? item.label : undefined}
+      aria-label={item.label}
+      aria-current={active ? "page" : undefined}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: isTablet ? "center" : "flex-start",
+        gap: 10,
+        width: "100%",
+        padding: isTablet ? "11px 0" : "9px 18px",
+        cursor: "pointer",
+        background: active ? "#1A1A1A" : "transparent",
+        borderLeft: !isTablet && active
+          ? `2px solid ${item.color || C.orange}`
+          : "2px solid transparent",
+        borderRight: "none",
+        borderTop: "none",
+        borderBottom: "none",
+        color: active ? C.text : C.muted,
+        transition: "all .12s",
+      }}
+    >
+      <item.icon size={isTablet ? 18 : 15} color={active ? (item.color || C.orange) : undefined} />
+      {!isTablet && (
+        <span style={{ fontSize: T.text.md, fontWeight: active ? 600 : 400 }}>
+          {item.label}
+        </span>
+      )}
+    </button>
+  );
+}
 
 const SIDEBAR_FULL = 210;
 const SIDEBAR_ICON = 62;
@@ -42,6 +88,7 @@ export function RisePlan() {
   const { user, displayName, photoURL, logout, onboardingDone, consentAccepted } = useAuthStore();
   const [page, setPage]         = useState<Page>("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen]   = useState(false);
   const [windowW, setWindowW]   = useState(window.innerWidth);
 
   useEffect(() => {
@@ -49,6 +96,11 @@ export function RisePlan() {
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
   }, []);
+
+  // A seção fica aberta à força quando a página atual mora dentro dela: fechar
+  // o grupo que contém a tela aberta esconderia o item ativo e a barra pareceria
+  // não ter nada selecionado.
+  const showMore = moreOpen || MORE_PAGES.has(page);
 
   const isMobile = windowW < 768;
   const isTablet = windowW >= 768 && windowW < 1024;
@@ -145,9 +197,54 @@ export function RisePlan() {
           )}
 
           <nav style={{ flex: 1 }}>
-            {NAV_GROUPS.map((g, gi) => (
+            {NAV_PRIMARY.map(item => (
+              <NavButton
+                key={item.id}
+                item={item}
+                active={page === item.id}
+                isTablet={isTablet}
+                onClick={() => navigate(item.id)}
+              />
+            ))}
+
+            {/* "Mais" — a profundidade do app continua toda aqui, um toque adiante */}
+            <button
+              onClick={() => setMoreOpen(o => !o)}
+              title={isTablet ? "Mais" : undefined}
+              aria-expanded={showMore}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: isTablet ? "center" : "space-between",
+                gap: 10,
+                width: "100%",
+                marginTop: 6,
+                padding: isTablet ? "11px 0" : "9px 18px",
+                cursor: "pointer",
+                background: "transparent",
+                border: "none",
+                borderLeft: isTablet ? "none" : "2px solid transparent",
+                color: C.muted,
+              }}
+            >
+              {isTablet ? (
+                <ChevronDown
+                  size={18}
+                  style={{ transform: showMore ? "rotate(180deg)" : "none", transition: "transform .15s" }}
+                />
+              ) : (
+                <>
+                  <span style={{ fontSize: T.text.md }}>Mais</span>
+                  <ChevronDown
+                    size={14}
+                    style={{ transform: showMore ? "rotate(180deg)" : "none", transition: "transform .15s" }}
+                  />
+                </>
+              )}
+            </button>
+
+            {showMore && NAV_MORE.map((g, gi) => (
               <div key={gi} style={{ marginBottom: 6 }}>
-                {/* Group label — only on full sidebar */}
                 {!isTablet && (
                   <div style={{
                     fontSize: T.text['2xs'], color: C.muted, fontWeight: T.weight.bold,
@@ -157,38 +254,14 @@ export function RisePlan() {
                     {g.label}
                   </div>
                 )}
-                {g.items.map((item, i) => (
-                  <button
-                    key={i}
+                {g.items.map(item => (
+                  <NavButton
+                    key={item.id}
+                    item={item}
+                    active={page === item.id}
+                    isTablet={isTablet}
                     onClick={() => navigate(item.id)}
-                    title={isTablet ? item.label : undefined}
-                    aria-label={item.label}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: isTablet ? "center" : "flex-start",
-                      gap: 10,
-                      width: "100%",
-                      padding: isTablet ? "11px 0" : "9px 18px",
-                      cursor: "pointer",
-                      background: page === item.id ? "#1A1A1A" : "transparent",
-                      borderLeft: !isTablet && page === item.id
-                        ? `2px solid ${item.color || C.orange}`
-                        : "2px solid transparent",
-                      borderRight: "none",
-                      borderTop: "none",
-                      borderBottom: "none",
-                      color: page === item.id ? C.text : C.muted,
-                      transition: "all .12s",
-                    }}
-                  >
-                    <item.icon size={isTablet ? 18 : 15} color={page === item.id ? (item.color || C.orange) : undefined} />
-                    {!isTablet && (
-                      <span style={{ fontSize: T.text.md, fontWeight: page === item.id ? 600 : 400 }}>
-                        {item.label}
-                      </span>
-                    )}
-                  </button>
+                  />
                 ))}
               </div>
             ))}

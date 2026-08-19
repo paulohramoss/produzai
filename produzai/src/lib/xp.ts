@@ -24,6 +24,20 @@ export function getWeekWorkouts(workouts: ManualWorkout[]): ManualWorkout[] {
   })
 }
 
+// ── Month utilities ───────────────────────────────────────────────────────────
+// A meta coletiva do clube é mensal: o mês é longo o bastante para um grupo
+// pequeno fechar um número redondo e curto o bastante para recomeçar sempre.
+
+/** "2026-08" no fuso local. */
+export function getMonthKey(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+export function getMonthWorkouts(workouts: ManualWorkout[], date = new Date()): ManualWorkout[] {
+  const prefix = getMonthKey(date)
+  return workouts.filter(w => w.rawDate.startsWith(prefix))
+}
+
 // ── XP formula (anti-cheat) ───────────────────────────────────────────────────
 // Cap: max 2 workouts per calendar day count for XP.
 // Quality bonuses for calorie burn and distance reward real effort over volume.

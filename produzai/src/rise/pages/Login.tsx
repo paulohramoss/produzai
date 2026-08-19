@@ -37,8 +37,15 @@ function GoogleIcon() {
   )
 }
 
-export function Login() {
-  const [mode, setMode]               = useState<Mode>('login')
+interface Props {
+  /** Em qual aba o formulário abre — a landing decide pelo botão clicado. */
+  initialMode?: Mode
+  /** Volta para a landing. Ausente quando o login é a tela raiz. */
+  onBack?: () => void
+}
+
+export function Login({ initialMode = 'login', onBack }: Props) {
+  const [mode, setMode]               = useState<Mode>(initialMode)
   const [name, setName]               = useState('')
   const [email, setEmail]             = useState('')
   const [password, setPass]           = useState('')
@@ -82,6 +89,18 @@ export function Login() {
       paddingRight:  safeInset('right', 16),
     }}>
       <div style={{ width: '100%', maxWidth: 420 }}>
+
+        {onBack && (
+          <button
+            onClick={onBack}
+            style={{
+              background: 'none', border: 'none', color: C.muted, cursor: 'pointer',
+              fontSize: T.text.md, padding: 0, marginBottom: 16,
+            }}
+          >
+            ← Voltar
+          </button>
+        )}
 
         {/* Brand */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>

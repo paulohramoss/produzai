@@ -189,7 +189,7 @@ export function ExerciseEditor({ exercises, onChange, workouts }: Props) {
           value={nameDraft}
           onChange={e => setNameDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExercise(nameDraft) } }}
-          placeholder="Adicionar exercício..."
+          placeholder="Novo exercício"
           style={{ ...cell, textAlign: 'left', flex: 1 }}
         />
         <button

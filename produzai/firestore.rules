@@ -52,6 +52,7 @@ service cloud.firestore {
       return d.uid == userId
         && d.keys().hasOnly(['uid', 'displayName', 'xp', 'streakDays',
                              'weeklyWorkouts', 'weeklyXP', 'weekKey',
+                             'monthlyWorkouts', 'monthKey',
                              'inviteCode', 'updatedAt'])
         && d.displayName is string && d.displayName.size() <= 80
         && d.xp is number && d.xp >= 0 && d.xp <= 100000000
@@ -59,6 +60,8 @@ service cloud.firestore {
         && d.weeklyWorkouts is number && d.weeklyWorkouts >= 0 && d.weeklyWorkouts <= 1000
         && d.weeklyXP is number && d.weeklyXP >= 0 && d.weeklyXP <= 100000000
         && d.weekKey is string && d.weekKey.size() <= 12
+        && d.monthlyWorkouts is number && d.monthlyWorkouts >= 0 && d.monthlyWorkouts <= 1000
+        && d.monthKey is string && d.monthKey.size() <= 8
         && d.inviteCode == userId[0:6].upper()
         && d.updatedAt is number;
     }
@@ -69,6 +72,88 @@ service cloud.firestore {
                             && request.auth.uid == userId
                             && validLeaderboardEntry(userId);
       allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Desafio ───────────────────────────────────────────────────────────
+    // O placar é ESCRITO SÓ PELO SERVIDOR (api/challenge/sync.js, via
+    // firebase-admin, que passa por cima destas regras). O cliente lê e nada
+    // mais.
+    //
+    // Por que a escrita saiu daqui: nenhuma regra expressável neste arquivo
+    // resolve o problema de fundo. Os treinos que alimentam o placar moram em
+    // users/{uid}/data/workouts, documento do próprio usuário — ele pode gravar
+    // 21 treinos de uma vez, e qualquer validação de esquema aceitaria. O que
+    // separa treino de invenção é O MOMENTO em que o registro chegou, e só o
+    // servidor tem um relógio confiável para isso.
+    //
+    // (A versão anterior tinha aqui um teto de calendário e duas constantes
+    // duplicadas de src/lib/challenge.ts. Saíram junto com a escrita: o
+    // servidor lê challenge.json e não há mais nada para manter em sincronia.)
+    match /challenges/{challengeId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+
+      match /entries/{userId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+    }
+
+    // ── Clube ─────────────────────────────────────────────────────────────
+    // Grupo fechado com meta coletiva. A leitura é aberta a autenticados porque
+    // entrar exige ler o clube pelo código; o documento não guarda nada além de
+    // nome, meta e lista de uids.
+    //
+    // A atualização tem dois caminhos exclusivos e nada além deles:
+    //   1. entrar/sair — o único campo que muda é memberUids, e a diferença é
+    //      exatamente o próprio uid (ninguém adiciona nem remove terceiros);
+    //   2. o dono edita nome e meta — e não pode mexer na lista por essa via.
+    function clubMemberDelta() {
+      return request.resource.data.memberUids.toSet()
+             .difference(resource.data.memberUids.toSet())
+             .union(resource.data.memberUids.toSet()
+                    .difference(request.resource.data.memberUids.toSet()));
+    }
+
+    function isSelfMembershipChange() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
+             && clubMemberDelta() == [request.auth.uid].toSet()
+             && request.resource.data.memberUids.size() <= 30;
+    }
+
+    function isOwnerConfigChange() {
+      return resource.data.ownerUid == request.auth.uid
+             && request.resource.data.diff(resource.data)
+                .affectedKeys().hasOnly(['name', 'monthlyGoal'])
+             && request.resource.data.name is string
+             && request.resource.data.name.size() > 0
+             && request.resource.data.name.size() <= 40
+             && request.resource.data.monthlyGoal is int
+             && request.resource.data.monthlyGoal > 0
+             && request.resource.data.monthlyGoal <= 100000;
+    }
+
+    match /clubs/{clubId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasOnly(
+                         ['id', 'name', 'ownerUid', 'memberUids', 'monthlyGoal', 'createdAt'])
+                    && request.resource.data.id == clubId
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.memberUids == [request.auth.uid]
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() <= 40
+                    && request.resource.data.monthlyGoal is int
+                    && request.resource.data.monthlyGoal > 0
+                    && request.resource.data.monthlyGoal <= 100000
+                    && request.resource.data.createdAt is number;
+
+      allow update: if request.auth != null
+                    && (isSelfMembershipChange() || isOwnerConfigChange());
+
+      allow delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
     }
 
     // Link read-only do treinador: `coachShares/{token}` guarda um RESUMO

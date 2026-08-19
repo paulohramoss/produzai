@@ -9,10 +9,17 @@ import {
   getFriends, addFriend as addFriendDB,
   getFriendLeaderboard, lookupByInviteCode,
 } from '../../lib/db'
-import { computeXP, computeStreak, computeBadges, getWeekWorkouts, getWeekKey } from '../../lib/xp'
+import {
+  computeXP, computeStreak, computeBadges, getWeekWorkouts, getWeekKey,
+  getMonthWorkouts, getMonthKey,
+} from '../../lib/xp'
 import { ShareCard } from '../components/ShareCard'
+import { ChallengeCard } from '../components/ChallengeCard'
+import { ClubCard } from '../components/ClubCard'
+import { buildInviteLink } from '../../lib/attribution'
+import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
-import { Share2, Dumbbell, Star, Salad, Award } from 'lucide-react'
+import { Share2, Dumbbell, Star, Salad, Award, Link as LinkIcon } from 'lucide-react'
 
 interface Props {
   setPage: (page: Page) => void
@@ -38,6 +45,7 @@ export function Dashboard({ setPage }: Props) {
 
   const weekWorkoutsList = getWeekWorkouts(workouts)
   const weekCal = weekWorkoutsList.reduce((s, w) => s + w.cal, 0)
+  const monthWorkoutsCount = getMonthWorkouts(workouts).length
 
   const doneMeals = wd?.meals.filter(m => m.done) ?? []
   const calConsumed = wd ? doneMeals.reduce((s, m) => s + m.cal, 0) : 0
@@ -66,6 +74,8 @@ export function Dashboard({ setPage }: Props) {
       weeklyWorkouts: weekWorkoutsList.length,
       weeklyXP: weekXP,
       weekKey: getWeekKey(),
+      monthlyWorkouts: monthWorkoutsCount,
+      monthKey: getMonthKey(),
       inviteCode,
       updatedAt: Date.now(),
     })
@@ -105,6 +115,13 @@ export function Dashboard({ setPage }: Props) {
     }
   }
 
+  /** O link já carrega o código e a origem — é o que vai na bio do Instagram. */
+  function copyInviteLink() {
+    navigator.clipboard.writeText(buildInviteLink(inviteCode))
+      .then(() => toast.success('Link copiado — cole na sua bio'))
+      .catch(() => toast.error('Não foi possível copiar'))
+  }
+
   const earnedBadges = badges.filter(b => b.earnedAt)
 
   return (
@@ -126,7 +143,7 @@ export function Dashboard({ setPage }: Props) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <div style={{ fontSize: T.text.md, color: C.muted, textTransform: 'capitalize' }}>{dateStr}</div>
-          <div style={{ fontSize: T.text['6xl'], fontWeight: T.weight.extrabold, ...displayStyle }}>Dashboard</div>
+          <div style={{ fontSize: T.text['6xl'], fontWeight: T.weight.extrabold, ...displayStyle }}>Início</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           {([
@@ -193,6 +210,11 @@ export function Dashboard({ setPage }: Props) {
             {leaderboard.length > 0 ? `de ${leaderboard.length} atletas` : 'Aguardando dados'}
           </div>
         </Card>
+      </div>
+
+      {/* Desafio da temporada — janela fechada, placar próprio, prêmio no fim */}
+      <div style={{ marginBottom: 16 }}>
+        <ChallengeCard />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -283,11 +305,23 @@ export function Dashboard({ setPage }: Props) {
           ) : (
             /* Amigos tab */
             <>
-              {/* User's invite code */}
+              {/* Convite — código para digitar, link para colar na bio */}
               <div style={{ background: C.card2, borderRadius: T.radius.md, padding: '10px 14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
                 <div style={{ fontSize: T.text.xs, color: C.muted, marginBottom: 4 }}>SEU CÓDIGO DE CONVITE</div>
                 <div style={{ fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, color: C.orange, letterSpacing: 4, ...displayStyle }}>{inviteCode}</div>
                 <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 3 }}>Passe esse código para seus amigos te adicionarem</div>
+                <button
+                  onClick={copyInviteLink}
+                  style={{
+                    marginTop: 10, width: '100%',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                    background: 'transparent', border: `1px solid ${C.orange}55`,
+                    borderRadius: T.radius.sm, padding: '8px 12px', color: C.orange,
+                    fontSize: T.text.md, fontWeight: T.weight.bold, cursor: 'pointer',
+                  }}
+                >
+                  <LinkIcon size={13} /> Copiar meu link de convite
+                </button>
               </div>
 
               {/* Friend entries */}
@@ -354,6 +388,11 @@ export function Dashboard({ setPage }: Props) {
             </>
           )}
         </Card>
+      </div>
+
+      {/* Clube — meta coletiva do mês */}
+      <div style={{ marginBottom: 16 }}>
+        <ClubCard />
       </div>
 
       {/* Dieta widget */}

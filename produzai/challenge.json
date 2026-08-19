@@ -1,0 +1,11 @@
+{
+  "_comment": "Definição do desafio em cartaz. Fica FORA de src/ porque é lida pelos dois lados: o app (src/lib/challenge.ts) e o servidor que confere o placar (api/challenge/sync.js). Um arquivo só, para os dois nunca discordarem sobre a janela.",
+  "id": "desafio-21",
+  "name": "Desafio 21 Dias",
+  "pitch": "21 dias, 21 treinos. Sem pular segunda.",
+  "prize": "um pote de whey do parceiro",
+  "partner": "",
+  "startDate": "2026-09-01",
+  "endDate": "2026-09-21",
+  "goalDays": 21
+}
