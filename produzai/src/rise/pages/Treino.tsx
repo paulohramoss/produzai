@@ -26,6 +26,7 @@ import { ExerciseEditor } from '../components/ExerciseEditor'
 import { TrainingLoadCard } from '../components/TrainingLoadCard'
 import { StrengthPanel } from '../components/StrengthPanel'
 import { WeekPlanCard } from '../components/WeekPlanCard'
+import { TrainingJournal } from '../components/TrainingJournal'
 import { workoutVolume, hasStrengthData, type Exercise } from '../../lib/strength'
 
 interface Props {
@@ -412,6 +413,8 @@ export function Treino({ setPage }: Props) {
           </div>
         </Card>
       )}
+
+      <TrainingJournal />
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: 16 }}>
         {/* Activities */}

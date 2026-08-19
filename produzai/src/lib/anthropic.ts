@@ -85,6 +85,8 @@ export interface CoachContext {
     planned: number
     next?: string
   }
+  /** Diário de treino recente — sentimentos, dores, motivação. */
+  journalEntries?: { date: string; text: string }[]
 }
 
 export interface OnboardingContext {
@@ -275,4 +277,19 @@ export async function generateWeeklyReview(
   weekSummary: string,
 ): Promise<WeeklyReviewResult | null> {
   return callCompletion('weekly-review', { weekSummary })
+}
+
+// ── Diário de treino: insights ─────────────────────────────────────────────────
+
+export interface JournalInsightResult {
+  riskLevel: 'baixo' | 'moderado' | 'alto'
+  summary: string
+  signals: string[]
+  recommendation: string
+}
+
+export async function generateJournalInsights(
+  journalSummary: string,
+): Promise<JournalInsightResult | null> {
+  return callCompletion('journal-insights', { journalSummary })
 }

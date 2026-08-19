@@ -30,6 +30,16 @@ service cloud.firestore {
       match /mentalMonthly/{month} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      // journal/{date} — diário de treino (sentimentos, dores, motivação)
+      match /journal/{date} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // journalMonthly/{yyyy-MM} — agregação mensal do diário de treino
+      match /journalMonthly/{month} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Leaderboard público (leitura para autenticados, escrita só para o próprio uid).
