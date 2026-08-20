@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <!-- Background circle -->
-  <rect width="48" height="48" rx="12" fill="#F97316"/>
-
-  <!-- Lightning bolt (tight geometric, fills the square nicely) -->
-  <polygon points="30,4 14,26 22,26 18,44 34,22 26,22" fill="#0C0C0C"/>
-  <!-- Highlight on bolt leading edge -->
-  <polygon points="30,4 26,4 12,26 14,26" fill="#FBBF6A" opacity="0.35"/>
-</svg>
