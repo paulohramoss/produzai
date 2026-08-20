@@ -8,6 +8,7 @@ import {
 import { Card, Tag, Bar, ChartTooltip } from '../primitives'
 import { useWorkoutStore, INJURY_PAIN_LEVEL, type ManualWorkout } from '../../store/useWorkoutStore'
 import { useAuthStore } from '../../store/useAuthStore'
+import { holdAppUpdate } from '../../lib/appUpdate'
 import { toast } from '../../lib/toast'
 import { LayoutContext } from '../LayoutContext'
 import { WORKOUT_TEMPLATES } from '../data/templates'
@@ -94,6 +95,14 @@ export function Treino({ setPage }: Props) {
   const [showMore, setShowMore] = useState(false)
   /** id do treino sendo corrigido — null quando o modal está registrando um novo. */
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  // Treino no meio de ser registrado é trabalho não salvo. A regra de "parado há
+  // um minuto" não cobre isto: descansar 90s entre séries com o formulário
+  // aberto é exatamente o normal aqui, e não é hora de trocar de versão.
+  useEffect(() => {
+    if (!showModal) return
+    return holdAppUpdate()
+  }, [showModal])
   const [form, setForm] = useState({
     type: 'Corrida',
     name: '',

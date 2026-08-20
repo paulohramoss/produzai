@@ -3,6 +3,11 @@ import { createRoot } from 'react-dom/client'
 import { Analytics } from '@vercel/analytics/react'
 import './index.css'
 import App from './App.tsx'
+import { watchForUpdates } from './lib/appUpdate'
+
+// Vigia de versão: fora do React de propósito — não depende de nenhuma tela
+// estar montada e precisa continuar valendo na tela de login e no splash.
+watchForUpdates()
 
 // O Analytics fica fora do <App /> de propósito: assim ele também mede a tela
 // de carregamento e a de login, que ficam antes da autenticação resolver.

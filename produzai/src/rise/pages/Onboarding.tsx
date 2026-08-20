@@ -3,6 +3,7 @@ import { T, C, displayStyle, safeInset } from '../data'
 import { CheckCircle2, Gem, Scale, Target, Utensils } from 'lucide-react'
 import { Tag } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
+import { holdAppUpdate } from '../../lib/appUpdate'
 import { saveProfile, saveDaily } from '../../lib/db'
 import { todayKey } from '../../lib/date'
 import { OnboardingBody } from '../components/OnboardingBody'
@@ -31,6 +32,10 @@ export function Onboarding() {
   // onde deveria haver três toques e um botão. O chat continua a um clique de
   // distância para quem prefere — só deixou de ser o pedágio de todo mundo.
   const [mode, setMode] = useState<'chat' | 'quick'>('quick')
+
+  // O onboarding inteiro é rascunho: nada foi para o Firestore ainda. Recarregar
+  // aqui manda a pessoa para o começo do cadastro.
+  useEffect(() => holdAppUpdate(), [])
 
   if (mode === 'quick') {
     return <QuickOnboarding onSwitchToChat={apiReady ? () => setMode('chat') : undefined} />

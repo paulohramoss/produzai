@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node --test \"api/**/*.test.mjs\"",
-    "qa": "node qa/run.mjs"
+    "qa": "node qa/run.mjs",
+    "qa:update": "node qa/deploy-update.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
