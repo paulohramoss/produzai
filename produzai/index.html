@@ -9,6 +9,10 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <meta name="theme-color" content="#F97316">
 
+    <!-- Fundo do app pintado antes do CSS do bundle chegar. Sem isto, todo F5
+         pisca branco antes da tela aparecer — o que já parece "saí do app". -->
+    <style>html,body{margin:0;background:#0C0C0C;color-scheme:dark}</style>
+
     <!-- PWA standalone behavior -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">

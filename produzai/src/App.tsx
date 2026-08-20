@@ -5,6 +5,7 @@ import { Landing } from './rise/pages/Landing'
 import { Login } from './rise/pages/Login'
 import { TrainerView } from './rise/pages/TrainerView'
 import { captureAttribution } from './lib/attribution'
+import { hasStoredSession } from './lib/sessionHint'
 import { C } from './rise/data'
 
 /** Token do link do treinador, lido uma vez — a rota não muda durante a sessão. */
@@ -13,27 +14,6 @@ const coachToken = new URLSearchParams(window.location.search).get('coach')
 /** De onde a pessoa veio. Gravado antes de qualquer render para não perder o
  *  parâmetro se ela navegar dentro da landing. */
 captureAttribution()
-
-/**
- * Existe sessão guardada neste navegador?
- *
- * O Firebase Auth persiste a sessão em localStorage e só confirma o usuário
- * depois de uma ida à rede. Esperar por isso faz sentido para quem já tem
- * conta — mas prender o VISITANTE numa tela de "Carregando..." até o Firebase
- * responder mata justamente o que a landing existe para fazer. Quem nunca
- * logou não tem chave nenhuma aqui, então vê a página na hora; o listener
- * continua rodando em segundo plano e troca a tela sozinho se algo aparecer.
- */
-function hasStoredSession(): boolean {
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      if (localStorage.key(i)?.startsWith('firebase:authUser:')) return true
-    }
-  } catch {
-    // Storage bloqueado: trate como visitante e mostre a landing.
-  }
-  return false
-}
 
 const maybeReturningUser = hasStoredSession()
 

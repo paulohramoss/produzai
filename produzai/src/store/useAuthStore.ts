@@ -17,6 +17,7 @@ import {
 import { ref as storageRef, deleteObject } from 'firebase/storage'
 import { auth, storage } from '../lib/firebase'
 import { setUserStorageUid } from '../lib/userStorage'
+import { markSignedIn, markSignedOut } from '../lib/sessionHint'
 import {
   setDbUid, getProfile, getWorkouts, getDiet, getHydration,
   saveProfile, deleteAllUserData,
@@ -354,6 +355,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   init: () => {
     const unsub = onAuthStateChanged(auth, async user => {
       if (user) {
+        // Antes de qualquer await: é este bilhete que faz o próximo F5 abrir no
+        // splash do app em vez da landing. Ver lib/sessionHint.
+        markSignedIn()
         setUserStorageUid(user.uid)
         setDbUid(user.uid)
 
@@ -400,6 +404,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           weightLog,
         })
       } else {
+        markSignedOut()
         clearSessionState()
         set({
           user: null, loading: false, initialized: true,
