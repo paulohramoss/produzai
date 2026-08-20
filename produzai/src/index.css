@@ -126,6 +126,27 @@
   }
 }
 
+/* ── Marca ────────────────────────────────────────────────────────────────────
+   O logo é um PNG de tinta clara sobre transparente. O SVG antigo trazia um
+   cartão escuro embutido (`<rect fill="#0C0C0C" rx="16">`), que dispensava
+   qualquer cuidado; o novo não traz nada — ele é só a arte. O que vale para
+   TODA tela onde a marca aparece mora aqui, em vez de repetido em cada `style`.
+   ─────────────────────────────────────────────────────────────────────────── */
+.rise-brand {
+  /* Proporção declarada antes de o arquivo chegar, para o layout não mudar
+     quando ele carrega. Medido em rede lenta, o desvio hoje já é ~0 — isto é
+     garantia barata para conexão ruim, não conserto de um bug observado. */
+  aspect-ratio: 570 / 275;
+  /* Marca não é conteúdo: não se seleciona junto com o texto nem se arrasta
+     para fora do app (que num PWA instalado parece defeito). */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Só a montanha, sem a palavra — proporção bem mais larga. */
+.rise-brand--mark { aspect-ratio: 160 / 58; }
+
 /* Altura de tela cheia que acompanha a barra do navegador móvel.
    `100vh` no iOS é a altura COM a barra escondida: usar só ele deixa o rodapé
    da tela embaixo da barra do Safari. `dvh` sobrescreve onde houver suporte. */
@@ -192,8 +213,8 @@
   .nav-item { @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer w-full; }
   .nav-item.active { @apply bg-brand-600/20 text-brand-400; }
   .nav-item:not(.active) { @apply text-gray-500 hover:bg-surface-hover hover:text-gray-200; }
-  .page-title { @apply text-2xl font-bold text-white; font-family: var(--rise-font-display); font-variation-settings: "wdth" 112; letter-spacing: -0.015em; }
+  .page-title { @apply text-2xl font-bold text-white; font-family: var(--rise-font-display); font-variation-settings: "wdth" 112; letter-spacing: 0; }
   .section-label { @apply text-xs font-semibold text-gray-500 uppercase tracking-widest; }
-  .font-display { font-family: var(--rise-font-display); font-variation-settings: "wdth" 112; letter-spacing: -0.015em; }
+  .font-display { font-family: var(--rise-font-display); font-variation-settings: "wdth" 112; letter-spacing: 0; }
 }
 

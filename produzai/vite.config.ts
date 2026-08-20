@@ -62,8 +62,11 @@ export default defineConfig(({ mode }) => {
         lang: 'pt-BR',
         categories: ['fitness', 'health', 'lifestyle'],
         icons: [
-          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          // A `maskable` recua a arte: o sistema recorta até 20% de cada borda
+          // para encaixar o ícone no formato do aparelho.
+          { src: '/pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
     }),

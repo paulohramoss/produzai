@@ -51,7 +51,7 @@ export function ConsentModal() {
               margin: '0 auto 12px',
             }}
           >
-            ⚡
+            <img className="rise-brand rise-brand--mark" src="/rise-mark.png" alt="" style={{ width: 46, display: "block" }} />
           </div>
           <div style={{ fontSize: T.text['4xl'], fontWeight: T.weight.extrabold, color: C.text }}>
             The Rise Plan

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { T, C, displayStyle, safeInset } from '../data'
+import { T, C, safeInset } from '../data'
 import { useAuthStore } from '../../store/useAuthStore'
 import { PolicyOverlay } from '../components/ConsentModal'
 
@@ -104,14 +104,13 @@ export function Login({ initialMode = 'login', onBack }: Props) {
 
         {/* Brand */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{
-            width: 60, height: 60, borderRadius: T.radius['2xl'],
-            background: C.orange,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 28, margin: '0 auto 16px',
-          }}>⚡</div>
-          <div style={{ fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, color: C.text, ...displayStyle }}>The Rise Plan</div>
-          <div style={{ fontSize: T.text.md, color: C.muted, marginTop: 4 }}>Performance Total</div>
+          <img
+            className="rise-brand"
+            src="/rise-logo.png"
+            alt="The Rise Plan"
+            style={{ width: 190, display: 'block', margin: '0 auto 12px' }}
+          />
+          <div style={{ fontSize: T.text.md, color: C.muted }}>Performance Total</div>
         </div>
 
         {/* Card */}

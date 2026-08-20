@@ -16,7 +16,24 @@ interface Props extends ShareData {
   onClose: () => void
 }
 
-function drawShareCard(canvas: HTMLCanvasElement, data: ShareData): void {
+/**
+ * Carrega uma imagem para o canvas. Devolve `null` em vez de rejeitar: o card
+ * precisa sair mesmo que a marca não carregue — o print é o produto.
+ */
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise(resolve => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+}
+
+function drawShareCard(
+  canvas: HTMLCanvasElement,
+  data: ShareData,
+  logo: HTMLImageElement | null,
+): void {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   const W = 540
@@ -47,11 +64,19 @@ function drawShareCard(canvas: HTMLCanvasElement, data: ShareData): void {
   ctx.fillStyle = '#F97316'
   ctx.fillRect(0, 0, W, 88)
 
-  ctx.font = `bold 25px ${FONT}`
-  ctx.fillStyle = '#fff'
+  // A marca na faixa laranja. O arquivo tem tinta clara, que é o contraste
+  // certo aqui; se ele não carregar, o nome escrito faz o mesmo trabalho.
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText('⚡ THE RISE PLAN', W / 2, 44)
+  if (logo) {
+    const h = 46
+    const w = (logo.width / logo.height) * h
+    ctx.drawImage(logo, (W - w) / 2, (88 - h) / 2, w, h)
+  } else {
+    ctx.font = `bold 25px ${FONT}`
+    ctx.fillStyle = '#fff'
+    ctx.fillText('THE RISE PLAN', W / 2, 44)
+  }
 
   // Week label
   ctx.font = `500 17px ${FONT}`
@@ -180,13 +205,13 @@ export function ShareCard({ onClose, ...data }: Props) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    // Draw after fonts are ready to ensure system fonts are applied
-    const run = () => drawShareCard(canvas, data)
-    if (typeof document.fonts?.ready?.then === 'function') {
-      document.fonts.ready.then(run)
-    } else {
-      run()
-    }
+    // Espera fontes E marca antes de desenhar: o canvas é exportado como está,
+    // então um desenho em duas etapas poderia ser compartilhado pela metade.
+    const fontsReady = typeof document.fonts?.ready?.then === 'function'
+      ? document.fonts.ready
+      : Promise.resolve()
+    Promise.all([fontsReady, loadImage('/rise-logo.png')])
+      .then(([, logo]) => drawShareCard(canvas, data, logo))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

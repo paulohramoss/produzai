@@ -69,7 +69,16 @@ export const safePlus = (
 // ── Typography ───────────────────────────────────────────────────────────────
 // Archivo is the display face (titles + signature numbers); Open Sans the body.
 // The display look comes from the EXPANDED width axis (wdth 112) — spread
-// `displayStyle` onto a heading/number and keep your own fontSize/weight/color.
+// `displayStyle` onto a heading/number and keep your own fontSize/color.
+//
+// PESO E TRACKING VÊM DAQUI, não do ponto de uso. A marca ("the rise") é
+// monolinear, arredondada e de tracking aberto; títulos em 800 com tracking
+// negativo puxavam para o lado oposto e a tela ficava com duas vozes. 700 e
+// tracking neutro aproximam sem trocar de fonte.
+//
+// Todos os pontos de uso escrevem `fontWeight: ..., ...displayStyle`, com o
+// spread por último — então o peso definido aqui vence. Para um número que
+// precise mesmo de 800, coloque o `fontWeight` DEPOIS do spread.
 export const F = {
   display: '"Archivo", "Open Sans", system-ui, sans-serif',
   body:    '"Open Sans", system-ui, sans-serif',
@@ -78,7 +87,8 @@ export const F = {
 export const displayStyle: CSSProperties = {
   fontFamily: F.display,
   fontVariationSettings: '"wdth" 112',
-  letterSpacing: '-0.015em',
+  letterSpacing: 0,
+  fontWeight: T.weight.bold,
 }
 
 export type Page =

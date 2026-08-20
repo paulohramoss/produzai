@@ -184,15 +184,16 @@ export function RisePlan() {
           {!isTablet && (
             <div style={{ padding: "0 10px 20px" }}>
               <img
-                src="/rise-plan-logo.svg"
+                className="rise-brand"
+                src="/rise-logo.png"
                 alt="The Rise Plan"
-                style={{ width: "100%", height: "auto", display: "block", borderRadius: T.radius.md }}
+                style={{ width: "100%", height: "auto", display: "block" }}
               />
             </div>
           )}
           {isTablet && (
             <div style={{ display: "flex", justifyContent: "center", paddingBottom: 16 }}>
-              <img src="/rise-plan-logo.svg" alt="Rise" style={{ width: 36, height: 36, borderRadius: T.radius.sm, objectFit: "cover" }} />
+              <img className="rise-brand rise-brand--mark" src="/rise-mark.png" alt="Rise" style={{ width: 44 }} />
             </div>
           )}
 
@@ -372,7 +373,7 @@ export function RisePlan() {
               >
                 ☰
               </button>
-              <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ height: 28, borderRadius: T.radius.xs }} />
+              <img className="rise-brand" src="/rise-logo.png" alt="The Rise Plan" style={{ height: 30 }} />
               <button
                 onClick={() => navigate("perfil")}
                 aria-label="Ir para perfil"

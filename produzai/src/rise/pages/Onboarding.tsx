@@ -204,7 +204,7 @@ function ConversationalOnboarding({ onSwitchToQuick }: { onSwitchToQuick: () => 
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
-          <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ width: 120, borderRadius: T.radius.lg, marginBottom: 12 }} />
+          <img className="rise-brand" src="/rise-logo.png" alt="The Rise Plan" style={{ width: 130, marginBottom: 12 }} />
           <div style={{ fontSize: T.text['4xl'], fontWeight: T.weight.extrabold, color: C.text, marginBottom: 4 }}>
             {plan ? 'Seu sistema inicial está pronto ✨' : 'Vamos te conhecer'}
           </div>
@@ -592,7 +592,7 @@ function QuickOnboarding({ onSwitchToChat }: { onSwitchToChat?: () => void }) {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <img src="/rise-plan-logo.svg" alt="The Rise Plan" style={{ width: 160, borderRadius: T.radius.lg, marginBottom: 16 }} />
+          <img className="rise-brand" src="/rise-logo.png" alt="The Rise Plan" style={{ width: 175, marginBottom: 16 }} />
           <div style={{ fontSize: T.text['5xl'], fontWeight: T.weight.extrabold, color: C.text, marginBottom: 6, ...displayStyle }}>
             Olá, {firstName}! 👋
           </div>

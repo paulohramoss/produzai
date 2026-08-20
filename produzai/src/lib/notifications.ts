@@ -21,7 +21,7 @@ export async function requestPermission(): Promise<NotificationPermission> {
 
 export function show(title: string, body: string) {
   if (Notification.permission !== 'granted') return
-  new Notification(title, { body, icon: '/favicon.svg', badge: '/favicon.svg' })
+  new Notification(title, { body, icon: '/pwa-192.png', badge: '/favicon.png' })
 }
 
 // ── Periodic Background Sync ──────────────────────────────────────────────────

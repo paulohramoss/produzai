@@ -71,8 +71,7 @@ export default function App() {
         gap: 16,
         color: C.text,
       }}>
-        <div style={{ fontSize: 48 }}>⚡</div>
-        <div style={{ fontSize: 16, fontWeight: 700 }}>The Rise Plan</div>
+        <img className="rise-brand" src="/rise-logo.png" alt="The Rise Plan" style={{ width: 170 }} />
         <div style={{ fontSize: 13, color: C.muted }}>Carregando...</div>
       </div>
     )

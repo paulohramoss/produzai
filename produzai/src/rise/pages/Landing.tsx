@@ -70,9 +70,10 @@ export function Landing({ onEnter }: Props) {
         gap: 12, padding: `16px ${pad}px`, maxWidth: 1080, margin: '0 auto',
       }}>
         <img
-          src="/rise-plan-logo.svg"
+          className="rise-brand"
+          src="/rise-logo.png"
           alt="The Rise Plan"
-          style={{ height: 34, borderRadius: T.radius.sm }}
+          style={{ height: 42 }}
         />
         <button
           onClick={() => onEnter('login')}

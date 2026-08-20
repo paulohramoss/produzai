@@ -45,7 +45,7 @@ export function TrainerView({ token }: Props) {
     return (
       <Shell>
         <div style={{ textAlign: 'center', padding: '80px 0', color: C.muted }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>⚡</div>
+          <img className="rise-brand" src="/rise-logo.png" alt="The Rise Plan" style={{ width: 150, marginBottom: 12 }} />
           Carregando...
         </div>
       </Shell>
