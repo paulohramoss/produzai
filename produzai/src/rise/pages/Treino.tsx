@@ -1,4 +1,4 @@
-import { useState, useContext, useMemo, useRef } from 'react'
+import { useState, useContext, useMemo, useRef, useEffect } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
 import { Dumbbell, TrendingUp, Trophy, Mic, Square, Camera } from 'lucide-react'
 import {
