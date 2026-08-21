@@ -1,0 +1,17 @@
+[
+  {
+    "origin": [
+      "https://therisepln.com.br",
+      "https://www.therisepln.com.br",
+      "https://produzai-ab8ad.web.app",
+      "https://produzai-ab8ad.firebaseapp.com",
+      "http://localhost:5173",
+      "http://localhost:4173",
+      "http://localhost:3000",
+      "http://localhost:5199"
+    ],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "x-goog-resumable"]
+  }
+]
