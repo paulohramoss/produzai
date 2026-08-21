@@ -1,5 +1,6 @@
 import { useState, useContext, useMemo, useRef, useEffect } from 'react'
 import { T, C, type Page, displayStyle } from '../data'
+import { useDialog } from '../useDialog'
 import { Dumbbell, TrendingUp, Trophy, Mic, Square, Camera } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line,
@@ -89,6 +90,7 @@ export function Treino({ setPage }: Props) {
   const weightKg = useAuthStore(s => s.body.weightKg)
 
   const [showModal, setShowModal] = useState(false)
+  const dialogRef = useDialog(showModal, () => setShowModal(false))
   const [showTemplates, setShowTemplates] = useState(false)
   const [exercises, setExercises] = useState<Exercise[]>([])
   // Detalhes opcionais ficam recolhidos: o registro pede tipo + duração e deriva o resto.
@@ -543,7 +545,14 @@ export function Treino({ setPage }: Props) {
           className="rise-overlay"
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 'clamp(20px, 6vw, 28px)', width: '100%', maxWidth: 480, maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto' }}>
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Registrar treino"
+            tabIndex={-1}
+            style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 'clamp(20px, 6vw, 28px)', width: '100%', maxWidth: 480, maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto' }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: T.text['3xl'], fontWeight: T.weight.extrabold }}>
                 {editingId ? 'Editar treino' : 'Registrar treino'}

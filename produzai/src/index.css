@@ -218,3 +218,49 @@
   .font-display { font-family: var(--rise-font-display); font-variation-settings: "wdth" 112; letter-spacing: 0; }
 }
 
+
+/* ── Esqueleto de carregamento ───────────────────────────────────────────────
+   Segura o layout enquanto o chunk da página chega. A cor caminha entre duas
+   superfícies reais do tema — brilho branco em fundo preto vira flash. */
+@keyframes rise-skeleton-pulse {
+  0%, 100% { background-color: var(--rise-card); }
+  50%      { background-color: var(--rise-card-2); }
+}
+.rise-skeleton {
+  background-color: var(--rise-card);
+  animation: rise-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Acessibilidade ──────────────────────────────────────────────────────────
+   Foco visível de novo. Vários botões zeram `outline` no estilo inline para
+   matar o contorno do clique — e levavam junto a ÚNICA pista de onde o teclado
+   está. `:focus-visible` só aparece na navegação por teclado, então o mouse
+   continua sem contorno. `!important` porque o concorrente é estilo inline,
+   que ganha de qualquer seletor. */
+:focus-visible {
+  outline: 2px solid var(--rise-orange) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+
+/* Texto só para leitor de tela: fora da vista, dentro da árvore de acessibilidade. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Quem pediu menos movimento no sistema recebe menos movimento. Não removemos
+   as transições — zeramos a duração, o que preserva os estados finais. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

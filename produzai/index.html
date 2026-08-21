@@ -47,7 +47,26 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62.5..125,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+
+    <!-- As fontes saíram do caminho crítico.
+         Como `rel="stylesheet"`, esta folha BLOQUEAVA a primeira pintura: o
+         navegador parava, ia até o Google, e só então desenhava qualquer coisa.
+         Agora ela chega em `preload` (baixa cedo, com prioridade, sem travar) e
+         só passa a valer quando o app liga — quem faz a virada é o main.tsx, e
+         não um `onload` aqui dentro, que seria script inline e a CSP recusaria.
+
+         O custo é ver a fonte do sistema por um instante na PRIMEIRA visita. O
+         `display=swap` na URL já produzia essa troca de qualquer forma, e nas
+         visitas seguintes o service worker serve a fonte do cache local. -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62.5..125,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap">
+    <link
+      data-deferred-style
+      rel="stylesheet"
+      media="print"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62.5..125,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap">
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62.5..125,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap">
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

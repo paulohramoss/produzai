@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { T, C } from '../data'
+import { useDialog } from '../useDialog'
 import { X, Download, Share2 } from 'lucide-react'
 
 interface ShareData {
@@ -200,6 +201,7 @@ function drawShareCard(
 }
 
 export function ShareCard({ onClose, ...data }: Props) {
+  const dialogRef = useDialog(true, onClose)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -259,6 +261,11 @@ export function ShareCard({ onClose, ...data }: Props) {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Compartilhar card"
+        tabIndex={-1}
         style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
           maxWidth: 340, width: '100%',

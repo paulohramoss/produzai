@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { T, C, safeInset } from '../data';
+import { useDialog } from '../useDialog';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export function ConsentModal() {
@@ -221,6 +222,7 @@ export function ConsentModal() {
 // ── Full privacy policy overlay ───────────────────────────────────────────────
 
 export function PolicyOverlay({ onClose }: { onClose: () => void }) {
+  const dialogRef = useDialog(true, onClose);
   return (
     <div
       style={{
@@ -238,6 +240,11 @@ export function PolicyOverlay({ onClose }: { onClose: () => void }) {
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Política de privacidade"
+        tabIndex={-1}
         style={{
           background: C.card,
           border: `1px solid ${C.border}`,

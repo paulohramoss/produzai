@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { X, Copy, ShoppingCart, RotateCcw } from 'lucide-react'
 import { T, C, displayStyle, safeInset } from '../data'
+import { useDialog } from '../useDialog'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { useIsMobile } from '../../lib/useIsMobile'
 import { toast } from '../../lib/toast'
@@ -21,6 +22,7 @@ import {
 const DAY_OPTIONS = [3, 5, 7, 14]
 
 export function ShoppingListModal({ onClose }: { onClose: () => void }) {
+  const dialogRef = useDialog(true, onClose)
   const meals = useWebDietStore(s => s.data?.meals)
   const isMobile = useIsMobile()
   const [days, setDays] = useState(7)
@@ -57,7 +59,13 @@ export function ShoppingListModal({ onClose }: { onClose: () => void }) {
         padding: isMobile ? 0 : 24,
       }}
     >
-      <div style={{
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Lista de compras"
+        tabIndex={-1}
+        style={{
         background: C.card,
         border: `1px solid ${C.border}`,
         borderRadius: isMobile ? `${T.radius['4xl']}px ${T.radius['4xl']}px 0 0` : T.radius['4xl'],

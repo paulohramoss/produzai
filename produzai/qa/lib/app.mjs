@@ -11,6 +11,8 @@ const ARTIFACTS = fileURLToPath(new URL('../artifacts', import.meta.url))
 
 const AUTH_KEY = 'qa_auth_user'
 const DB_KEY = 'qa_firestore'
+/** Espelha `firebase:authUser:<apiKey>:[DEFAULT]`, a chave que o SDK real grava. */
+const FIREBASE_TRACE_KEY = 'firebase:authUser:qa-fake:[DEFAULT]'
 
 /** Mesmo algoritmo de `uidFor` em qa/fakes/firebase-auth.ts. */
 export function uidFor(email) {
@@ -111,12 +113,18 @@ export async function openSession(browser, { baseUrl, scenarioSlug, user = seede
   const ctx = await browser.newContext({ viewport: viewport ?? { width: 1400, height: 1000 } })
 
   if (user) {
-    await ctx.addInitScript(({ authKey, dbKey, auth, db }) => {
+    await ctx.addInitScript(({ authKey, dbKey, traceKey, auth, db }) => {
       localStorage.setItem(authKey, JSON.stringify(auth))
+      // O rastro que um navegador de verdade já traz no disco quando o Firebase
+      // tem sessão guardada — e que o app lê ANTES de qualquer script nosso
+      // rodar, para escolher entre a landing e o splash (src/lib/sessionHint).
+      // Sem ele o dublê descreveria um navegador que não existe: com sessão
+      // ativa e nenhum sinal dela em lugar nenhum.
+      localStorage.setItem(traceKey, JSON.stringify(auth))
       // Não sobrescreve o que o próprio app já gravou nesta sessão: o
       // addInitScript roda a cada navegação, inclusive nos reloads do teste.
       if (!localStorage.getItem(dbKey)) localStorage.setItem(dbKey, JSON.stringify(db))
-    }, { authKey: AUTH_KEY, dbKey: DB_KEY, auth: user.auth, db: user.db })
+    }, { authKey: AUTH_KEY, dbKey: DB_KEY, traceKey: FIREBASE_TRACE_KEY, auth: user.auth, db: user.db })
   }
 
   const page = await ctx.newPage()

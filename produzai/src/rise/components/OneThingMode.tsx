@@ -1,4 +1,5 @@
 import { T, C } from '../data'
+import { useDialog } from '../useDialog'
 
 export interface OneThing {
   kind: 'focus' | 'habit' | 'done'
@@ -19,8 +20,17 @@ interface Props {
  * ação mais importante agora — antídoto direto à paralisia por sobrecarga.
  */
 export function OneThingMode({ thing, onComplete, onClose }: Props) {
+  const dialogRef = useDialog(true, onClose)
+
   return (
-    <div className="rise-overlay" style={{
+    <div
+      className="rise-overlay"
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Uma coisa por vez"
+      tabIndex={-1}
+      style={{
       position: 'fixed', inset: 0, background: C.bg, zIndex: 500,
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       fontFamily: 'system-ui, sans-serif',

@@ -1,21 +1,27 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useSyncExternalStore, lazy, Suspense } from "react";
 import { LayoutDashboard, Sun, Dumbbell, Utensils, Menu, ChevronDown } from "lucide-react";
 import { T, C, NAV_PRIMARY, NAV_MORE, safeInset, safePlus, type Page, type NavItem } from "./data";
+// O Dashboard é a tela em que todo mundo cai depois do login: mantê-lo estático
+// evita um piscar de esqueleto no caminho mais comum do app.
 import { Dashboard }    from "./pages/Dashboard";
-import { Treino }       from "./pages/Treino";
-import { Dieta }        from "./pages/Dieta";
-import { Hoje }         from "./pages/Hoje";
-import { Historico }    from "./pages/Historico";
-import { Agenda }       from "./pages/Agenda";
-import { Projetos }     from "./pages/Projetos";
-import { Mental }       from "./pages/Mental";
-import { Biblioteca }   from "./pages/Biblioteca";
-import { Coach }        from "./pages/Coach";
-import { Galeria }      from "./pages/Galeria";
-import { Perfil }       from "./pages/Perfil";
-import { Insights }     from "./pages/Insights";
-import { Onboarding }   from "./pages/Onboarding";
+// As demais telas viajam em chunks próprios. Sem isto o primeiro carregamento
+// baixava o app inteiro — Coach, Onboarding, Galeria e o recharts junto — antes
+// de desenhar o primeiro pixel.
+const Treino     = lazy(() => import("./pages/Treino").then(m     => ({ default: m.Treino })));
+const Dieta      = lazy(() => import("./pages/Dieta").then(m      => ({ default: m.Dieta })));
+const Hoje       = lazy(() => import("./pages/Hoje").then(m       => ({ default: m.Hoje })));
+const Historico  = lazy(() => import("./pages/Historico").then(m  => ({ default: m.Historico })));
+const Agenda     = lazy(() => import("./pages/Agenda").then(m     => ({ default: m.Agenda })));
+const Projetos   = lazy(() => import("./pages/Projetos").then(m   => ({ default: m.Projetos })));
+const Mental     = lazy(() => import("./pages/Mental").then(m     => ({ default: m.Mental })));
+const Biblioteca = lazy(() => import("./pages/Biblioteca").then(m => ({ default: m.Biblioteca })));
+const Coach      = lazy(() => import("./pages/Coach").then(m      => ({ default: m.Coach })));
+const Galeria    = lazy(() => import("./pages/Galeria").then(m    => ({ default: m.Galeria })));
+const Perfil     = lazy(() => import("./pages/Perfil").then(m     => ({ default: m.Perfil })));
+const Insights   = lazy(() => import("./pages/Insights").then(m   => ({ default: m.Insights })));
+const Onboarding = lazy(() => import("./pages/Onboarding").then(m => ({ default: m.Onboarding })));
 import { Avatar }       from "./primitives";
+import { PageSkeleton } from "./components/PageSkeleton";
 import { ConsentModal } from "./components/ConsentModal";
 import { Toaster }      from "./components/Toaster";
 import { useAuthStore } from "../store/useAuthStore";
@@ -81,6 +87,24 @@ function NavButton({ item, active, isTablet, onClick }: {
   );
 }
 
+// As faixas de tela, declaradas uma vez. Os mesmos limites de antes (768/1024).
+const MOBILE_QUERY = window.matchMedia("(max-width: 767px)");
+const TABLET_QUERY = window.matchMedia("(min-width: 768px) and (max-width: 1023px)");
+
+// Fora do componente de propósito: `useSyncExternalStore` compara as funções
+// por identidade e voltaria a se inscrever a cada render se elas nascessem lá
+// dentro.
+const subscribeMobile = (onChange: () => void) => {
+  MOBILE_QUERY.addEventListener("change", onChange);
+  return () => MOBILE_QUERY.removeEventListener("change", onChange);
+};
+const subscribeTablet = (onChange: () => void) => {
+  TABLET_QUERY.addEventListener("change", onChange);
+  return () => TABLET_QUERY.removeEventListener("change", onChange);
+};
+const getMobile = () => MOBILE_QUERY.matches;
+const getTablet = () => TABLET_QUERY.matches;
+
 const SIDEBAR_FULL = 210;
 const SIDEBAR_ICON = 62;
 
@@ -89,21 +113,18 @@ export function RisePlan() {
   const [page, setPage]         = useState<Page>("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen]   = useState(false);
-  const [windowW, setWindowW]   = useState(window.innerWidth);
-
-  useEffect(() => {
-    const handler = () => setWindowW(window.innerWidth);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, []);
+  // Dois booleanos, não a largura em pixels. Guardar `window.innerWidth` fazia
+  // o app inteiro re-renderizar a CADA evento de resize — dezenas por segundo
+  // ao arrastar a janela ou girar o aparelho — para responder a uma pergunta
+  // que só tem três respostas. `matchMedia` avisa quando a FAIXA muda: uma vez
+  // por travessia de breakpoint.
+  const isMobile = useSyncExternalStore(subscribeMobile, getMobile);
+  const isTablet = useSyncExternalStore(subscribeTablet, getTablet);
 
   // A seção fica aberta à força quando a página atual mora dentro dela: fechar
   // o grupo que contém a tela aberta esconderia o item ativo e a barra pareceria
   // não ter nada selecionado.
   const showMore = moreOpen || MORE_PAGES.has(page);
-
-  const isMobile = windowW < 768;
-  const isTablet = windowW >= 768 && windowW < 1024;
 
   const navigate = useCallback((id: Page) => {
     setPage(id);
@@ -122,7 +143,9 @@ export function RisePlan() {
   if (!onboardingDone) {
     return (
       <>
-        <Onboarding />
+        <Suspense fallback={<PageSkeleton />}>
+          <Onboarding />
+        </Suspense>
         <Toaster />
       </>
     );
@@ -384,19 +407,21 @@ export function RisePlan() {
             </div>
           )}
 
-          {page === "dashboard"  && <Dashboard   setPage={navigate} />}
-          {page === "hoje"       && <Hoje        setPage={navigate} />}
-          {page === "historico"  && <Historico   setPage={navigate} />}
-          {page === "treino"     && <Treino      setPage={navigate} />}
-          {page === "dieta"      && <Dieta       setPage={navigate} />}
-          {page === "agenda"     && <Agenda      setPage={navigate} />}
-          {page === "projetos"   && <Projetos    setPage={navigate} />}
-          {page === "mental"     && <Mental      setPage={navigate} />}
-          {page === "biblioteca" && <Biblioteca  setPage={navigate} />}
-          {page === "coach"      && <Coach       setPage={navigate} />}
-          {page === "galeria"    && <Galeria     setPage={navigate} />}
-          {page === "perfil"     && <Perfil      setPage={navigate} />}
-          {page === "insights"   && <Insights    setPage={navigate} />}
+          <Suspense fallback={<PageSkeleton />}>
+            {page === "dashboard"  && <Dashboard   setPage={navigate} />}
+            {page === "hoje"       && <Hoje        setPage={navigate} />}
+            {page === "historico"  && <Historico   setPage={navigate} />}
+            {page === "treino"     && <Treino      setPage={navigate} />}
+            {page === "dieta"      && <Dieta       setPage={navigate} />}
+            {page === "agenda"     && <Agenda      setPage={navigate} />}
+            {page === "projetos"   && <Projetos    setPage={navigate} />}
+            {page === "mental"     && <Mental      setPage={navigate} />}
+            {page === "biblioteca" && <Biblioteca  setPage={navigate} />}
+            {page === "coach"      && <Coach       setPage={navigate} />}
+            {page === "galeria"    && <Galeria     setPage={navigate} />}
+            {page === "perfil"     && <Perfil      setPage={navigate} />}
+            {page === "insights"   && <Insights    setPage={navigate} />}
+          </Suspense>
 
           {!RISE_IMPLEMENTED.includes(page) && (
             <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>

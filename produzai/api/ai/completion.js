@@ -45,7 +45,7 @@ async function handleMacros(payload, apiKey) {
   if (!Array.isArray(items) || items.length === 0) return null
 
   const text = await callClaude({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-haiku-4-5',
     maxTokens: 128,
     apiKey,
     messages: [
@@ -70,7 +70,7 @@ async function handlePdfDiet(payload, apiKey) {
   if (!pdfBase64) return null
 
   const text = await callClaude({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-haiku-4-5',
     maxTokens: 4096,
     apiKey,
     messages: [
@@ -144,7 +144,7 @@ Regras:
   ]
 
   const text = await callClaude({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
     maxTokens: 2048,
     system,
     messages,
@@ -192,7 +192,7 @@ Regras:
   })
 
   const text = await callClaude({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-haiku-4-5',
     maxTokens: 512,
     system,
     messages: [{ role: 'user', content }],
@@ -235,7 +235,7 @@ Responda APENAS com a pergunta, sem aspas, sem explicações, sem markdown.`
 - Energia: ${energy > 0 ? `${energy}/5` : 'não registrada'}`
 
   const text = await callClaude({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-haiku-4-5',
     maxTokens: 100,
     system,
     messages: [{ role: 'user', content: prompt }],
@@ -264,7 +264,7 @@ Regras:
 - NÃO use markdown, comece a resposta direto com {`
 
   const text = await callClaude({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
     maxTokens: 1024,
     system,
     messages: [{ role: 'user', content: weekSummary }],
@@ -297,7 +297,7 @@ Regras:
 - NÃO use markdown, comece a resposta direto com {`
 
   const text = await callClaude({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
     maxTokens: 768,
     system,
     messages: [{ role: 'user', content: journalSummary }],
@@ -328,7 +328,7 @@ export default async function handler(req, res) {
   }
 
   // Rate limit per user to guard against token-cost abuse.
-  const rl = rateLimit(`completion:${user.localId}`, { limit: 30, windowMs: 60_000 })
+  const rl = await rateLimit(`completion:${user.localId}`, { limit: 30, windowMs: 60_000 })
   if (!rl.allowed) {
     res.setHeader('Retry-After', String(rl.retryAfterSec))
     return res.status(429).json({ error: 'Muitas requisições. Tente novamente em instantes.' })

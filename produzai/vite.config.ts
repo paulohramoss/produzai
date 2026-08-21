@@ -86,6 +86,10 @@ export default defineConfig(({ mode }) => {
         skipWaiting: false,
         clientsClaim: false,
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+        // A capa de compartilhamento tem 211 KB e quem a busca é o robô do
+        // WhatsApp/Google, nunca o app. Fora do precache ela deixa de ser
+        // baixada na primeira visita de todo mundo.
+        globIgnores: ['**/og-cover.png'],
         importScripts: ['/sw-push.js'],
         runtimeCaching: [
           {

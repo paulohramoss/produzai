@@ -41,6 +41,15 @@ export default {
           border2: '#2E2E2E', // --rise-border-2/ C.border2
           hover:   '#1C1C1C',
         },
+        // Texto — os tons que C.text / C.muted / C.muted2 já usavam nos estilos
+        // inline. Sem eles a migração para classes teria de aproximar com
+        // `text-gray-*`, que NÃO são os mesmos valores (#6b7280 ≠ #666666) e
+        // fariam a mesma tela ter dois cinzas conforme o trecho.
+        fg: {
+          DEFAULT: '#F0F0F0', // --rise-text    / C.text
+          muted:   '#666666', // --rise-muted   / C.muted
+          muted2:  '#999999', // --rise-muted-2 / C.muted2
+        },
         // Semantic (mirrors C.*)
         success: '#22C55E',
         info:    '#60A5FA',

@@ -167,7 +167,7 @@ export default async function handler(req, res) {
 
   // O placar muda no máximo uma vez por dia; 20 chamadas por minuto já é folga
   // enorme para o app abrir, sincronizar e o usuário registrar um treino.
-  const rl = rateLimit(`challenge:${uid}`, { limit: 20, windowMs: 60_000 })
+  const rl = await rateLimit(`challenge:${uid}`, { limit: 20, windowMs: 60_000 })
   if (!rl.allowed) {
     res.setHeader('Retry-After', String(rl.retryAfterSec))
     return res.status(429).json({ error: 'Too many requests' })

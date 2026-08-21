@@ -4,7 +4,13 @@
 
 import { verifyToken } from './_auth.js'
 import { rateLimit } from './_rateLimit.js'
-import { buildSystemPrompt, onboardingSystemPrompt } from './_prompts.js'
+import { COACH_STATIC_PROMPT, buildSystemPrompt, onboardingSystemPrompt } from './_prompts.js'
+
+/** Teto de turnos por requisição — conversa real não chega perto. */
+const MAX_MESSAGES = 80
+
+/** Teto do corpo serializado: cobre o anexo de 5 MB do cliente em base64 e sobra. */
+const MAX_PAYLOAD_BYTES = 8 * 1024 * 1024
 
 const WORKOUT_TYPES = ['Corrida', 'Caminhada', 'Academia', 'Ciclismo', 'Natação', 'Futebol', 'Outro']
 
@@ -122,7 +128,7 @@ export default async function handler(req, res) {
 
   // Rate limit per user to guard against token-cost abuse. Streaming replies
   // are heavier and longer than completions, so the window is a bit tighter.
-  const rl = rateLimit(`stream:${user.localId}`, { limit: 20, windowMs: 60_000 })
+  const rl = await rateLimit(`stream:${user.localId}`, { limit: 20, windowMs: 60_000 })
   if (!rl.allowed) {
     res.setHeader('Retry-After', String(rl.retryAfterSec))
     return res.status(429).json({ error: 'Muitas requisições. Tente novamente em instantes.' })
@@ -138,10 +144,37 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'messages array required' })
   }
 
+  // Teto de payload. O cliente já limita anexo a 5 MB e conversa a poucas
+  // dezenas de mensagens, mas o cliente não é a defesa: sem isto, uma
+  // requisição forjada dentro do rate limit (20/min) manda centenas de turnos e
+  // gasta tokens nossos à vontade. Os números são folgados para o uso real.
+  if (messages.length > MAX_MESSAGES) {
+    return res.status(413).json({ error: 'Conversa longa demais. Comece uma nova conversa.' })
+  }
+  if (JSON.stringify(messages).length > MAX_PAYLOAD_BYTES) {
+    return res.status(413).json({ error: 'Mensagem grande demais. Reduza o anexo e tente de novo.' })
+  }
+
   const isOnboarding = context?.type === 'onboarding'
-  const systemPrompt = isOnboarding
+
+  // O `system` vai em DOIS blocos, e a ordem é o ponto todo: primeiro a parte
+  // que nunca muda (persona + base de conhecimento + regras), marcada para
+  // cache; depois o contexto do usuário, que muda a cada mensagem. Assim o
+  // trecho caro é escrito no cache uma vez e relido a ~10% do preço nos turnos
+  // seguintes da conversa, em vez de ser cobrado inteiro toda vez.
+  //
+  // O onboarding não entra nisso: o prompt dele é curto demais para alcançar o
+  // mínimo de cache (~1024 tokens) e a conversa é de poucos turnos.
+  const system = isOnboarding
     ? onboardingSystemPrompt(context.userName)
-    : buildSystemPrompt(context)
+    : [
+        {
+          type: 'text',
+          text: COACH_STATIC_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+        { type: 'text', text: buildSystemPrompt(context) },
+      ]
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
   res.setHeader('Cache-Control', 'no-cache, no-transform')
@@ -158,10 +191,10 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         max_tokens: 8192,
         stream: true,
-        system: systemPrompt,
+        system,
         // O onboarding é só conversa — registrar treino só faz sentido no Coach.
         ...(isOnboarding ? {} : { tools: COACH_TOOLS }),
         messages: toApiMessages(messages),

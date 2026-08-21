@@ -5,6 +5,7 @@ import { getProgressPhotos, saveProgressPhotos, type ProgressPhoto } from '../..
 import { useAuthStore } from '../../store/useAuthStore'
 import { toast } from '../../lib/toast'
 import { T, C, type Page, displayStyle } from '../data'
+import { useDialog } from '../useDialog'
 import { Camera } from 'lucide-react'
 import { Card } from '../primitives'
 import { LayoutContext } from '../LayoutContext'
@@ -21,6 +22,7 @@ export function Galeria({ setPage: _setPage }: Props) {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [selected, setSelected] = useState<ProgressPhoto | null>(null)
+  const dialogRef = useDialog(selected !== null, () => setSelected(null))
   const [showForm, setShowForm] = useState(false)
   const [pending, setPending] = useState<File | null>(null)
   const [form, setForm] = useState({ weight: '', caption: '' })
@@ -256,7 +258,15 @@ export function Galeria({ setPage: _setPage }: Props) {
           className="rise-overlay"
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
         >
-          <div onClick={e => e.stopPropagation()} style={{ maxWidth: 600, width: '100%', background: C.card, borderRadius: T.radius['4xl'], overflow: 'hidden', border: `1px solid ${C.border}` }}>
+          <div
+            onClick={e => e.stopPropagation()}
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Foto de progresso"
+            tabIndex={-1}
+            style={{ maxWidth: 600, width: '100%', background: C.card, borderRadius: T.radius['4xl'], overflow: 'hidden', border: `1px solid ${C.border}` }}
+          >
             <div style={{ position: 'relative' }}>
               <img src={selected.url} alt={selected.caption || selected.date} style={{ width: '100%', maxHeight: '60dvh', objectFit: 'contain', background: '#000', display: 'block' }} />
               <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,.6)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', fontSize: T.text['4xl'], cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>

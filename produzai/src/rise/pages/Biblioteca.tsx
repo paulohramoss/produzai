@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react'
-import { T, C, type Page, displayStyle } from '../data'
+import { C, type Page } from '../data'
+import { useDialog } from '../useDialog'
 import { BookOpen } from 'lucide-react'
 import { Card, Tag, Bar } from '../primitives'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -23,10 +24,12 @@ const DEFAULTS: Book[] = [
 
 const EMPTY: Omit<Book, 'id'> = { title: '', author: '', category: '', pages: 0, pagesRead: 0, status: 'quero', rating: 0 }
 
-const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
-  background: '#0C0C0C', border: `1px solid ${C.border2}`, borderRadius: T.radius.sm,
-  padding: '8px 10px', color: C.text, fontSize: T.text.md, outline: 'none', width: '100%', ...extra,
-})
+// Tela migrada para classes do Tailwind — mesma regra da Projetos: o fixo vira
+// classe, o que depende de dado (a cor do status, as colunas no celular) segue
+// em `style`. Os tokens são os mesmos de data.ts, espelhados no
+// tailwind.config.js.
+const INPUT = 'w-full rounded-sm border border-surface-border2 bg-surface px-2.5 py-2 text-md text-fg outline-none'
+const FIELD_LABEL = 'text-sm text-fg-muted mb-1'
 
 function loadLocal(): Book[] {
   try { const r = userStorage.getItem('books'); return r ? JSON.parse(r) : DEFAULTS } catch { return DEFAULTS }
@@ -39,6 +42,7 @@ export function Biblioteca({ setPage: _s }: Props) {
   const [books,  setBooks]  = useState<Book[]>([])
   const [loaded, setLoaded] = useState(false)
   const [modal,  setModal]  = useState(false)
+  const dialogRef = useDialog(modal, () => setModal(false))
   const [form,   setForm]   = useState<Omit<Book, 'id'>>({ ...EMPTY })
   const [filter, setFilter] = useState<Status | 'todos'>('todos')
 
@@ -98,30 +102,46 @@ export function Biblioteca({ setPage: _s }: Props) {
   const visible = filter === 'todos' ? books : books.filter(b => b.status === filter)
   const reading = books.filter(b => b.status === 'lendo').length
   const done    = books.filter(b => b.status === 'concluido').length
+  const titleOk = !!form.title.trim()
 
   if (!loaded) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: C.muted, fontSize: T.text.lg }}>Carregando...</div>
+    return <div className="flex h-[200px] items-center justify-center text-lg text-fg-muted">Carregando...</div>
   }
 
   return (
     <>
       {modal && (
-        <div className="rise-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }}>
-          <div className="rise-modal" style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], padding: 'clamp(20px, 6vw, 28px)', maxWidth: 440, width: '100%', position: 'relative' }}>
-            <button onClick={() => setModal(false)} style={{ position: 'absolute', top: 14, right: 16, background: 'transparent', border: 'none', color: C.muted, fontSize: T.text['5xl'], cursor: 'pointer' }}>×</button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: T.weight.extrabold, fontSize: 17, marginBottom: 18, ...displayStyle }}><BookOpen size={20} color={C.orange} /> Adicionar Livro</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <input style={inp()} placeholder="Título *" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-              <input style={inp()} placeholder="Autor" value={form.author} onChange={e => setForm(f => ({ ...f, author: e.target.value }))} />
-              <input style={inp()} placeholder="Categoria (ex: Esporte, Ficção...)" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="rise-overlay fixed inset-0 z-[300] flex items-center justify-center bg-black/85">
+          <div
+            className="rise-modal relative w-full max-w-[440px] rounded-4xl border border-surface-border bg-surface-card p-[clamp(20px,6vw,28px)]"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Adicionar livro"
+            tabIndex={-1}
+          >
+            <button
+              onClick={() => setModal(false)}
+              aria-label="Fechar"
+              className="absolute right-4 top-[14px] cursor-pointer border-none bg-transparent text-5xl text-fg-muted"
+            >
+              ×
+            </button>
+            <div className="mb-[18px] flex items-center gap-2 font-display text-[17px] font-bold">
+              <BookOpen size={20} color={C.orange} /> Adicionar Livro
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <input className={INPUT} placeholder="Título *" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+              <input className={INPUT} placeholder="Autor" value={form.author} onChange={e => setForm(f => ({ ...f, author: e.target.value }))} />
+              <input className={INPUT} placeholder="Categoria (ex: Esporte, Ficção...)" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} />
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 4 }}>Total de páginas</div>
-                  <input type="number" style={inp()} placeholder="0" value={form.pages || ''} onChange={e => setForm(f => ({ ...f, pages: +e.target.value }))} />
+                  <div className={FIELD_LABEL}>Total de páginas</div>
+                  <input type="number" className={INPUT} placeholder="0" value={form.pages || ''} onChange={e => setForm(f => ({ ...f, pages: +e.target.value }))} />
                 </div>
                 <div>
-                  <div style={{ fontSize: T.text.sm, color: C.muted, marginBottom: 4 }}>Status</div>
-                  <select style={inp()} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as Status }))}>
+                  <div className={FIELD_LABEL}>Status</div>
+                  <select className={INPUT} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as Status }))}>
                     <option value="quero">🔖 Quero ler</option>
                     <option value="lendo">📖 Lendo</option>
                     <option value="pausado">⏸ Pausado</option>
@@ -129,7 +149,13 @@ export function Biblioteca({ setPage: _s }: Props) {
                   </select>
                 </div>
               </div>
-              <button onClick={add} disabled={!form.title.trim()} style={{ background: form.title.trim() ? C.purple : C.card2, border: 'none', borderRadius: T.radius.md, padding: '11px', fontSize: T.text.lg, fontWeight: T.weight.bold, color: form.title.trim() ? '#fff' : C.muted, cursor: form.title.trim() ? 'pointer' : 'default', marginTop: 4 }}>
+              <button
+                onClick={add}
+                disabled={!titleOk}
+                className={`mt-1 rounded-md border-none p-[11px] text-lg font-bold ${
+                  titleOk ? 'cursor-pointer bg-accent text-white' : 'cursor-default bg-surface-raised text-fg-muted'
+                }`}
+              >
                 Adicionar →
               </button>
             </div>
@@ -139,20 +165,37 @@ export function Biblioteca({ setPage: _s }: Props) {
 
       <div>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: isMobile ? 22 : 26, fontWeight: T.weight.extrabold, marginBottom: 4, ...displayStyle }}><BookOpen size={20} color={C.orange} /> Biblioteca</div>
-            <div style={{ fontSize: T.text.md, color: C.muted }}>{reading} lendo · {done} concluídos · {books.length} total</div>
+            <div
+              className="mb-1 flex items-center gap-2 font-display font-bold"
+              style={{ fontSize: isMobile ? 22 : 26 }}
+            >
+              <BookOpen size={20} color={C.orange} /> Biblioteca
+            </div>
+            <div className="text-md text-fg-muted">{reading} lendo · {done} concluídos · {books.length} total</div>
           </div>
-          <button onClick={() => setModal(true)} style={{ background: C.purple, border: 'none', borderRadius: T.radius.md, padding: '10px 18px', fontSize: T.text.md, fontWeight: T.weight.bold, color: '#fff', cursor: 'pointer' }}>
+          <button
+            onClick={() => setModal(true)}
+            className="cursor-pointer rounded-md border-none bg-accent px-[18px] py-2.5 text-md font-bold text-white"
+          >
             + Adicionar Livro
           </button>
         </div>
 
         {/* Status filter */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        <div className="mb-[18px] flex flex-wrap gap-2">
           {(['todos', 'lendo', 'quero', 'pausado', 'concluido'] as const).map(s => (
-            <button key={s} onClick={() => setFilter(s)} style={{ background: filter === s ? C.purple : C.card2, border: `1px solid ${filter === s ? C.purple : C.border}`, borderRadius: T.radius.sm, padding: '6px 12px', fontSize: T.text.base, fontWeight: T.weight.semibold, color: filter === s ? '#fff' : C.muted, cursor: 'pointer' }}>
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              aria-pressed={filter === s}
+              className={`cursor-pointer rounded-sm border px-3 py-1.5 text-base font-semibold ${
+                filter === s
+                  ? 'border-accent bg-accent text-white'
+                  : 'border-surface-border bg-surface-raised text-fg-muted'
+              }`}
+            >
               {s === 'todos' ? `Todos (${books.length})` : `${STATUS_LABEL[s]} (${books.filter(b => b.status === s).length})`}
             </button>
           ))}
@@ -161,50 +204,71 @@ export function Biblioteca({ setPage: _s }: Props) {
         {/* Books grid */}
         {visible.length === 0 ? (
           <Card style={{ textAlign: 'center', padding: '40px', color: C.muted }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-            <div style={{ fontWeight: T.weight.semibold, marginBottom: 6 }}>Nenhum livro aqui</div>
-            <div style={{ fontSize: T.text.md }}>Adicione livros para acompanhar sua leitura</div>
+            <div className="mb-3 text-[40px]">📚</div>
+            <div className="mb-1.5 font-semibold">Nenhum livro aqui</div>
+            <div className="text-md">Adicione livros para acompanhar sua leitura</div>
           </Card>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+          <div className="grid gap-3.5" style={{ gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr' }}>
             {visible.map(b => {
               const pct = b.pages > 0 ? Math.round(b.pagesRead / b.pages * 100) : 0
               return (
                 <Card key={b.id} style={{ borderLeft: `3px solid ${STATUS_COLOR[b.status]}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <div style={{ flex: 1, marginRight: 8 }}>
-                      <div style={{ fontWeight: T.weight.bold, fontSize: T.text.xl, marginBottom: 2 }}>{b.title}</div>
-                      <div style={{ fontSize: T.text.base, color: C.muted }}>{b.author}</div>
+                  <div className="mb-2 flex items-start justify-between">
+                    <div className="mr-2 flex-1">
+                      <div className="mb-0.5 text-xl font-bold">{b.title}</div>
+                      <div className="text-base text-fg-muted">{b.author}</div>
                     </div>
-                    <button onClick={() => remove(b.id)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: T.text.lg, padding: '0 2px', flexShrink: 0 }}>🗑</button>
+                    <button
+                      onClick={() => remove(b.id)}
+                      aria-label={`Remover ${b.title}`}
+                      className="shrink-0 cursor-pointer border-none bg-transparent px-0.5 py-0 text-lg text-fg-muted"
+                    >
+                      🗑
+                    </button>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <div className="mb-3 flex flex-wrap gap-1.5">
                     <Tag label={STATUS_LABEL[b.status]} color={STATUS_COLOR[b.status]} />
                     {b.category && <Tag label={b.category} color={C.muted} />}
                   </div>
 
                   {b.pages > 0 && (
                     <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: T.text.sm, color: C.muted, marginBottom: 5 }}>
+                      <div className="mb-[5px] flex justify-between text-sm text-fg-muted">
                         <span>Progresso</span>
-                        <span style={{ color: STATUS_COLOR[b.status], fontWeight: T.weight.bold }}>{b.pagesRead}/{b.pages} páginas</span>
+                        <span className="font-bold" style={{ color: STATUS_COLOR[b.status] }}>
+                          {b.pagesRead}/{b.pages} páginas
+                        </span>
                       </div>
                       <Bar pct={pct} color={STATUS_COLOR[b.status]} h={5} />
                       {b.status === 'lendo' && (
                         <input
                           type="range" min={0} max={b.pages} value={b.pagesRead}
+                          aria-label={`Páginas lidas de ${b.title}`}
                           onChange={e => updatePages(b.id, +e.target.value)}
-                          style={{ width: '100%', marginTop: 8, accentColor: STATUS_COLOR[b.status] }}
+                          className="mt-2 w-full"
+                          style={{ accentColor: STATUS_COLOR[b.status] }}
                         />
                       )}
                     </>
                   )}
 
                   {b.status === 'concluido' && (
-                    <div style={{ marginTop: 10, display: 'flex', gap: 4 }}>
+                    <div className="mt-2.5 flex gap-1">
+                      {/* Botão, não `span` com onClick: a nota era inalcançável
+                          por teclado e invisível para leitor de tela. */}
                       {[1, 2, 3, 4, 5].map(s => (
-                        <span key={s} onClick={() => setRating(b.id, s)} style={{ cursor: 'pointer', fontSize: T.text['2xl'], opacity: b.rating >= s ? 1 : 0.3 }}>⭐</span>
+                        <button
+                          key={s}
+                          onClick={() => setRating(b.id, s)}
+                          aria-label={`Dar ${s} ${s === 1 ? 'estrela' : 'estrelas'} para ${b.title}`}
+                          aria-pressed={b.rating >= s}
+                          className="cursor-pointer border-none bg-transparent p-0 text-2xl leading-none"
+                          style={{ opacity: b.rating >= s ? 1 : 0.3 }}
+                        >
+                          ⭐
+                        </button>
                       ))}
                     </div>
                   )}

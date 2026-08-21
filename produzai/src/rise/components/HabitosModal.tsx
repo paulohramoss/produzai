@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { T, C } from '../data'
+import { useDialog } from '../useDialog'
 import { useHabitsStore } from '../../store/useHabitsStore'
 import { toast } from '../../lib/toast'
 import { targetOf, DEFAULT_TARGET_PER_WEEK } from '../../lib/streaks'
@@ -52,6 +53,7 @@ function FrequencyPicker({ value, onChange }: { value: number; onChange: (v: num
 interface Props { onClose: () => void }
 
 export function HabitosModal({ onClose }: Props) {
+  const dialogRef = useDialog(true, onClose)
   const { defs, addDef, removeDef, updateDef } = useHabitsStore()
 
   const [adding, setAdding]     = useState(false)
@@ -96,7 +98,7 @@ export function HabitosModal({ onClose }: Props) {
 
   return (
     <div className="rise-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], width: '100%', maxWidth: 480, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Gerenciar hábitos" tabIndex={-1} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], width: '100%', maxWidth: 480, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
         {/* Header */}
         <div style={{ padding: '20px 24px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

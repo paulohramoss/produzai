@@ -160,10 +160,47 @@ service cloud.firestore {
     // publicado pelo atleta — nunca uma chave para users/{uid}. A leitura é
     // aberta porque o treinador não tem conta; o token de 160 bits na URL é o
     // segredo. Só o dono grava, e apagar o documento revoga o link na hora.
+    //
+    // O esquema é fechado. Sem isso, "só o dono grava" ainda deixava a coleção
+    // servir de armazenamento livre: campo com qualquer nome, de qualquer
+    // tamanho, em qualquer token inventado — e a leitura é PÚBLICA, então o que
+    // entrasse aqui sairia para qualquer um com o link. As listas têm teto
+    // porque o resumo é de uma janela curta; nada legítimo passa de algumas
+    // dezenas de itens.
+    function validCoachShare() {
+      let d = request.resource.data;
+      return d.uid == request.auth.uid
+        && d.keys().hasOnly(['uid', 'athleteName', 'updatedAt', 'from', 'to',
+                             'workouts', 'days', 'weekSummary'])
+        && d.keys().hasAll(['uid', 'athleteName', 'updatedAt', 'from', 'to',
+                            'workouts', 'days', 'weekSummary'])
+        && d.athleteName is string && d.athleteName.size() <= 80
+        && d.updatedAt is number
+        && d.from is string && d.from.size() <= 10
+        && d.to is string   && d.to.size() <= 10
+        && d.workouts is list && d.workouts.size() <= 60
+        && d.days is list     && d.days.size() <= 60
+        && d.weekSummary is map
+        && d.weekSummary.keys().hasOnly(['workouts', 'km', 'minutes',
+                                         'avgReadiness', 'painFlags']);
+    }
+
     match /coachShares/{token} {
       allow read: if true;
-      allow create, update: if request.auth != null
-                            && request.resource.data.uid == request.auth.uid;
+
+      // O token precisa ter a cara do que `generateShareToken` produz — 20
+      // bytes em hexadecimal. Um id curto e adivinhável não seria segredo
+      // nenhum, e a leitura aqui é pública.
+      allow create: if request.auth != null
+                    && token.matches('^[0-9a-f]{40}$')
+                    && validCoachShare();
+
+      // Republicar só é permitido a quem já é dono daquele token: sem esta
+      // linha, escrever o próprio uid num documento alheio bastaria.
+      allow update: if request.auth != null
+                    && resource.data.uid == request.auth.uid
+                    && validCoachShare();
+
       allow delete: if request.auth != null
                     && resource.data.uid == request.auth.uid;
     }

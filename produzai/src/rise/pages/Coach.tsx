@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useContext, useMemo } from 'react'
 import { Bot, Paperclip, ArrowUp, Download, History, MessageSquare, Trash2 } from 'lucide-react'
 import { T, C, type Page, displayStyle } from '../data'
+import { useDialog } from '../useDialog'
 import { Card, Ring } from '../primitives'
 import { useWorkoutStore } from '../../store/useWorkoutStore'
 import { useWebDietStore } from '../../store/useWebDietStore'
 import { useHabitsStore } from '../../store/useHabitsStore'
-import { useAuthStore } from '../../store/useAuthStore'
+import { useAuthStore, ensureCoachConversations } from '../../store/useAuthStore'
 import { useCoachStore } from '../../store/useCoachStore'
 import { exportAllCSV, exportWorkoutsCSV, exportDietCSV } from '../../lib/exportData'
 import {
@@ -83,6 +84,16 @@ export function Coach({ setPage }: Props) {
     [conversations],
   )
 
+  // O histórico de conversas não vem mais no login: é o documento mais pesado
+  // do usuário e só faz falta aqui. A chamada é idempotente — montar duas vezes
+  // (StrictMode, ida e volta entre abas) não relê nem refunde nada.
+  const [historyLoading, setHistoryLoading] = useState(true)
+  useEffect(() => {
+    let alive = true
+    ensureCoachConversations().finally(() => { if (alive) setHistoryLoading(false) })
+    return () => { alive = false }
+  }, [])
+
   // Histórico recente: dá ao Coach a prontidão de hoje e a sequência de dias.
   const [dailyHistory, setDailyHistory] = useState<Record<string, DailyData>>({})
   useEffect(() => {
@@ -107,6 +118,7 @@ export function Coach({ setPage }: Props) {
 
   const [showExport, setShowExport] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const dialogRef = useDialog(showHistory, () => setShowHistory(false))
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [input, setInput]           = useState('')
   const [streaming, setStreaming]   = useState(false)
@@ -714,7 +726,14 @@ export function Coach({ setPage }: Props) {
           className="rise-overlay"
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 24, width: '100%', maxWidth: 460, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column' }}>
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Conversas anteriores"
+            tabIndex={-1}
+            style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['3xl'], padding: 24, width: '100%', maxWidth: 460, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column' }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div style={{ fontSize: T.text['2xl'], fontWeight: T.weight.extrabold }}>Conversas anteriores</div>
               <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 22, lineHeight: 1 }}>×</button>
@@ -728,6 +747,14 @@ export function Coach({ setPage }: Props) {
             </button>
 
             <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* A lista pode estar incompleta enquanto a nuvem não responde: o
+                  que está aqui é o que veio do aparelho. Dizer isso evita que a
+                  pessoa ache que perdeu conversa. */}
+              {historyLoading && (
+                <div style={{ fontSize: T.text.sm, color: C.muted, padding: '6px 2px' }}>
+                  Buscando conversas salvas na nuvem…
+                </div>
+              )}
               {sortedConversations.map(c => (
                 <div
                   key={c.id}

@@ -78,6 +78,18 @@ interface AuthState {
   init:              () => () => void
 }
 
+/**
+ * Carrega o resto dos dados do usuário — DEPOIS que a tela já está de pé.
+ *
+ * Nada aqui bloqueia a entrada no app (ver `init`): cada bloco atualiza sua
+ * store quando chega. As três cargas do fim são independentes entre si, então
+ * vão juntas — em série eram quatro idas ao Firestore uma esperando a outra,
+ * somadas na conta de quem estava olhando para o splash.
+ *
+ * O histórico do Coach saiu daqui de propósito: é o documento mais pesado do
+ * usuário (teto de 900 KB) e só interessa a quem abre a aba do Coach, que o
+ * carrega sozinha via `ensureCoachConversations`.
+ */
 async function loadFirestoreData() {
   const [cloudWorkouts, cloudDiet, cloudHydration] = await Promise.all([
     getWorkouts(),
@@ -99,11 +111,15 @@ async function loadFirestoreData() {
     useWebDietStore.setState({ waterGoalMl: cloudHydration.goalMl })
   }
 
-  await useHabitsStore.getState().loadFromCloud()
+  // A releitura do disco vem antes da nuvem, como antes: `loadFromCloud` funde
+  // com o que já está na store.
   usePlanStore.persist.rehydrate()
-  await usePlanStore.getState().loadFromCloud()
-  await useCycleStore.getState().load()
-  await loadCoachConversations()
+
+  await Promise.allSettled([
+    useHabitsStore.getState().loadFromCloud(),
+    usePlanStore.getState().loadFromCloud(),
+    useCycleStore.getState().load(),
+  ])
 }
 
 /**
@@ -145,6 +161,25 @@ async function applyAttribution(profile: UserProfile | null) {
 // Histórico do Coach: local e nuvem são unidos, nunca substituídos, para que
 // nenhuma conversa se perca — nem a que só existe neste aparelho, nem a que só
 // existe na nuvem (localStorage limpo, outro navegador, aba anônima).
+let coachLoad: Promise<void> | null = null
+
+/**
+ * Carrega o histórico do Coach sob demanda, uma vez por sessão.
+ *
+ * Chamado pela tela do Coach ao montar. A promessa fica guardada para que duas
+ * montagens seguidas (StrictMode, ida e volta entre abas) não disparem duas
+ * leituras nem dois merges.
+ */
+export function ensureCoachConversations(): Promise<void> {
+  if (!coachLoad) {
+    coachLoad = loadCoachConversations().catch(e => {
+      console.error('[coach] falha ao carregar as conversas', e)
+      coachLoad = null   // deixa a próxima abertura tentar de novo
+    })
+  }
+  return coachLoad
+}
+
 async function loadCoachConversations() {
   await useCoachStore.persist.rehydrate()
   const read = await getCoachConversations()
@@ -181,6 +216,9 @@ function clearSessionState() {
   usePlanStore.setState({ sessions: [] })
   useCoachStore.setState({ conversations: [], activeId: null })
   useCycleStore.getState().reset()
+  // Sem isto a próxima conta a entrar neste navegador herdaria a promessa já
+  // resolvida e abriria o Coach sem nunca ler o histórico dela.
+  coachLoad = null
 }
 
 function firebaseErrorMsg(e: unknown): string {
@@ -365,19 +403,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // (offline, regra negada, doc inexistente logo após o cadastro), o
         // `set` abaixo ainda precisa rodar — senão `user` fica null, `loading`
         // fica true e a tela de login trava no "Aguarde...".
+        // ÚNICA leitura que trava a entrada: é o perfil que decide para qual
+        // tela mandar a pessoa (onboarding, consentimento ou o app). Tudo o
+        // mais — pesagens, treinos, dieta, hábitos, plano, ciclo — chega
+        // depois, com a tela já de pé; ficar no splash esperando o app inteiro
+        // custava vários round-trips de Firestore antes do primeiro pixel.
         let profile: Awaited<ReturnType<typeof getProfile>> = null
-        let weightLog: WeightEntry[] = []
         try {
-          const [p, w] = await Promise.all([
-            getProfile(),
-            getWeightLog(),
-            loadFirestoreData(),
-          ])
-          profile = p
-          weightLog = w
+          profile = await getProfile()
         } catch (e) {
-          console.error('[auth] falha ao carregar dados do usuário', e)
+          console.error('[auth] falha ao carregar o perfil', e)
         }
+
+        const weightLog: WeightEntry[] = []
+
+        getWeightLog()
+          .then(log => set({ weightLog: log }))
+          .catch(e => console.error('[auth] falha ao carregar as pesagens', e))
+
+        loadFirestoreData().catch(e =>
+          console.error('[auth] falha ao carregar dados do usuário', e),
+        )
 
         // Não bloqueia a entrada: a origem é métrica, não requisito de acesso.
         applyAttribution(profile).catch(e =>

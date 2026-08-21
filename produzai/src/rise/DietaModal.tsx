@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Mic, Square } from 'lucide-react'
 import { T, C } from './data'
+import { useDialog } from './useDialog'
 import { useWebDietStore, type WebDietGoals, type WebDietMeal } from '../store/useWebDietStore'
 import { toast } from '../lib/toast'
 import { DIET_TEMPLATES } from './data/templates'
@@ -191,6 +192,7 @@ function MealFormBlock({ form, onChange, onAppendItems, onSubmit, onCancel, subm
 }
 
 export function DietaModal({ onClose }: Props) {
+  const dialogRef = useDialog(true, onClose)
   const store = useWebDietStore()
   const data = store.data!
 
@@ -270,7 +272,7 @@ export function DietaModal({ onClose }: Props) {
 
   return (
     <div className="rise-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }}>
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Editar plano alimentar" tabIndex={-1} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: T.radius['4xl'], width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
         {/* Header */}
         <div style={{ padding: '22px 24px 16px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
           <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 18, background: 'transparent', border: 'none', color: C.muted, fontSize: T.text['5xl'], cursor: 'pointer', lineHeight: 1 }}>×</button>
