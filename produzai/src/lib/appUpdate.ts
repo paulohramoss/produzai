@@ -249,6 +249,16 @@ export function watchForUpdates() {
     return
   }
 
+  // Em desenvolvimento NÃO existe `/sw.js`: o vite-plugin-pwa só o emite no
+  // build (`devOptions.enabled: false`). Pedir o arquivo assim mesmo fazia o
+  // servidor devolver o index.html, e o navegador registrar um erro de MIME no
+  // console a cada carga de página — barulho que aparecia em todo cenário de
+  // QA e escondia erro de verdade.
+  if (!import.meta.env.PROD) {
+    checkVersionEndpoint()
+    return
+  }
+
   navigator.serviceWorker.register('/sw.js', { scope: '/' })
     .then(reg => {
       registration = reg

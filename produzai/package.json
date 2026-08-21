@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "test": "node --test \"api/**/*.test.mjs\"",
     "qa": "node qa/run.mjs",
-    "qa:update": "node qa/deploy-update.mjs"
+    "qa:update": "node qa/deploy-update.mjs",
+    "storage:cors": "gcloud storage buckets update gs://produzai-ab8ad.firebasestorage.app --cors-file=cors.json",
+    "storage:cors:show": "gcloud storage buckets describe gs://produzai-ab8ad.firebasestorage.app --format=\"value(cors_config)\""
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

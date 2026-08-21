@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useContext } from 'react'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../lib/firebase'
+import {
+  shrinkImage, storageErrorMessage, logStorageFailure,
+  PROGRESS_MAX_PX, MAX_SOURCE_BYTES,
+} from '../../lib/imageUpload'
 import { getProgressPhotos, saveProgressPhotos, type ProgressPhoto } from '../../lib/db'
 import { useAuthStore } from '../../store/useAuthStore'
 import { toast } from '../../lib/toast'
@@ -38,7 +42,7 @@ export function Galeria({ setPage: _setPage }: Props) {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) { toast.error('Selecione uma imagem válida'); return }
-    if (file.size > 10 * 1024 * 1024) { toast.error('Imagem muito grande. Máximo 10MB'); return }
+    if (file.size > MAX_SOURCE_BYTES) { toast.error('Imagem grande demais para abrir'); return }
     setPending(file)
     setForm({ weight: '', caption: '' })
     setShowForm(true)
@@ -48,10 +52,18 @@ export function Galeria({ setPage: _setPage }: Props) {
   async function handleUpload() {
     if (!pending || !user) return
     setUploading(true)
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2)
+    const path = `users/${user.uid}/progress/${id}`
+    let sent: Blob = pending
+
     try {
-      const id = Date.now().toString(36) + Math.random().toString(36).slice(2)
-      const storageRef = ref(storage, `users/${user.uid}/progress/${id}`)
-      await uploadBytes(storageRef, pending)
+      // A foto de progresso guarda mais detalhe que o avatar — ela existe para
+      // comparar evolução —, mas 1600px já é mais do que qualquer tela do app
+      // mostra, e cabe folgado no teto de 10 MB da regra do Storage.
+      sent = await shrinkImage(pending, PROGRESS_MAX_PX)
+
+      const storageRef = ref(storage, path)
+      await uploadBytes(storageRef, sent, { contentType: sent.type || pending.type })
       const url = await getDownloadURL(storageRef)
       const photo: ProgressPhoto = {
         id,
@@ -66,8 +78,15 @@ export function Galeria({ setPage: _setPage }: Props) {
       setPending(null)
       setShowForm(false)
       toast.success('📸 Foto adicionada à galeria!')
-    } catch {
-      toast.error('Erro ao fazer upload. Verifique o Storage no Firebase.')
+    } catch (err) {
+      logStorageFailure('envio da foto de progresso', err, {
+        path,
+        bucket: storage.app.options.storageBucket,
+        sourceBytes: pending.size,
+        sentBytes: sent.size,
+        type: pending.type,
+      })
+      toast.error(storageErrorMessage(err))
     } finally {
       setUploading(false)
     }

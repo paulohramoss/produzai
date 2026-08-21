@@ -1,6 +1,10 @@
 import { useState, useRef, useContext } from 'react'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../lib/firebase'
+import {
+  shrinkImage, storageErrorMessage, logStorageFailure,
+  AVATAR_MAX_PX, MAX_SOURCE_BYTES,
+} from '../../lib/imageUpload'
 import { useAuthStore } from '../../store/useAuthStore'
 import { toast } from '../../lib/toast'
 import { T, C, type Page, displayStyle } from '../data'
@@ -85,21 +89,36 @@ export function Perfil({ setPage }: Props) {
     const file = e.target.files?.[0]
     if (!file || !user) return
     if (!file.type.startsWith('image/')) { toast.error('Selecione uma imagem'); return }
-    if (file.size > 5 * 1024 * 1024) { toast.error('Imagem muito grande. Máx 5MB'); return }
+    if (file.size > MAX_SOURCE_BYTES) { toast.error('Imagem grande demais para abrir'); return }
 
     setPreviewURL(URL.createObjectURL(file))
     setPhotoUploading(true)
     e.target.value = ''
 
+    const path = `users/${user.uid}/avatar`
+    let sent: Blob = file
+
     try {
-      const storageRef = ref(storage, `users/${user.uid}/avatar`)
-      await uploadBytes(storageRef, file)
+      // Reduzir ANTES de enviar. Foto de celular passa fácil dos 5 MB que a
+      // regra do Storage aceita — o avatar era recusado no caminho mais comum
+      // do app. Em 512px sobra qualidade de sobra para o tamanho em que a
+      // imagem aparece na tela.
+      sent = await shrinkImage(file, AVATAR_MAX_PX)
+
+      const storageRef = ref(storage, path)
+      await uploadBytes(storageRef, sent, { contentType: sent.type || file.type })
       const url = await getDownloadURL(storageRef)
       await updateProfileData({ photoURL: url })
       toast.success('📸 Foto atualizada!')
     } catch (err) {
-      console.error('Avatar upload failed:', err)
-      toast.error('Erro ao enviar foto. Verifique o Firebase Storage.')
+      logStorageFailure('envio do avatar', err, {
+        path,
+        bucket: storage.app.options.storageBucket,
+        sourceBytes: file.size,
+        sentBytes: sent.size,
+        type: file.type,
+      })
+      toast.error(storageErrorMessage(err))
       setPreviewURL(null)
     } finally {
       setPhotoUploading(false)
@@ -198,7 +217,7 @@ export function Perfil({ setPage }: Props) {
               {photoUploading ? 'Enviando foto...' : 'Clique no ícone para trocar a foto'}
             </div>
             <div style={{ fontSize: T.text.sm, color: C.muted, opacity: 0.6 }}>
-              JPG, PNG ou WebP · máx 5MB
+              JPG, PNG ou WebP · a imagem é reduzida automaticamente
             </div>
           </div>
         </div>
