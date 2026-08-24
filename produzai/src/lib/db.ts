@@ -1,39 +1,23 @@
+// Barrel dos módulos de db/ — ponto de entrada único para os 28 importadores.
+//
+// As funções estão sendo movidas para src/lib/db/*.ts, um domínio por vez. Este
+// arquivo re-exporta tudo, então nenhum importador precisa mudar e o que ainda
+// não foi movido continua morando aqui embaixo.
+//
+// O uid da sessão vive em db/client.ts e em nenhum outro lugar — o que ainda
+// está neste arquivo lê pelo mesmo `getDbUid()` que os módulos já extraídos.
+
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from './firebase'
-import type { ManualWorkout } from '../store/useWorkoutStore'
 import type { WebDietData } from '../store/useWebDietStore'
 import type { CoachConversation } from '../store/useCoachStore'
 import type { PlannedSession } from './weekPlan'
 import type { CycleData } from './cycle'
 import { forgetChallengeEntry } from './challengeApi'
+import { dataRef, subRef, monthlyRef, logDbError, fireWrite, getDbUid } from './db/client'
 
-let currentUid = ''
-export function setDbUid(uid: string) { currentUid = uid }
-
-// Paths: users/{uid}/data/{docName}  ou  users/{uid}/{sub}/{docId}
-function dataRef(name: string) {
-  return doc(db, 'users', currentUid, 'data', name)
-}
-function subRef(sub: string, id: string) {
-  return doc(db, 'users', currentUid, sub, id)
-}
-// Monthly aggregation: users/{uid}/dailyMonthly/{yyyy-MM}
-// Reduces 35 getDoc calls to 1-2 reads for the Insights history window.
-function monthlyRef(sub: 'dailyMonthly' | 'mentalMonthly' | 'journalMonthly', ym: string) {
-  return doc(db, 'users', currentUid, sub, ym)
-}
-
-function logDbError(fn: string, err: unknown) {
-  console.error(`[db] ${fn}:`, err)
-}
-
-// Com o cache persistente ligado, a promise de uma escrita só resolve quando o
-// SERVIDOR confirma — offline ela fica pendente indefinidamente. O dado já está
-// salvo localmente e sobe sozinho quando a rede volta, então esperar por essa
-// promise só travaria a interface. Disparamos e registramos a falha, se houver.
-function fireWrite(p: Promise<unknown>, fn: string): void {
-  p.catch(e => logDbError(fn, e))
-}
+export { setDbUid } from './db/client'
+export { getWorkouts, saveWorkouts } from './db/workouts'
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
@@ -70,7 +54,7 @@ export interface UserProfile {
 export type ActivityLevel = 'sedentario' | 'leve' | 'moderado' | 'intenso' | 'atleta'
 
 export async function getProfile(): Promise<UserProfile | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('profile'))
     return snap.exists() ? (snap.data() as UserProfile) : null
@@ -78,7 +62,7 @@ export async function getProfile(): Promise<UserProfile | null> {
 }
 
 export async function saveProfile(data: Partial<UserProfile>) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(dataRef('profile'), data, { merge: true }), 'saveProfile')
 }
 
@@ -96,7 +80,7 @@ export interface WeightEntry {
 const WEIGHT_LOG_MAX = 730
 
 export async function getWeightLog(): Promise<WeightEntry[]> {
-  if (!currentUid) return []
+  if (!getDbUid()) return []
   try {
     const snap = await getDoc(dataRef('weightLog'))
     return snap.exists() ? ((snap.data().items as WeightEntry[]) ?? []) : []
@@ -104,32 +88,17 @@ export async function getWeightLog(): Promise<WeightEntry[]> {
 }
 
 export async function saveWeightLog(entries: WeightEntry[]) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   const items = [...entries]
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-WEIGHT_LOG_MAX)
   fireWrite(setDoc(dataRef('weightLog'), { items }), 'saveWeightLog')
 }
 
-// ── Workouts ─────────────────────────────────────────────────────────────────
-
-export async function getWorkouts(): Promise<ManualWorkout[] | null> {
-  if (!currentUid) return null
-  try {
-    const snap = await getDoc(dataRef('workouts'))
-    return snap.exists() ? ((snap.data().items as ManualWorkout[]) ?? []) : null
-  } catch (e) { logDbError('getWorkouts', e); return null }
-}
-
-export async function saveWorkouts(workouts: ManualWorkout[]) {
-  if (!currentUid) return
-  fireWrite(setDoc(dataRef('workouts'), { items: workouts }), 'saveWorkouts')
-}
-
 // ── Diet ─────────────────────────────────────────────────────────────────────
 
 export async function getDiet(): Promise<WebDietData | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('diet'))
     return snap.exists() ? (snap.data() as WebDietData) : null
@@ -137,7 +106,7 @@ export async function getDiet(): Promise<WebDietData | null> {
 }
 
 export async function saveDiet(data: WebDietData | null) {
-  if (!currentUid || !data) return
+  if (!getDbUid() || !data) return
   fireWrite(setDoc(dataRef('diet'), data), 'saveDiet')
 }
 
@@ -170,7 +139,7 @@ export interface DailyData {
 }
 
 export async function getDaily(date: string): Promise<DailyData | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(subRef('daily', date))
     return snap.exists() ? (snap.data() as DailyData) : null
@@ -178,7 +147,7 @@ export async function getDaily(date: string): Promise<DailyData | null> {
 }
 
 export async function saveDaily(date: string, data: Partial<DailyData>) {
-  if (!currentUid) return
+  if (!getDbUid()) return
 
   // `setDoc` com merge faz merge PROFUNDO de mapas, então gravar
   // { '2026-06-16': { waterMl: 500 } } preserva os hábitos e o foco do mesmo dia
@@ -198,7 +167,7 @@ export async function saveDaily(date: string, data: Partial<DailyData>) {
 }
 
 export async function getDailyHistory(dates: string[]): Promise<Record<string, DailyData>> {
-  if (!currentUid || dates.length === 0) return {}
+  if (!getDbUid() || dates.length === 0) return {}
   try {
     // 35 days spans at most 2 calendar months → 1-2 reads instead of 35
     const months = [...new Set(dates.map(d => d.slice(0, 7)))]
@@ -232,7 +201,7 @@ export interface MentalEntry {
 }
 
 export async function getMental(date: string): Promise<MentalEntry | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(subRef('mental', date))
     return snap.exists() ? (snap.data() as MentalEntry) : null
@@ -240,7 +209,7 @@ export async function getMental(date: string): Promise<MentalEntry | null> {
 }
 
 export async function saveMental(date: string, data: MentalEntry) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   const ym = date.slice(0, 7)
   // MentalEntry is always a complete object, so top-level merge is safe
   fireWrite(setDoc(monthlyRef('mentalMonthly', ym), { [date]: data }, { merge: true }), 'saveMental/monthly')
@@ -248,7 +217,7 @@ export async function saveMental(date: string, data: MentalEntry) {
 }
 
 export async function getMentalHistory(dates: string[]): Promise<Record<string, MentalEntry>> {
-  if (!currentUid || dates.length === 0) return {}
+  if (!getDbUid() || dates.length === 0) return {}
   try {
     const months = [...new Set(dates.map(d => d.slice(0, 7)))]
     const snaps = await Promise.all(months.map(ym => getDoc(monthlyRef('mentalMonthly', ym))))
@@ -275,7 +244,7 @@ export interface TrainingJournalEntry {
 }
 
 export async function getJournalEntry(date: string): Promise<TrainingJournalEntry | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(subRef('journal', date))
     return snap.exists() ? (snap.data() as TrainingJournalEntry) : null
@@ -283,7 +252,7 @@ export async function getJournalEntry(date: string): Promise<TrainingJournalEntr
 }
 
 export async function saveJournalEntry(date: string, data: TrainingJournalEntry) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   const ym = date.slice(0, 7)
   // TrainingJournalEntry is always a complete object, so top-level merge is safe
   fireWrite(setDoc(monthlyRef('journalMonthly', ym), { [date]: data }, { merge: true }), 'saveJournalEntry/monthly')
@@ -291,7 +260,7 @@ export async function saveJournalEntry(date: string, data: TrainingJournalEntry)
 }
 
 export async function getJournalHistory(dates: string[]): Promise<Record<string, TrainingJournalEntry>> {
-  if (!currentUid || dates.length === 0) return {}
+  if (!getDbUid() || dates.length === 0) return {}
   try {
     const months = [...new Set(dates.map(d => d.slice(0, 7)))]
     const snaps = await Promise.all(months.map(ym => getDoc(monthlyRef('journalMonthly', ym))))
@@ -323,7 +292,7 @@ export interface Project {
 }
 
 export async function getProjects(): Promise<Project[] | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('projects'))
     return snap.exists() ? ((snap.data().items as Project[]) ?? []) : null
@@ -331,7 +300,7 @@ export async function getProjects(): Promise<Project[] | null> {
 }
 
 export async function saveProjects(projects: Project[]) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(dataRef('projects'), { items: projects }), 'saveProjects')
 }
 
@@ -339,7 +308,7 @@ export async function saveProjects(projects: Project[]) {
 // Grade fixa por dia da semana que se repete — ver lib/weekPlan.ts.
 
 export async function getWeekPlan(): Promise<PlannedSession[] | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('weekPlan'))
     return snap.exists() ? ((snap.data().items as PlannedSession[]) ?? []) : null
@@ -347,7 +316,7 @@ export async function getWeekPlan(): Promise<PlannedSession[] | null> {
 }
 
 export async function saveWeekPlan(items: PlannedSession[]) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(dataRef('weekPlan'), { items }), 'saveWeekPlan')
 }
 
@@ -370,7 +339,7 @@ export interface ReminderPrefs {
 }
 
 export async function getReminderPrefs(): Promise<ReminderPrefs | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('reminderPrefs'))
     return snap.exists() ? (snap.data() as ReminderPrefs) : null
@@ -378,7 +347,7 @@ export async function getReminderPrefs(): Promise<ReminderPrefs | null> {
 }
 
 export async function saveReminderPrefs(prefs: ReminderPrefs) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(dataRef('reminderPrefs'), prefs), 'saveReminderPrefs')
 }
 
@@ -396,7 +365,7 @@ export interface Book {
 }
 
 export async function getBooks(): Promise<Book[] | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('books'))
     return snap.exists() ? ((snap.data().items as Book[]) ?? []) : null
@@ -404,7 +373,7 @@ export async function getBooks(): Promise<Book[] | null> {
 }
 
 export async function saveBooks(books: Book[]) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(dataRef('books'), { items: books }), 'saveBooks')
 }
 
@@ -426,7 +395,7 @@ export interface HabitDef {
 }
 
 export async function getHabitDefs(): Promise<HabitDef[] | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('habitDefs'))
     return snap.exists() ? ((snap.data().items as HabitDef[]) ?? []) : null
@@ -434,7 +403,7 @@ export async function getHabitDefs(): Promise<HabitDef[] | null> {
 }
 
 export async function saveHabitDefs(defs: HabitDef[]) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(dataRef('habitDefs'), { items: defs }), 'saveHabitDefs')
 }
 
@@ -472,7 +441,7 @@ export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
 // ── Friends ───────────────────────────────────────────────────────────────────
 
 export async function getFriends(): Promise<string[]> {
-  if (!currentUid) return []
+  if (!getDbUid()) return []
   try {
     const snap = await getDoc(dataRef('friends'))
     return snap.exists() ? ((snap.data().uids as string[]) ?? []) : []
@@ -480,14 +449,14 @@ export async function getFriends(): Promise<string[]> {
 }
 
 export async function addFriend(friendUid: string): Promise<void> {
-  if (!currentUid) return
+  if (!getDbUid()) return
   const existing = await getFriends()
   if (existing.includes(friendUid)) return
   fireWrite(setDoc(dataRef('friends'), { uids: [...existing, friendUid] }), 'addFriend')
 }
 
 export async function removeFriend(friendUid: string): Promise<void> {
-  if (!currentUid) return
+  if (!getDbUid()) return
   const existing = await getFriends()
   fireWrite(setDoc(dataRef('friends'), { uids: existing.filter(u => u !== friendUid) }), 'removeFriend')
 }
@@ -586,12 +555,12 @@ function newClubId(): string {
 }
 
 export async function createClub(name: string, monthlyGoal: number): Promise<Club | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   const club: Club = {
     id: newClubId(),
     name: name.trim().slice(0, 40),
-    ownerUid: currentUid,
-    memberUids: [currentUid],
+    ownerUid: getDbUid(),
+    memberUids: [getDbUid()],
     monthlyGoal,
     createdAt: Date.now(),
   }
@@ -613,7 +582,7 @@ export async function getClub(id: string): Promise<Club | null> {
 
 /** Id do clube em que este usuário está, se houver. */
 export async function getMyClubId(): Promise<string | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('club'))
     return snap.exists() ? ((snap.data().clubId as string) ?? null) : null
@@ -625,11 +594,11 @@ export type JoinClubResult =
   | { ok: false; reason: 'not-found' | 'full' | 'already-in' | 'error' }
 
 export async function joinClub(id: string): Promise<JoinClubResult> {
-  if (!currentUid) return { ok: false, reason: 'error' }
+  if (!getDbUid()) return { ok: false, reason: 'error' }
   const code = id.trim().toUpperCase()
   const club = await getClub(code)
   if (!club) return { ok: false, reason: 'not-found' }
-  if (club.memberUids.includes(currentUid)) {
+  if (club.memberUids.includes(getDbUid())) {
     fireWrite(setDoc(dataRef('club'), { clubId: club.id }), 'saveClubRef')
     return { ok: false, reason: 'already-in' }
   }
@@ -639,17 +608,17 @@ export async function joinClub(id: string): Promise<JoinClubResult> {
     const { arrayUnion, updateDoc } = await import('firebase/firestore')
     // `arrayUnion` e não uma lista montada aqui: dois atletas entrando ao mesmo
     // tempo com a lista que cada um leu apagariam um ao outro.
-    fireWrite(updateDoc(clubRef(code), { memberUids: arrayUnion(currentUid) }), 'joinClub')
+    fireWrite(updateDoc(clubRef(code), { memberUids: arrayUnion(getDbUid()) }), 'joinClub')
     fireWrite(setDoc(dataRef('club'), { clubId: code }), 'saveClubRef')
-    return { ok: true, club: { ...club, memberUids: [...club.memberUids, currentUid] } }
+    return { ok: true, club: { ...club, memberUids: [...club.memberUids, getDbUid()] } }
   } catch (e) { logDbError('joinClub', e); return { ok: false, reason: 'error' } }
 }
 
 export async function leaveClub(id: string): Promise<void> {
-  if (!currentUid) return
+  if (!getDbUid()) return
   try {
     const { arrayRemove, updateDoc } = await import('firebase/firestore')
-    fireWrite(updateDoc(clubRef(id), { memberUids: arrayRemove(currentUid) }), 'leaveClub')
+    fireWrite(updateDoc(clubRef(id), { memberUids: arrayRemove(getDbUid()) }), 'leaveClub')
   } catch (e) { logDbError('leaveClub', e) }
   fireWrite(setDoc(dataRef('club'), { clubId: null }), 'clearClubRef')
 }
@@ -673,7 +642,7 @@ export interface ProgressPhoto {
 }
 
 export async function getProgressPhotos(): Promise<ProgressPhoto[]> {
-  if (!currentUid) return []
+  if (!getDbUid()) return []
   try {
     const snap = await getDoc(dataRef('progress'))
     return snap.exists() ? ((snap.data().items as ProgressPhoto[]) ?? []) : []
@@ -681,7 +650,7 @@ export async function getProgressPhotos(): Promise<ProgressPhoto[]> {
 }
 
 export async function saveProgressPhotos(photos: ProgressPhoto[]) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(dataRef('progress'), { items: photos }), 'saveProgressPhotos')
 }
 
@@ -690,7 +659,7 @@ export async function saveProgressPhotos(photos: ProgressPhoto[]) {
 export interface HydrationSettings { goalMl: number }
 
 export async function getHydration(): Promise<HydrationSettings | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('hydration'))
     return snap.exists() ? (snap.data() as HydrationSettings) : null
@@ -698,7 +667,7 @@ export async function getHydration(): Promise<HydrationSettings | null> {
 }
 
 export async function saveHydration(data: HydrationSettings) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(dataRef('hydration'), data), 'saveHydration')
 }
 
@@ -707,7 +676,7 @@ export async function saveHydration(data: HydrationSettings) {
 // usuária liga o acompanhamento. Ver lib/cycle.ts.
 
 export async function getCycle(): Promise<CycleData | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('cycle'))
     return snap.exists() ? (snap.data() as CycleData) : null
@@ -715,7 +684,7 @@ export async function getCycle(): Promise<CycleData | null> {
 }
 
 export async function saveCycle(data: CycleData) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(dataRef('cycle'), data), 'saveCycle')
 }
 
@@ -767,7 +736,7 @@ export interface CoachShareSnapshot {
 }
 
 export async function saveCoachShare(token: string, snapshot: CoachShareSnapshot) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(doc(db, 'coachShares', token), snapshot), 'saveCoachShare')
 }
 
@@ -780,7 +749,7 @@ export async function getCoachShare(token: string): Promise<CoachShareSnapshot |
 }
 
 export async function deleteCoachShare(token: string) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(deleteDoc(doc(db, 'coachShares', token)), 'deleteCoachShare')
 }
 
@@ -796,7 +765,7 @@ export type CoachConversationsRead =
   | { ok: false }
 
 export async function getCoachConversations(): Promise<CoachConversationsRead> {
-  if (!currentUid) return { ok: false }
+  if (!getDbUid()) return { ok: false }
   try {
     const snap = await getDoc(dataRef('coachConversations'))
     return { ok: true, items: snap.exists() ? ((snap.data().items as CoachConversation[]) ?? []) : null }
@@ -812,7 +781,7 @@ function byteLength(s: string): number {
 }
 
 export async function saveCoachConversations(conversations: CoachConversation[]) {
-  if (!currentUid) return
+  if (!getDbUid()) return
 
   // O base64 dos anexos (vários MB) nunca vai para o Firestore — só o nome e o
   // tipo, o suficiente para a bolha continuar mostrando o arquivo depois.
@@ -856,7 +825,7 @@ export interface WeeklyReview {
 }
 
 export async function getWeeklyReviews(): Promise<WeeklyReview[]> {
-  if (!currentUid) return []
+  if (!getDbUid()) return []
   try {
     const snap = await getDoc(dataRef('weeklyReviews'))
     return snap.exists() ? ((snap.data().items as WeeklyReview[]) ?? []) : []
@@ -864,7 +833,7 @@ export async function getWeeklyReviews(): Promise<WeeklyReview[]> {
 }
 
 export async function saveWeeklyReview(review: WeeklyReview) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   try {
     const existing = await getWeeklyReviews()
     const next = [review, ...existing.filter(r => r.weekKey !== review.weekKey)].slice(0, 26)
@@ -884,7 +853,7 @@ export interface JournalInsight {
 }
 
 export async function getJournalInsights(): Promise<JournalInsight[]> {
-  if (!currentUid) return []
+  if (!getDbUid()) return []
   try {
     const snap = await getDoc(dataRef('journalInsights'))
     return snap.exists() ? ((snap.data().items as JournalInsight[]) ?? []) : []
@@ -892,7 +861,7 @@ export async function getJournalInsights(): Promise<JournalInsight[]> {
 }
 
 export async function saveJournalInsight(insight: JournalInsight) {
-  if (!currentUid) return
+  if (!getDbUid()) return
   try {
     const existing = await getJournalInsights()
     const next = [insight, ...existing.filter(i => i.weekKey !== insight.weekKey)].slice(0, 26)
@@ -903,12 +872,12 @@ export async function saveJournalInsight(insight: JournalInsight) {
 // ── Push subscription (Web Push VAPID) ───────────────────────────────────────
 
 export async function savePushSubscription(sub: PushSubscriptionJSON): Promise<void> {
-  if (!currentUid) return
+  if (!getDbUid()) return
   fireWrite(setDoc(dataRef('pushSubscription'), sub as Record<string, unknown>), 'savePushSubscription')
 }
 
 export async function getPushSubscription(): Promise<PushSubscriptionJSON | null> {
-  if (!currentUid) return null
+  if (!getDbUid()) return null
   try {
     const snap = await getDoc(dataRef('pushSubscription'))
     return snap.exists() ? (snap.data() as PushSubscriptionJSON) : null
@@ -916,7 +885,7 @@ export async function getPushSubscription(): Promise<PushSubscriptionJSON | null
 }
 
 export async function deletePushSubscription(): Promise<void> {
-  if (!currentUid) return
+  if (!getDbUid()) return
   try { await deleteDoc(dataRef('pushSubscription')) } catch (e) { logDbError('deletePushSubscription', e) }
 }
 
