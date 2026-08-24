@@ -10,13 +10,14 @@
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from './firebase'
 import type { PlannedSession } from './weekPlan'
-import type { CycleData } from './cycle'
 import { forgetChallengeEntry } from './challengeApi'
 import { dataRef, logDbError, fireWrite, getDbUid } from './db/client'
 import { getProfile } from './db/profile'
 import { getMyClubId } from './db/social'
 
 export { setDbUid } from './db/client'
+export { type ProgressPhoto, getProgressPhotos, saveProgressPhotos } from './db/media'
+export { getCycle, saveCycle } from './db/cycle'
 export { type CoachShareWorkout, type CoachShareDay, type CoachShareSnapshot, saveCoachShare, getCoachShare, deleteCoachShare } from './db/coach'
 export { type CoachConversationsRead, getCoachConversations, saveCoachConversations } from './db/coach'
 export { type LeaderboardEntry, upsertLeaderboard, getLeaderboard } from './db/social'
@@ -130,46 +131,6 @@ export async function getBooks(): Promise<Book[] | null> {
 export async function saveBooks(books: Book[]) {
   if (!getDbUid()) return
   fireWrite(setDoc(dataRef('books'), { items: books }), 'saveBooks')
-}
-
-// ── Progress photos ───────────────────────────────────────────────────────────
-
-export interface ProgressPhoto {
-  id: string
-  url: string
-  date: string
-  weight?: number
-  caption: string
-}
-
-export async function getProgressPhotos(): Promise<ProgressPhoto[]> {
-  if (!getDbUid()) return []
-  try {
-    const snap = await getDoc(dataRef('progress'))
-    return snap.exists() ? ((snap.data().items as ProgressPhoto[]) ?? []) : []
-  } catch (e) { logDbError('getProgressPhotos', e); return [] }
-}
-
-export async function saveProgressPhotos(photos: ProgressPhoto[]) {
-  if (!getDbUid()) return
-  fireWrite(setDoc(dataRef('progress'), { items: photos }), 'saveProgressPhotos')
-}
-
-// ── Ciclo menstrual ──────────────────────────────────────────────────────────
-// Dado sensível de saúde e sempre opt-in: o documento só existe depois que a
-// usuária liga o acompanhamento. Ver lib/cycle.ts.
-
-export async function getCycle(): Promise<CycleData | null> {
-  if (!getDbUid()) return null
-  try {
-    const snap = await getDoc(dataRef('cycle'))
-    return snap.exists() ? (snap.data() as CycleData) : null
-  } catch (e) { logDbError('getCycle', e); return null }
-}
-
-export async function saveCycle(data: CycleData) {
-  if (!getDbUid()) return
-  fireWrite(setDoc(dataRef('cycle'), data), 'saveCycle')
 }
 
 // ── Push subscription (Web Push VAPID) ───────────────────────────────────────
