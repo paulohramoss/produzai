@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node --test \"api/**/*.test.mjs\"",
+    "test:unit": "vitest run",
     "qa": "node qa/run.mjs",
     "qa:update": "node qa/deploy-update.mjs",
     "storage:cors": "gcloud storage buckets update gs://produzai-ab8ad.firebasestorage.app --cors-file=cors.json",
@@ -43,7 +44,8 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",
     "vite": "^8.0.4",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "protobufjs": "^7.6.5",
