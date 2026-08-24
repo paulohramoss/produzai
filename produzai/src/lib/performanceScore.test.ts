@@ -137,7 +137,7 @@ describe('buildWeekPerformance', () => {
 
   it('prefere o sono do check-in de prontidão ao da página Mental', () => {
     const mental: Record<string, MentalEntry> = {
-      '2026-03-23': { mood: 3, energy: 3, gratitude: '', note: '', sleepHours: 6 },
+      '2026-03-23': { mood: 3, energy: 3, gratitude: ['', '', ''], note: '', sleepHours: 6 },
     }
     const daily: Record<string, DailyData> = { '2026-03-23': { readiness: readiness(8) } }
     expect(buildWeekPerformance(DATES, mental, [], [], daily)[1].factors.sleepHours).toBe(8)
@@ -146,16 +146,16 @@ describe('buildWeekPerformance', () => {
 
   it('tira a média de humor e energia, ignorando os zeros', () => {
     const mental: Record<string, MentalEntry> = {
-      '2026-03-22': { mood: 4, energy: 2, gratitude: '', note: '' },
-      '2026-03-23': { mood: 4, energy: 0, gratitude: '', note: '' },
-      '2026-03-24': { mood: 0, energy: 0, gratitude: '', note: '' },
+      '2026-03-22': { mood: 4, energy: 2, gratitude: ['', '', ''], note: '' },
+      '2026-03-23': { mood: 4, energy: 0, gratitude: ['', '', ''], note: '' },
+      '2026-03-24': { mood: 0, energy: 0, gratitude: ['', '', ''], note: '' },
     }
     const semana = buildWeekPerformance(DATES, mental, [], [])
     expect(semana.map(d => d.factors.moodEnergyAvg)).toEqual([3, 4, null])
   })
 
   it('casa a dieta pela data', () => {
-    const compliance: DietCompliance[] = [{ date: '2026-03-23', status: 'alcohol' }]
+    const compliance: DietCompliance[] = [{ date: '2026-03-23', status: 'alcohol', note: '' }]
     const semana = buildWeekPerformance(DATES, {}, compliance, [])
     expect(semana.map(d => d.factors.dietStatus)).toEqual([null, 'alcohol', null])
   })
