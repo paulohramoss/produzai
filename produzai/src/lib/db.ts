@@ -9,7 +9,6 @@
 
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from './firebase'
-import type { WebDietData } from '../store/useWebDietStore'
 import type { CoachConversation } from '../store/useCoachStore'
 import type { PlannedSession } from './weekPlan'
 import type { CycleData } from './cycle'
@@ -18,24 +17,10 @@ import { dataRef, subRef, monthlyRef, logDbError, fireWrite, getDbUid } from './
 import { getProfile } from './db/profile'
 
 export { setDbUid } from './db/client'
+export { getDiet, saveDiet, type HydrationSettings, getHydration, saveHydration } from './db/diet'
 export { type UserProfile, type ActivityLevel, getProfile, saveProfile } from './db/profile'
 export { type WeightEntry, getWeightLog, saveWeightLog } from './db/profile'
 export { getWorkouts, saveWorkouts } from './db/workouts'
-
-// ── Diet ─────────────────────────────────────────────────────────────────────
-
-export async function getDiet(): Promise<WebDietData | null> {
-  if (!getDbUid()) return null
-  try {
-    const snap = await getDoc(dataRef('diet'))
-    return snap.exists() ? (snap.data() as WebDietData) : null
-  } catch (e) { logDbError('getDiet', e); return null }
-}
-
-export async function saveDiet(data: WebDietData | null) {
-  if (!getDbUid() || !data) return
-  fireWrite(setDoc(dataRef('diet'), data), 'saveDiet')
-}
 
 // ── Daily (hábitos + foco) ────────────────────────────────────────────────────
 
@@ -579,23 +564,6 @@ export async function getProgressPhotos(): Promise<ProgressPhoto[]> {
 export async function saveProgressPhotos(photos: ProgressPhoto[]) {
   if (!getDbUid()) return
   fireWrite(setDoc(dataRef('progress'), { items: photos }), 'saveProgressPhotos')
-}
-
-// ── Hydration ────────────────────────────────────────────────────────────────
-
-export interface HydrationSettings { goalMl: number }
-
-export async function getHydration(): Promise<HydrationSettings | null> {
-  if (!getDbUid()) return null
-  try {
-    const snap = await getDoc(dataRef('hydration'))
-    return snap.exists() ? (snap.data() as HydrationSettings) : null
-  } catch (e) { logDbError('getHydration', e); return null }
-}
-
-export async function saveHydration(data: HydrationSettings) {
-  if (!getDbUid()) return
-  fireWrite(setDoc(dataRef('hydration'), data), 'saveHydration')
 }
 
 // ── Ciclo menstrual ──────────────────────────────────────────────────────────
