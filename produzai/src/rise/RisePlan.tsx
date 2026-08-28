@@ -1,4 +1,4 @@
-import { useState, useCallback, useSyncExternalStore, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore, lazy, Suspense } from "react";
 import { LayoutDashboard, Sun, Dumbbell, Utensils, Menu, ChevronDown } from "lucide-react";
 import { T, C, NAV_PRIMARY, NAV_MORE, safeInset, safePlus, type Page, type NavItem } from "./data";
 // O Dashboard é a tela em que todo mundo cai depois do login: mantê-lo estático
@@ -22,9 +22,12 @@ const Insights   = lazy(() => import("./pages/Insights").then(m   => ({ default:
 const Onboarding = lazy(() => import("./pages/Onboarding").then(m => ({ default: m.Onboarding })));
 import { Avatar }       from "./primitives";
 import { PageSkeleton } from "./components/PageSkeleton";
+import { Splash }       from "../Splash";
 import { ConsentModal } from "./components/ConsentModal";
+import { Paywall }      from "./components/Paywall";
 import { Toaster }      from "./components/Toaster";
 import { useAuthStore } from "../store/useAuthStore";
+import { useBillingStore } from "../store/useBillingStore";
 import { LayoutContext } from "./LayoutContext";
 
 const RISE_IMPLEMENTED: Page[] = [
@@ -110,6 +113,8 @@ const SIDEBAR_ICON = 62;
 
 export function RisePlan() {
   const { user, displayName, photoURL, logout, onboardingDone, consentAccepted } = useAuthStore();
+  const billing        = useBillingStore(s => s.view);
+  const refreshBilling = useBillingStore(s => s.refresh);
   const [page, setPage]         = useState<Page>("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen]   = useState(false);
@@ -131,10 +136,42 @@ export function RisePlan() {
     if (isMobile) setMenuOpen(false);
   }, [isMobile]);
 
+  // A assinatura é perguntada ao servidor a cada entrada. Não dá para confiar no
+  // que ficou guardado no navegador: o que está guardado é exatamente o que um
+  // usuário consegue editar.
+  useEffect(() => {
+    if (user) refreshBilling();
+  }, [user, refreshBilling]);
+
   if (!consentAccepted) {
     return (
       <>
         <ConsentModal />
+        <Toaster />
+      </>
+    );
+  }
+
+  // ── Assinatura ────────────────────────────────────────────────────────────
+  // `null` é "ainda perguntando", e não pode virar paywall: senão TODO assinante
+  // veria um pedido de pagamento piscar a cada abertura do app.
+  //
+  // Este bloqueio é o rosto da regra, não a regra. Quem contornar a tela ainda
+  // esbarra nas regras do Firestore (negam escrita sem assinatura em dia) e nos
+  // endpoints de IA (respondem 402). Ver api/_entitlement.js.
+  if (billing === null) {
+    return (
+      <>
+        <Splash />
+        <Toaster />
+      </>
+    );
+  }
+
+  if (!billing.active) {
+    return (
+      <>
+        <Paywall />
         <Toaster />
       </>
     );

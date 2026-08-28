@@ -34,6 +34,8 @@ import { useHabitsStore } from './useHabitsStore'
 import { useCoachStore } from './useCoachStore'
 import { usePlanStore } from './usePlanStore'
 import { useCycleStore } from './useCycleStore'
+import { useBillingStore } from './useBillingStore'
+import { cancelSubscription } from '../lib/billing'
 
 export interface BodyProfile {
   weightKg:      number | null
@@ -216,6 +218,10 @@ function clearSessionState() {
   usePlanStore.setState({ sessions: [] })
   useCoachStore.setState({ conversations: [], activeId: null })
   useCycleStore.getState().reset()
+  // A assinatura é de quem entrou, não do navegador: sem este reset a próxima
+  // conta a abrir o app entraria direto, herdando o acesso da anterior enquanto
+  // o servidor ainda não respondeu.
+  useBillingStore.getState().reset()
   // Sem isto a próxima conta a entrar neste navegador herdaria a promessa já
   // resolvida e abriria o Coach sem nunca ler o histórico dela.
   coachLoad = null
@@ -374,6 +380,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     const uid = u.uid
+
+    // Cancela a cobrança ANTES de apagar a conta: sem isto o Asaas continuaria
+    // emitindo a mensalidade de alguém que não existe mais no app.
+    await cancelSubscription().catch(() => { /* a exclusão não pode travar por isto */ })
 
     // Delete all Firestore data first
     await deleteAllUserData(uid)

@@ -12,6 +12,8 @@
     "test": "node --test \"api/**/*.test.mjs\"",
     "qa": "node qa/run.mjs",
     "qa:update": "node qa/deploy-update.mjs",
+    "billing:free-access": "node scripts/free-access.mjs",
+    "billing:free-access:dry": "node scripts/free-access.mjs --dry-run",
     "storage:cors": "gcloud storage buckets update gs://produzai-ab8ad.firebasestorage.app --cors-file=cors.json",
     "storage:cors:show": "gcloud storage buckets describe gs://produzai-ab8ad.firebasestorage.app --format=\"value(cors_config)\""
   },

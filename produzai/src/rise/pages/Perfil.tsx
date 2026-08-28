@@ -15,6 +15,7 @@ import { PolicyOverlay } from '../components/ConsentModal'
 import { CorpoSection } from '../components/CorpoSection'
 import { CycleSettingsCard } from '../components/CycleSettingsCard'
 import { CoachShareCard } from '../components/CoachShareCard'
+import { SubscriptionCard } from '../components/SubscriptionCard'
 
 interface Props { setPage: (p: Page) => void }
 
@@ -297,6 +298,11 @@ export function Perfil({ setPage }: Props) {
             </div>
           </div>
         </div>
+      </Section>
+
+      {/* ── Assinatura ────────────────────────────────────────────────────── */}
+      <Section title="Assinatura">
+        <SubscriptionCard />
       </Section>
 
       {/* ── Alterar senha ─────────────────────────────────────────────────── */}

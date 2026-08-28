@@ -3,42 +3,104 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Assinatura ────────────────────────────────────────────────────────
+    //
+    // `billing/{uid}` é ESCRITO SÓ PELO SERVIDOR (api/billing/*, via
+    // firebase-admin, que passa por cima destas regras). Se o navegador pudesse
+    // escrever aqui, o paywall inteiro seria decoração: um `setDoc` no console
+    // liberaria o app.
+    //
+    // O usuário lê o próprio documento porque a tela precisa dizer "sua fatura
+    // está em atraso" em vez de um bloqueio mudo.
+    match /billing/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Mapa cliente-do-Asaas → uid e registro de eventos do webhook. Coisa de
+    // servidor; o app não tem nada que ver com isso.
+    match /billingCustomers/{customerId} { allow read, write: if false; }
+    match /billingEvents/{eventId}      { allow read, write: if false; }
+
+    /**
+     * Assinatura em dia.
+     *
+     * É a MESMA conta que api/_entitlement.js faz, aplicada onde o app não pode
+     * intermediar: o SDK do Firestore fala direto com o banco a partir do
+     * navegador, então bloquear só a tela deixaria a porta dos dados aberta.
+     *
+     * `.get(campo, padrão)` em vez de acesso direto porque documento recém-criado
+     * pode não ter todos os campos — e campo ausente derruba a regra inteira.
+     */
+    function entitled() {
+      let path = /databases/$(database)/documents/billing/$(request.auth.uid);
+      return exists(path)
+        && (get(path).data.get('freeAccess', false) == true
+            || get(path).data.get('activeUntil', 0) > request.time.toMillis());
+    }
+
+    function owner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    /**
+     * Documentos que continuam graváveis sem assinatura.
+     *
+     * Não é "usar o app": é o que o cadastro precisa escrever ANTES de existir
+     * pagamento — o consentimento da LGPD, a origem de quem indicou, o clube do
+     * link de convite. Sem esta exceção, criar conta quebraria no meio.
+     */
+    function accountDoc(docName) {
+      return docName in ['profile', 'friends', 'club'];
+    }
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if owner(userId);
 
       // data/* — documentos principais (workouts, diet, profile, projects, books)
+      //
+      // A LEITURA nunca depende de assinatura: quem deixou de pagar não perde os
+      // dados, nem a exportação deles (LGPD, art. 18). O que a assinatura vencida
+      // tira é a ESCRITA — registrar treino, dieta, plano. Ver accountDoc().
       match /data/{docName} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if owner(userId);
+        allow write: if owner(userId) && (accountDoc(docName) || entitled());
       }
 
       // daily/{date} — hábitos e foco diário (mantido durante transição)
       match /daily/{date} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if owner(userId);
+        allow write: if owner(userId) && entitled();
       }
 
       // mental/{date} — entradas de bem-estar diário (mantido durante transição)
       match /mental/{date} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if owner(userId);
+        allow write: if owner(userId) && entitled();
       }
 
       // dailyMonthly/{yyyy-MM} — agregação mensal de hábitos/foco (1-2 leituras vs 35)
       match /dailyMonthly/{month} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if owner(userId);
+        allow write: if owner(userId) && entitled();
       }
 
       // mentalMonthly/{yyyy-MM} — agregação mensal de bem-estar
       match /mentalMonthly/{month} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if owner(userId);
+        allow write: if owner(userId) && entitled();
       }
 
       // journal/{date} — diário de treino (sentimentos, dores, motivação)
       match /journal/{date} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if owner(userId);
+        allow write: if owner(userId) && entitled();
       }
 
       // journalMonthly/{yyyy-MM} — agregação mensal do diário de treino
       match /journalMonthly/{month} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if owner(userId);
+        allow write: if owner(userId) && entitled();
       }
     }
 
@@ -66,10 +128,13 @@ service cloud.firestore {
         && d.updatedAt is number;
     }
 
+    // Entrar no ranking é uso do produto: exige assinatura em dia. A LEITURA
+    // não — quem está no paywall ainda vê o placar dos outros na landing do app.
     match /leaderboard/{userId} {
       allow read: if request.auth != null;
       allow create, update: if request.auth != null
                             && request.auth.uid == userId
+                            && entitled()
                             && validLeaderboardEntry(userId);
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
@@ -136,7 +201,11 @@ service cloud.firestore {
     match /clubs/{clubId} {
       allow read: if request.auth != null;
 
+      // Criar clube e editar suas configurações é uso do produto — pede
+      // assinatura. ENTRAR num clube não: é o que o link de convite faz no
+      // cadastro, antes de existir pagamento (ver isSelfMembershipChange).
       allow create: if request.auth != null
+                    && entitled()
                     && request.resource.data.keys().hasOnly(
                          ['id', 'name', 'ownerUid', 'memberUids', 'monthlyGoal', 'createdAt'])
                     && request.resource.data.id == clubId
@@ -151,7 +220,7 @@ service cloud.firestore {
                     && request.resource.data.createdAt is number;
 
       allow update: if request.auth != null
-                    && (isSelfMembershipChange() || isOwnerConfigChange());
+                    && (isSelfMembershipChange() || (entitled() && isOwnerConfigChange()));
 
       allow delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
     }
@@ -192,12 +261,14 @@ service cloud.firestore {
       // bytes em hexadecimal. Um id curto e adivinhável não seria segredo
       // nenhum, e a leitura aqui é pública.
       allow create: if request.auth != null
+                    && entitled()
                     && token.matches('^[0-9a-f]{40}$')
                     && validCoachShare();
 
       // Republicar só é permitido a quem já é dono daquele token: sem esta
       // linha, escrever o próprio uid num documento alheio bastaria.
       allow update: if request.auth != null
+                    && entitled()
                     && resource.data.uid == request.auth.uid
                     && validCoachShare();
 

@@ -26,6 +26,7 @@
 import { createRequire } from 'node:module'
 import { verifyToken } from '../ai/_auth.js'
 import { rateLimit } from '../ai/_rateLimit.js'
+import { blockIfUnpaid } from '../_entitlement.js'
 
 // `require` de caminho literal para o rastreador de dependências da Vercel
 // enxergar o JSON e empacotá-lo junto com a função.
@@ -172,6 +173,10 @@ export default async function handler(req, res) {
     res.setHeader('Retry-After', String(rl.retryAfterSec))
     return res.status(429).json({ error: 'Too many requests' })
   }
+
+  // O desafio é produto pago. A remoção da entrada (LGPD) é a exceção: quem
+  // cancelou tem de conseguir sumir do placar.
+  if (req.body?.action !== 'forget' && await blockIfUnpaid(req, res, user)) return
 
   if (!process.env.FIREBASE_SERVICE_ACCOUNT_B64) {
     console.error('[challenge/sync] FIREBASE_SERVICE_ACCOUNT_B64 ausente — placar desligado')

@@ -149,11 +149,12 @@ export function Landing({ onEnter }: Props) {
               fontSize: T.text['3xl'], fontWeight: T.weight.bold, cursor: 'pointer',
             }}
           >
-            Começar hoje — é grátis <ArrowRight size={18} />
+            Assinar por R$ 20/mês <ArrowRight size={18} />
           </button>
         </div>
         <div style={{ fontSize: T.text.md, color: C.muted }}>
-          Leva 3 telas. Sem cartão, sem cobrança.
+          Acesso completo por R$ 20/mês. PIX, cartão ou boleto — sem fidelidade,
+          cancele quando quiser.
         </div>
       </section>
 

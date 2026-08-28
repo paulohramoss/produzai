@@ -4,6 +4,7 @@
 
 import { verifyToken } from './_auth.js'
 import { rateLimit } from './_rateLimit.js'
+import { blockIfUnpaid } from '../_entitlement.js'
 import { COACH_STATIC_PROMPT, buildSystemPrompt, onboardingSystemPrompt } from './_prompts.js'
 
 /** Teto de turnos por requisição — conversa real não chega perto. */
@@ -133,6 +134,11 @@ export default async function handler(req, res) {
     res.setHeader('Retry-After', String(rl.retryAfterSec))
     return res.status(429).json({ error: 'Muitas requisições. Tente novamente em instantes.' })
   }
+
+  // Assinatura em dia — checada DEPOIS do limitador (mais barata de negar) e
+  // ANTES da chamada ao modelo, que é o que custa dinheiro de verdade. O paywall
+  // da tela não protege nada aqui: este endpoint responde a qualquer `fetch`.
+  if (await blockIfUnpaid(req, res, user)) return
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
