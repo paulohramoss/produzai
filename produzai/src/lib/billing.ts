@@ -141,6 +141,24 @@ export async function cancelSubscription(): Promise<boolean> {
   }
 }
 
+/**
+ * Cancela E apaga o registro de cobrança — só na exclusão de conta.
+ *
+ * O cancelamento comum preserva o documento (é ele que diz até quando o mês
+ * pago vale). Aqui não sobra nada: `billing/{uid}` guarda uid, e-mail e os ids
+ * do Asaas, e o direito de eliminação não abre exceção para eles.
+ */
+export async function purgeBilling(): Promise<boolean> {
+  const headers = await authHeader()
+  if (!headers) return false
+  try {
+    const res = await fetch('/api/billing/subscription?purge=1', { method: 'DELETE', headers })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 /** Máscara de CPF/CNPJ enquanto digita. */
 export function maskDocument(raw: string): string {
   const d = raw.replace(/\D/g, '').slice(0, 14)

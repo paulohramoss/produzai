@@ -35,7 +35,7 @@ import { useCoachStore } from './useCoachStore'
 import { usePlanStore } from './usePlanStore'
 import { useCycleStore } from './useCycleStore'
 import { useBillingStore } from './useBillingStore'
-import { cancelSubscription } from '../lib/billing'
+import { purgeBilling } from '../lib/billing'
 
 export interface BodyProfile {
   weightKg:      number | null
@@ -381,9 +381,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const uid = u.uid
 
-    // Cancela a cobrança ANTES de apagar a conta: sem isto o Asaas continuaria
-    // emitindo a mensalidade de alguém que não existe mais no app.
-    await cancelSubscription().catch(() => { /* a exclusão não pode travar por isto */ })
+    // Cancela a cobrança e apaga o registro ANTES de apagar a conta: sem isto o
+    // Asaas continuaria emitindo a mensalidade de alguém que não existe mais, e
+    // `billing/{uid}` sobreviveria à exclusão com uid e e-mail dentro.
+    await purgeBilling().catch(() => { /* a exclusão não pode travar por isto */ })
 
     // Delete all Firestore data first
     await deleteAllUserData(uid)

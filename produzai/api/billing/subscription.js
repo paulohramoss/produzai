@@ -201,21 +201,40 @@ async function handlePost(req, res, user) {
   return res.json({ invoiceUrl, subscriptionId: sub.subscription.id })
 }
 
-// ── DELETE: cancelar ─────────────────────────────────────────────────────────
+// ── DELETE: cancelar (e, com ?purge=1, esquecer) ─────────────────────────────
 
 async function handleDelete(req, res, user) {
   const db = await getAdminDb('billing')
   if (!db) return serviceUnavailable(res, 'FIREBASE_SERVICE_ACCOUNT_B64 ausente')
 
-  const snap = await billingRef(db, user.localId).get()
+  const uid = user.localId
+  const purge = String(req.query?.purge ?? '') === '1'
+  const snap = await billingRef(db, uid).get()
   const doc = snap.exists ? snap.data() : null
-  if (!doc?.asaasSubscriptionId) return res.json({ ok: true, canceled: false })
 
-  if (asaasConfigured()) await cancelSubscription(doc.asaasSubscriptionId)
+  if (doc?.asaasSubscriptionId && asaasConfigured()) {
+    await cancelSubscription(doc.asaasSubscriptionId)
+  }
+
+  // ?purge=1 — a conta está sendo excluída. O documento inteiro some, junto com
+  // o mapa cliente→uid: os dois guardam e-mail e uid, e a exclusão de conta tem
+  // de levar tudo (LGPD, art. 18, VI).
+  //
+  // O cadastro no Asaas NÃO é apagado, e é o certo: nota fiscal e histórico de
+  // pagamento são obrigação legal do processador, com prazo próprio de guarda.
+  if (purge) {
+    if (doc?.asaasCustomerId) {
+      await db.doc(`billingCustomers/${doc.asaasCustomerId}`).delete().catch(() => {})
+    }
+    await billingRef(db, uid).delete().catch(() => {})
+    return res.json({ ok: true, purged: true })
+  }
+
+  if (!doc?.asaasSubscriptionId) return res.json({ ok: true, canceled: false })
 
   // `activeUntil` NÃO é zerado: quem pagou o mês tem direito ao mês. O que o
   // cancelamento faz é impedir a próxima cobrança.
-  await billingRef(db, user.localId).set({
+  await billingRef(db, uid).set({
     status:              'canceled',
     canceledAt:          Date.now(),
     asaasSubscriptionId: null,

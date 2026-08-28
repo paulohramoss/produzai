@@ -57,6 +57,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if owner(userId);
 
+
       // data/* — documentos principais (workouts, diet, profile, projects, books)
       //
       // A LEITURA nunca depende de assinatura: quem deixou de pagar não perde os
@@ -64,43 +65,54 @@ service cloud.firestore {
       // tira é a ESCRITA — registrar treino, dieta, plano. Ver accountDoc().
       match /data/{docName} {
         allow read: if owner(userId);
-        allow write: if owner(userId) && (accountDoc(docName) || entitled());
+        allow create, update: if owner(userId) && (accountDoc(docName) || entitled());
+        // APAGAR nunca depende de assinatura. `write` inclui `delete`, e gatear
+        // o delete travava a exclusão de conta de quem deixou de pagar — ou
+        // seja, transformava atraso de pagamento em recusa do direito de
+        // eliminação (LGPD, art. 18, VI).
+        allow delete: if owner(userId);
       }
 
       // daily/{date} — hábitos e foco diário (mantido durante transição)
       match /daily/{date} {
         allow read: if owner(userId);
-        allow write: if owner(userId) && entitled();
+        allow create, update: if owner(userId) && entitled();
+        allow delete: if owner(userId);
       }
 
       // mental/{date} — entradas de bem-estar diário (mantido durante transição)
       match /mental/{date} {
         allow read: if owner(userId);
-        allow write: if owner(userId) && entitled();
+        allow create, update: if owner(userId) && entitled();
+        allow delete: if owner(userId);
       }
 
       // dailyMonthly/{yyyy-MM} — agregação mensal de hábitos/foco (1-2 leituras vs 35)
       match /dailyMonthly/{month} {
         allow read: if owner(userId);
-        allow write: if owner(userId) && entitled();
+        allow create, update: if owner(userId) && entitled();
+        allow delete: if owner(userId);
       }
 
       // mentalMonthly/{yyyy-MM} — agregação mensal de bem-estar
       match /mentalMonthly/{month} {
         allow read: if owner(userId);
-        allow write: if owner(userId) && entitled();
+        allow create, update: if owner(userId) && entitled();
+        allow delete: if owner(userId);
       }
 
       // journal/{date} — diário de treino (sentimentos, dores, motivação)
       match /journal/{date} {
         allow read: if owner(userId);
-        allow write: if owner(userId) && entitled();
+        allow create, update: if owner(userId) && entitled();
+        allow delete: if owner(userId);
       }
 
       // journalMonthly/{yyyy-MM} — agregação mensal do diário de treino
       match /journalMonthly/{month} {
         allow read: if owner(userId);
-        allow write: if owner(userId) && entitled();
+        allow create, update: if owner(userId) && entitled();
+        allow delete: if owner(userId);
       }
     }
 
