@@ -7,6 +7,11 @@ import { verifyToken } from './_auth.js'
 import { rateLimit } from './_rateLimit.js'
 import { blockIfUnpaid } from '../_entitlement.js'
 
+// PDFs de dieta maiores levam mais tempo entre baixar do Storage, converter
+// para base64 e a própria Anthropic ler o documento — o padrão da Vercel
+// (10s) não é suficiente.
+export const config = { maxDuration: 60 }
+
 async function callClaude({ model, maxTokens, system, messages, apiKey }) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -66,9 +71,28 @@ Arredonde para inteiros. Use estimativas realistas para porções brasileiras t�
   return extractJSON(text)
 }
 
+// Só aceitamos URLs de download do nosso próprio Firebase Storage — o
+// cliente já fez upload autenticado antes de mandar a URL aqui. Isso evita
+// que o servidor vire um proxy de fetch para qualquer host (SSRF).
+const FIREBASE_STORAGE_URL_PREFIX = 'https://firebasestorage.googleapis.com/v0/b/'
+const MAX_PDF_BYTES = 20 * 1024 * 1024
+
 async function handlePdfDiet(payload, apiKey) {
-  const { pdfBase64 } = payload ?? {}
-  if (!pdfBase64) return null
+  const { pdfUrl } = payload ?? {}
+  if (!pdfUrl || typeof pdfUrl !== 'string' || !pdfUrl.startsWith(FIREBASE_STORAGE_URL_PREFIX)) return null
+
+  let pdfBase64
+  try {
+    const fileRes = await fetch(pdfUrl)
+    if (!fileRes.ok) return null
+    const contentLength = Number(fileRes.headers.get('content-length') ?? '0')
+    if (contentLength > MAX_PDF_BYTES) return null
+    const buffer = Buffer.from(await fileRes.arrayBuffer())
+    if (buffer.byteLength > MAX_PDF_BYTES) return null
+    pdfBase64 = buffer.toString('base64')
+  } catch {
+    return null
+  }
 
   const text = await callClaude({
     model: 'claude-haiku-4-5',
