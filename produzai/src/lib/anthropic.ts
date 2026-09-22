@@ -204,8 +204,8 @@ export async function estimateMealMacros(
 
 // ── PDF diet parsing ──────────────────────────────────────────────────────────
 
-export async function parsePdfDiet(pdfBase64: string): Promise<WebDietData | null> {
-  return callCompletion('pdf-diet', { pdfBase64 })
+export async function parsePdfDiet(pdfUrl: string): Promise<WebDietData | null> {
+  return callCompletion('pdf-diet', { pdfUrl })
 }
 
 // ── Onboarding plan generation ────────────────────────────────────────────────

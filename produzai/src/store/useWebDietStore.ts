@@ -39,7 +39,7 @@ export interface DietCompliance {
 
 interface WebDietState {
   data: WebDietData | null
-  pdfBase64: string | null
+  pdfUrl: string | null
   pdfName: string | null
   compliance: DietCompliance[]
   waterGoalMl: number
@@ -51,7 +51,7 @@ interface WebDietState {
   updateMeal: (id: string, data: Partial<Omit<WebDietMeal, 'id'>>) => void
   setData: (data: WebDietData | null) => void
   clear: () => void
-  setPdf: (base64: string, name: string) => void
+  setPdf: (url: string, name: string) => void
   removePdf: () => void
   logCompliance: (entry: DietCompliance) => void
   setWaterGoal: (ml: number) => void
@@ -65,7 +65,7 @@ export const useWebDietStore = create<WebDietState>()(
   persist(
     (set, get) => ({
       data: null,
-      pdfBase64: null,
+      pdfUrl: null,
       pdfName: null,
       compliance: [],
       waterGoalMl: DEFAULT_WATER_GOAL_ML,
@@ -119,8 +119,8 @@ export const useWebDietStore = create<WebDietState>()(
       setData: data => set({ data }),
 
       clear: () => set({ data: null }),
-      setPdf: (base64, name) => set({ pdfBase64: base64, pdfName: name }),
-      removePdf: () => set({ pdfBase64: null, pdfName: null }),
+      setPdf: (url, name) => set({ pdfUrl: url, pdfName: name }),
+      removePdf: () => set({ pdfUrl: null, pdfName: null }),
       logCompliance: entry =>
         set(s => ({
           compliance: [

@@ -1,14 +1,20 @@
 import { useState, useRef, useEffect, useContext } from 'react'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { storage } from '../../lib/firebase'
 import { T, C, type Page, displayStyle } from '../data'
 import { BarChart3, ClipboardList, Utensils, ShoppingCart } from 'lucide-react'
 import { Card, Tag, Bar, Dot } from '../primitives'
 import { useWebDietStore, type ComplianceStatus } from '../../store/useWebDietStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import { DietaModal } from '../DietaModal'
 import { LayoutContext } from '../LayoutContext'
 import { parsePdfDiet, estimateMealMacros } from '../../lib/anthropic'
 import { WaterCard } from '../components/WaterCard'
 import { ShoppingListModal } from '../components/ShoppingListModal'
 import { todayKey as localTodayKey } from '../../lib/date'
+import { toast } from '../../lib/toast'
+
+const MAX_DIET_PDF_SIZE = 20 * 1024 * 1024
 
 interface Props {
   setPage: (page: Page) => void
@@ -35,12 +41,13 @@ export function Dieta({ setPage: _setPage }: Props) {
 
   const wd          = useWebDietStore(s => s.data)
   const toggleMeal  = useWebDietStore(s => s.toggleMeal)
-  const pdfBase64   = useWebDietStore(s => s.pdfBase64)
+  const pdfUrl      = useWebDietStore(s => s.pdfUrl)
   const pdfName     = useWebDietStore(s => s.pdfName)
   const setPdf      = useWebDietStore(s => s.setPdf)
   const removePdf   = useWebDietStore(s => s.removePdf)
   const compliance  = useWebDietStore(s => s.compliance)
   const logCompliance = useWebDietStore(s => s.logCompliance)
+  const user        = useAuthStore(s => s.user)
 
   const setup      = useWebDietStore(s => s.setup)
   const updateMeal = useWebDietStore(s => s.updateMeal)
@@ -65,11 +72,11 @@ export function Dieta({ setPage: _setPage }: Props) {
   }
 
   async function handleImportPdf() {
-    if (!pdfBase64) return
+    if (!pdfUrl) return
     setParsing(true)
     setParseError(null)
     try {
-      const result = await parsePdfDiet(pdfBase64)
+      const result = await parsePdfDiet(pdfUrl)
       if (result) {
         setup(result.goals, result.meals)
       } else {
@@ -104,20 +111,29 @@ export function Dieta({ setPage: _setPage }: Props) {
     setPendingNote('')
   }
 
-  function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const [uploadingPdf, setUploadingPdf] = useState(false)
+
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file || !user) return
     e.target.value = ''
-    if (file.size > 5 * 1024 * 1024) {
-      alert('PDF muito grande. Tente um arquivo menor que 5MB.')
+    if (file.type !== 'application/pdf') { toast.error('Selecione um arquivo PDF'); return }
+    if (file.size > MAX_DIET_PDF_SIZE) {
+      toast.error('PDF muito grande. Tente um arquivo menor que 20MB.')
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      setPdf(result.split(',')[1], file.name)
+    setUploadingPdf(true)
+    try {
+      const storageRef = ref(storage, `users/${user.uid}/dietPdf`)
+      await uploadBytes(storageRef, file, { contentType: 'application/pdf' })
+      const url = await getDownloadURL(storageRef)
+      setPdf(url, file.name)
+    } catch (err) {
+      console.error('Diet PDF upload failed:', err)
+      toast.error('Erro ao enviar o PDF. Tente novamente.')
+    } finally {
+      setUploadingPdf(false)
     }
-    reader.readAsDataURL(file)
   }
 
   const doneMeals = wd?.meals.filter(m => m.done) ?? []
@@ -136,7 +152,7 @@ export function Dieta({ setPage: _setPage }: Props) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   })
 
-  const pdfSrc = pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : null
+  const pdfSrc = pdfUrl
 
   return (
     <>
@@ -168,8 +184,9 @@ export function Dieta({ setPage: _setPage }: Props) {
             )}
             <button
               onClick={() => fileInputRef.current?.click()}
-              style={{ background: pdfBase64 ? `${C.blue}22` : C.card2, border: `1px solid ${pdfBase64 ? C.blue : C.border2}`, borderRadius: T.radius.sm, padding: "8px 14px", color: pdfBase64 ? C.blue : C.text, fontSize: T.text.md, fontWeight: T.weight.semibold, cursor: "pointer" }}>
-              📎 {pdfBase64 ? 'Trocar PDF' : 'Anexar PDF'}
+              disabled={uploadingPdf}
+              style={{ background: pdfUrl ? `${C.blue}22` : C.card2, border: `1px solid ${pdfUrl ? C.blue : C.border2}`, borderRadius: T.radius.sm, padding: "8px 14px", color: pdfUrl ? C.blue : C.text, fontSize: T.text.md, fontWeight: T.weight.semibold, cursor: uploadingPdf ? "not-allowed" : "pointer", opacity: uploadingPdf ? 0.6 : 1 }}>
+              📎 {uploadingPdf ? 'Enviando...' : pdfUrl ? 'Trocar PDF' : 'Anexar PDF'}
             </button>
             {wd ? (
               <>
@@ -252,15 +269,15 @@ export function Dieta({ setPage: _setPage }: Props) {
           </Card>
         ) : (
           <div
-            onClick={() => fileInputRef.current?.click()}
-            style={{ display: "flex", alignItems: "center", gap: 12, border: `2px dashed ${C.border2}`, borderRadius: T.radius.lg, padding: "14px 20px", cursor: "pointer", transition: "border-color .15s", marginBottom: 16 }}
+            onClick={() => !uploadingPdf && fileInputRef.current?.click()}
+            style={{ display: "flex", alignItems: "center", gap: 12, border: `2px dashed ${C.border2}`, borderRadius: T.radius.lg, padding: "14px 20px", cursor: uploadingPdf ? "default" : "pointer", transition: "border-color .15s", marginBottom: 16, opacity: uploadingPdf ? 0.6 : 1 }}
             onMouseEnter={e => (e.currentTarget.style.borderColor = C.blue)}
             onMouseLeave={e => (e.currentTarget.style.borderColor = C.border2)}
           >
             <span style={{ fontSize: T.text['5xl'] }}>📎</span>
             <div>
-              <div style={{ fontWeight: T.weight.semibold, fontSize: T.text.md, color: C.text }}>Anexar plano alimentar em PDF</div>
-              <div style={{ fontSize: T.text.sm, color: C.muted }}>Clique para selecionar o PDF do seu nutricionista · máx. 5MB</div>
+              <div style={{ fontWeight: T.weight.semibold, fontSize: T.text.md, color: C.text }}>{uploadingPdf ? 'Enviando PDF...' : 'Anexar plano alimentar em PDF'}</div>
+              <div style={{ fontSize: T.text.sm, color: C.muted }}>Clique para selecionar o PDF do seu nutricionista · máx. 20MB</div>
             </div>
           </div>
         )}
