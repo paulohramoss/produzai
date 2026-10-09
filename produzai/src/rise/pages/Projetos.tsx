@@ -83,6 +83,22 @@ export function Projetos({ setPage: _s }: Props) {
     toast.success(`🎯 Projeto "${form.name}" criado!`)
   }
 
+  // Atalhos reutilizam o modelo de projetos já persistido, sem migração de banco.
+  const createGuidedProject = (kind: 'cycle' | 'experiment') => {
+    const days = kind === 'cycle' ? 90 : 14
+    const due = new Date()
+    due.setDate(due.getDate() + days)
+    const dueDate = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`
+    setForm({
+      name: kind === 'cycle' ? 'Minha meta de 90 dias' : 'Experimento de 14 dias',
+      description: kind === 'cycle'
+        ? 'Resultado desejado: | Indicador de sucesso: | Ações semanais:'
+        : 'Hipótese: | Hábito a testar: | Como vou avaliar o resultado:',
+      category: 'pessoal', progress: 0, priority: 'media', dueDate,
+    })
+    setModal(true)
+  }
+
   const remove = (id: string) => {
     const p = projects.find(x => x.id === id)
     persist(projects.filter(x => x.id !== id))
@@ -189,6 +205,17 @@ export function Projetos({ setPage: _s }: Props) {
             className="cursor-pointer rounded-md border-none bg-brand-500 px-[18px] py-2.5 text-md font-bold text-white"
           >
             + Novo Projeto
+          </button>
+        </div>
+
+        <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr' }}>
+          <button type="button" onClick={() => createGuidedProject('cycle')} className="cursor-pointer rounded-xl border border-surface-border bg-surface-card p-4 text-left text-fg-primary">
+            <div className="mb-1 text-lg font-bold">🎯 Ciclo de 90 dias</div>
+            <div className="text-md text-fg-muted">Defina um resultado, um indicador e ações semanais.</div>
+          </button>
+          <button type="button" onClick={() => createGuidedProject('experiment')} className="cursor-pointer rounded-xl border border-surface-border bg-surface-card p-4 text-left text-fg-primary">
+            <div className="mb-1 text-lg font-bold">🧪 Experimento de 14 dias</div>
+            <div className="text-md text-fg-muted">Teste uma mudança de rotina e avalie o resultado.</div>
           </button>
         </div>
 
