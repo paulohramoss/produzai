@@ -99,6 +99,18 @@ export function Hoje({ setPage }: Props) {
   const pendingIds = pendingIdsFor(habitDefs, history, todayKey)
   const dayStreak = computeDayStreak(habitDefs, history)
 
+  const reviewDays = lastNDays(7)
+  const completedWeek = reviewDays.reduce((sum, date) => sum + (history[date]?.habits?.filter(h => h.done).length ?? 0), 0)
+  const plannedWeek = reviewDays.reduce((sum, date) => sum + (history[date]?.habits?.length ?? 0), 0)
+  const consistencyWeek = plannedWeek ? Math.round(100 * completedWeek / plannedWeek) : null
+  const reviewMessage = consistencyWeek === null
+    ? 'Marque seus hábitos ao longo da semana para descobrir seus padrões.'
+    : consistencyWeek >= 80
+      ? 'Você manteve uma boa regularidade. O próximo passo é preservar uma rotina sustentável.'
+      : consistencyWeek >= 50
+        ? 'Você já construiu uma base. Qual pequena mudança facilitaria a próxima semana?'
+        : 'Simplifique suas metas. Um compromisso realista vale mais do que uma lista impossível.'
+
   const doneHabits = habits.filter(h => h.done).length
   const totalFocus = focus.filter(f => f.text).length
   const doneFocus  = focus.filter(f => f.done && f.text).length
@@ -293,6 +305,24 @@ export function Hoje({ setPage }: Props) {
               </div>
             </Card>
           )}
+
+          <Card style={{ marginBottom: 16, borderTop: `2px solid ${C.orange}` }}>
+            <div style={{ fontSize: T.text.xs, color: C.orange, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Revisão semanal</div>
+            <div style={{ fontSize: T.text['3xl'], fontWeight: 700, margin: '8px 0', ...displayStyle }}>Consistência é continuar.</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+              <strong style={{ color: C.orange, fontSize: T.text['6xl'] }}>{consistencyWeek === null ? '—' : `${consistencyWeek}%`}</strong>
+              <span style={{ color: C.muted, fontSize: T.text.sm }}>{completedWeek} de {plannedWeek} hábitos concluídos nos últimos 7 dias</span>
+            </div>
+            <div style={{ display: 'flex', gap: 5, margin: '14px 0 10px' }}>
+              {reviewDays.map(date => {
+                const day = history[date]
+                const total = day?.habits?.length ?? 0
+                const done = day?.habits?.filter(h => h.done).length ?? 0
+                return <div key={date} title={`${date}: ${done} de ${total}`} style={{ flex: 1, height: 7, borderRadius: 5, background: total ? (done === total ? C.green : done ? C.orange : C.border2) : C.card2 }} />
+              })}
+            </div>
+            <p style={{ color: C.muted2, fontSize: T.text.md, lineHeight: 1.6, margin: '10px 0 0' }}>{historyLoading ? 'Carregando sua semana…' : reviewMessage}</p>
+          </Card>
 
           <RemindersCard prefs={reminderPrefs} onChange={setReminderPrefs} />
         </div>
