@@ -14,6 +14,7 @@ import {
   getMonthWorkouts, getMonthKey,
 } from '../../lib/xp'
 import { ShareCard } from '../components/ShareCard'
+import { WeeklyPerformance } from '../components/WeeklyPerformance'
 import { ChallengeCard } from '../components/ChallengeCard'
 import { ClubCard } from '../components/ClubCard'
 import { buildInviteLink } from '../../lib/attribution'
@@ -169,6 +170,8 @@ export function Dashboard({ setPage }: Props) {
           </button>
         </div>
       </div>
+
+      <WeeklyPerformance onOpenToday={() => setPage('hoje')} onOpenAgenda={() => setPage('agenda')} />
 
       {/* KPI grid */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
