@@ -113,7 +113,7 @@ export function Landing({ onEnter }: Props) {
           fontSize: T.text.sm, color: C.muted2,
         }}>
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.green }} />
-          Treino, dieta e cabeça no mesmo lugar
+          Treino, hábitos e evolução no mesmo lugar
         </div>
 
         <h1 style={{
@@ -123,17 +123,15 @@ export function Landing({ onEnter }: Props) {
           margin: '0 0 20px',
           ...displayStyle,
         }}>
-          Pare de treinar<br />
-          <span style={{ color: C.orange }}>no escuro.</span>
+          Seus objetivos merecem<br />
+          <span style={{ color: C.orange }}>um sistema.</span>
         </h1>
 
         <p style={{
           fontSize: isMobile ? T.text['3xl'] : T.text['5xl'],
           color: C.muted2, lineHeight: 1.55, margin: '0 auto 32px', maxWidth: 620,
         }}>
-          Todo mundo registra treino. Quase ninguém sabe o que fazer com o registro.
-          O The Rise Plan transforma o seu histórico em decisão: qual carga puxar hoje,
-          o que comprar no mercado e quando descansar.
+          Você não precisa de mais uma lista de tarefas. Transforme seus hábitos, treinos e escolhas diárias em um plano que você consegue acompanhar. O The Rise Plan reúne organização e performance para ajudar você a enxergar sua evolução.
         </p>
 
         <div style={{
@@ -264,12 +262,12 @@ export function Landing({ onEnter }: Props) {
           fontSize: isMobile ? T.text['6xl'] : 30, fontWeight: T.weight.extrabold,
           textAlign: 'center', marginBottom: 28, ...displayStyle,
         }}>
-          Do zero ao primeiro treino em 3 telas
+          Da intenção ao primeiro passo
         </div>
         {[
-          'Diz o seu objetivo — perder peso, ganhar massa, ter energia.',
-          'Confere as metas que o app calcula a partir do seu corpo.',
-          'Escolhe os hábitos que quer sustentar. Pronto, já dá pra treinar.',
+          'Escolha o que quer melhorar — saúde, disciplina ou performance.',
+          'Monte seu plano inicial com metas ajustáveis à sua realidade.',
+          'Comece a registrar seus hábitos e acompanhe sua evolução.',
         ].map((step, i) => (
           <div key={i} style={{
             display: 'flex', gap: 14, alignItems: 'flex-start',
