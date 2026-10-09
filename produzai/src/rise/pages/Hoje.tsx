@@ -25,6 +25,7 @@ interface Props { setPage: (p: Page) => void }
 
 /** Janela de histórico usada pelas sequências — cobre streaks longas sem pesar. */
 const STREAK_WINDOW_DAYS = 60
+function doneHabitsToday(day?: DailyData) { return (day?.habits?.filter(h => h.done).length ?? 0) + (day?.focus?.filter(f => f.done).length ?? 0) }
 
 export function Hoje({ setPage }: Props) {
   const todayKey   = localTodayKey()
@@ -110,6 +111,15 @@ export function Hoje({ setPage }: Props) {
       : consistencyWeek >= 50
         ? 'Você já construiu uma base. Qual pequena mudança facilitaria a próxima semana?'
         : 'Simplifique suas metas. Um compromisso realista vale mais do que uma lista impossível.'
+
+  const lastActiveDate = lastNDays(15).slice(0, -1).reverse().find(date => {
+    const record = history[date]
+    return Boolean(record?.habits?.some(h => h.done) || record?.focus?.some(f => f.done))
+  })
+  const daysSinceActive = lastActiveDate
+    ? Math.round((new Date(todayKey + 'T12:00:00').getTime() - new Date(lastActiveDate + 'T12:00:00').getTime()) / 86400000)
+    : null
+  const showRestart = !historyLoading && daysSinceActive !== null && daysSinceActive >= 4 && doneHabitsToday(history[todayKey]) === 0
 
   const doneHabits = habits.filter(h => h.done).length
   const totalFocus = focus.filter(f => f.text).length
@@ -197,6 +207,22 @@ export function Hoje({ setPage }: Props) {
         </div>
       </div>
 
+      <Card style={{ marginBottom: 16, borderLeft: `3px solid ${C.orange}` }}>
+        <div style={{ fontSize: T.text.xs, color: C.orange, fontWeight: 700, letterSpacing: 1 }}>SEU BRIEF DO DIA</div>
+        <div style={{ fontSize: T.text['2xl'], fontWeight: 700, margin: '7px 0' }}>O que faz hoje valer a pena?</div>
+        <div style={{ fontSize: T.text.md, color: C.muted2, lineHeight: 1.6 }}>
+          {focus.find(f => f.text.trim() && !f.done)?.text || habits.find(h => !h.done)?.label || 'Comece definindo sua prioridade no checklist.'}
+        </div>
+        <div style={{ fontSize: T.text.sm, color: C.muted, marginTop: 10 }}>{focus.filter(f => f.text.trim() && !f.done).length} prioridades e {habits.filter(h => !h.done).length} hábitos pendentes</div>
+        <button onClick={() => setOneThingOpen(true)} style={{ marginTop: 12, background: C.orange, border: 'none', color: '#fff', borderRadius: 8, padding: '9px 14px', fontWeight: 700, cursor: 'pointer' }}>Começar por uma coisa</button>
+      </Card>
+      {showRestart && (
+        <Card style={{ marginBottom: 16, border: `1px solid ${C.green}66` }}>
+          <div style={{ fontWeight: 700, color: C.green, fontSize: T.text.lg }}>Recomeçar também é evoluir.</div>
+          <p style={{ color: C.muted2, fontSize: T.text.md, lineHeight: 1.6 }}>Você ficou alguns dias sem registrar atividades. Seu progresso continua aqui. Escolha uma única ação possível hoje, sem tentar compensar os dias anteriores.</p>
+          <button onClick={() => setOneThingOpen(true)} style={{ background: C.green, border: 'none', color: '#111', borderRadius: 8, padding: '9px 14px', fontWeight: 700, cursor: 'pointer' }}>Retomar com uma ação</button>
+        </Card>
+      )}
       {/* Prontidão: primeira coisa do dia, antes de decidir o treino */}
       <div style={{ marginBottom: 16 }}>
         <ReadinessCard entry={readiness} onSaved={setReadiness} />
